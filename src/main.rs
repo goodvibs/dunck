@@ -15,6 +15,7 @@ mod magic;
 mod state;
 mod manual_attacks;
 mod r#move;
+mod squares;
 
 fn main() {
     // let cb: Charboard = [
@@ -43,19 +44,22 @@ fn main() {
     // pprint_bb(attacks);
 
     let mut game = State::initial();
-    game.board.wp = 0;
-    println!("Game state:");
-    game.board.print();
-    println!();
-    let moves = game.get_moves();
-    for mv in moves {
-        let (src_sq, dst_sq, flag) = mv.unpack();
-        let src = 1 << (63 - src_sq);
-        let dst = 1 << (63 - dst_sq);
-        println!("source: {}", src_sq);
-        pprint_bb(src);
-        println!("destination: {}", dst_sq);
-        pprint_bb(dst);
+    loop {
+        println!("Game state:");
+        game.board.print();
+        println!();
+        let moves = game.get_moves();
+        for (i, mv) in moves.iter().enumerate() {
+            let (from, to, info) = mv.to_readable();
+            println!("{}: {}{} {}", i, from, to, info);
+        }
+        println!();
+        println!("Which move?");
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input).unwrap();
+        let input = input.trim();
+        let mv = moves[input.parse::<usize>().unwrap()];
+        game.play_move(mv);
         println!();
     }
 }
