@@ -131,7 +131,99 @@ impl State {
                 }
             },
             Color::Black => {
-                // TODO: implement
+                // knight moves
+                let knight_srcs = unpack_bb(self.board.bn);
+                for src in knight_srcs {
+                    let knight_moves = knight_attacks(src) & !black_occ;
+                    for dst in unpack_bb(knight_moves) {
+                        moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), KNIGHT_MOVE_FLAG));
+                    }
+                }
+                // bishop moves
+                let bishop_srcs = unpack_bb(self.board.bb);
+                for src in bishop_srcs {
+                    let bishop_moves = bishop_attacks(src, all_occ) & !black_occ;
+                    for dst in unpack_bb(bishop_moves) {
+                        moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), BISHOP_MOVE_FLAG));
+                    }
+                }
+                // rook moves
+                let rook_srcs = unpack_bb(self.board.br);
+                for src in rook_srcs {
+                    let rook_moves = rook_attacks(src, all_occ) & !black_occ;
+                    for dst in unpack_bb(rook_moves) {
+                        moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), ROOK_MOVE_FLAG));
+                    }
+                }
+                // queen moves
+                let queen_srcs = unpack_bb(self.board.bq);
+                for src in queen_srcs {
+                    let queen_moves = (rook_attacks(src, all_occ) | bishop_attacks(src, all_occ)) & !black_occ;
+                    for dst in unpack_bb(queen_moves) {
+                        moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), QUEEN_MOVE_FLAG));
+                    }
+                }
+                // pawn pushes
+                let pawn_srcs = unpack_bb(self.board.bp);
+                for src in pawn_srcs.iter() {
+                    let single_move_dst = pawn_moves(*src, Color::Black) & !all_occ;
+                    if single_move_dst == 0 {
+                        continue;
+                    }
+                    // double moves
+                    if single_move_dst & RANK_6 != 0 {
+                        let double_move_dst = pawn_moves(single_move_dst, Color::Black) & !all_occ;
+                        if double_move_dst != 0 {
+                            moves.push(Move::new(src.leading_zeros(), double_move_dst.leading_zeros(), PAWN_DOUBLE_MOVE_FLAG));
+                        }
+                    }
+                    else if single_move_dst & RANK_1 != 0 { // promotion
+                        moves.push(Move::new(src.leading_zeros(), single_move_dst.leading_zeros(), PROMOTE_TO_QUEEN_FLAG));
+                        moves.push(Move::new(src.leading_zeros(), single_move_dst.leading_zeros(), PROMOTE_TO_KNIGHT_FLAG));
+                        moves.push(Move::new(src.leading_zeros(), single_move_dst.leading_zeros(), PROMOTE_TO_ROOK_FLAG));
+                        moves.push(Move::new(src.leading_zeros(), single_move_dst.leading_zeros(), PROMOTE_TO_BISHOP_FLAG));
+                        continue;
+                    }
+                    moves.push(Move::new(src.leading_zeros(), single_move_dst.leading_zeros(), PAWN_MOVE_FLAG));
+                }
+                // pawn captures
+                for src in pawn_srcs {
+                    let captures = pawn_attacks(src, Color::Black) & white_occ;
+                    for dst in unpack_bb(captures) {
+                        if dst & RANK_1 != 0 {
+                            moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), PROMOTE_TO_QUEEN_FLAG));
+                            moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), PROMOTE_TO_KNIGHT_FLAG));
+                            moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), PROMOTE_TO_ROOK_FLAG));
+                            moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), PROMOTE_TO_BISHOP_FLAG));
+                        }
+                        else {
+                            moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), PAWN_MOVE_FLAG));
+                        }
+                    }
+                }
+                let king_src = self.board.bk;
+                let mut white_attacks = knight_attacks(self.board.wn) |
+                    king_attacks(self.board.wk) |
+                    pawn_attacks(self.board.wp, Color::White);
+                for src in unpack_bb(self.board.wb) {
+                    white_attacks |= bishop_attacks(src, all_occ);
+                }
+                for src in unpack_bb(self.board.wr) {
+                    white_attacks |= rook_attacks(src, all_occ);
+                }
+                for src in unpack_bb(self.board.wq) {
+                    white_attacks |= bishop_attacks(src, all_occ) | rook_attacks(src, all_occ);
+                }
+                let king_moves = king_attacks(king_src) & !black_occ & !white_attacks;
+                for dst in unpack_bb(king_moves) {
+                    moves.push(Move::new(king_src.leading_zeros(), dst.leading_zeros(), KING_MOVE_FLAG));
+                }
+                if self.bk_castle && ((black_occ | white_attacks) & WHITE_CASTLE_SHORT == 0) {
+                    moves.push(Move::new(king_src.leading_zeros(), (king_src >> 2).leading_zeros(), CASTLE_FLAG));
+                }
+                if self.bq_castle && ((black_occ | white_attacks) & WHITE_CASTLE_LONG == 0) {
+                    moves.push(Move::new(king_src.leading_zeros(), (king_src << 2).leading_zeros(), CASTLE_FLAG));
+                }
             }
         }
         moves
