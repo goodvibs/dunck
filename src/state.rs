@@ -343,7 +343,78 @@ impl State {
                 self.turn = Color::Black;
             },
             Color::Black => {
-                // TODO: implement
+                self.board.wp &= !dst;
+                self.board.wn &= !dst;
+                self.board.wb &= !dst;
+                self.board.wr &= !dst;
+                self.board.wq &= !dst;
+                match flag {
+                    KNIGHT_MOVE_FLAG => {
+                        self.board.bn ^= src_dst;
+                        self.double_pawn_push = -1;
+                    },
+                    BISHOP_MOVE_FLAG => {
+                        self.board.bb ^= src_dst;
+                        self.double_pawn_push = -1;
+                    },
+                    ROOK_MOVE_FLAG => {
+                        self.board.br ^= src_dst;
+                        self.double_pawn_push = -1;
+                    },
+                    QUEEN_MOVE_FLAG => {
+                        self.board.bq ^= src_dst;
+                        self.double_pawn_push = -1;
+                    },
+                    KING_MOVE_FLAG => {
+                        self.board.bk ^= src_dst;
+                        self.double_pawn_push = -1;
+                    },
+                    PAWN_MOVE_FLAG | EN_PASSANT_FLAG => {
+                        self.board.bp ^= src_dst;
+                        self.double_pawn_push = -1;
+                    },
+                    PAWN_DOUBLE_MOVE_FLAG => {
+                        self.board.bp ^= src_dst;
+                        self.double_pawn_push = (src_sq % 8) as i8;
+                    },
+                    PROMOTE_TO_QUEEN_FLAG => {
+                        self.board.bq |= dst;
+                        self.board.bp &= !src;
+                        self.double_pawn_push = -1;
+                    },
+                    PROMOTE_TO_KNIGHT_FLAG => {
+                        self.board.bn |= dst;
+                        self.board.bp &= !src;
+                        self.double_pawn_push = -1;
+                    },
+                    PROMOTE_TO_ROOK_FLAG => {
+                        self.board.br |= dst;
+                        self.board.bp &= !src;
+                        self.double_pawn_push = -1;
+                    },
+                    PROMOTE_TO_BISHOP_FLAG => {
+                        self.board.bb |= dst;
+                        self.board.bp &= !src;
+                        self.double_pawn_push = -1;
+                    },
+                    CASTLE_FLAG => {
+                        self.board.bk &= !0x08;
+                        if dst == src >> 2 { // short castle
+                            self.board.br &= !0x01;
+                            self.board.br |= 0x04;
+                            self.board.bk |= 0x02;
+                        }
+                        else if dst == src << 2 { // long castle
+                            self.board.br &= !0x80;
+                            self.board.br |= 0x10;
+                            self.board.bk |= 0x20;
+                        }
+                        self.double_pawn_push = -1;
+                    },
+                    _ => {
+                        panic!("invalid move flag");
+                    }
+                }
                 self.turn = Color::White;
             }
         }
