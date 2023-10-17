@@ -11,6 +11,7 @@ pub struct State {
     pub bk_castle: bool,
     pub bq_castle: bool,
     pub in_check: bool,
+    pub double_pawn_push: i8, // file of double pawn push, if any, else -1
     pub turn: Color,
     pub ply: u16
 }
@@ -24,6 +25,7 @@ impl State {
             bk_castle: true,
             bq_castle: true,
             in_check: false,
+            double_pawn_push: -1,
             turn: Color::White,
             ply: 0
         }
@@ -103,6 +105,21 @@ impl State {
                         }
                         else {
                             moves.push(Move::new(src.leading_zeros(), dst.leading_zeros(), PAWN_MOVE_FLAG));
+                        }
+                    }
+                }
+                // en passant
+                if self.double_pawn_push != -1 {
+                    if self.double_pawn_push != 0 {
+                        let left_mask = FILE_A >> self.double_pawn_push - 1;
+                        if self.board.wp & left_mask & RANK_5 != 0 {
+                            moves.push(Move::new((24 + self.double_pawn_push - 1) as u32, (16 + self.double_pawn_push) as u32, EN_PASSANT_FLAG));
+                        }
+                    }
+                    if self.double_pawn_push != 7 {
+                        let right_mask = FILE_A >> self.double_pawn_push + 1;
+                        if self.board.wp & right_mask & RANK_5 != 0 {
+                            moves.push(Move::new((24 + self.double_pawn_push + 1) as u32, (16 + self.double_pawn_push) as u32, EN_PASSANT_FLAG));
                         }
                     }
                 }
@@ -201,6 +218,21 @@ impl State {
                         }
                     }
                 }
+                // en passant
+                if self.double_pawn_push != -1 {
+                    if self.double_pawn_push != 0 {
+                        let left_mask = FILE_A >> self.double_pawn_push - 1;
+                        if self.board.wp & left_mask & RANK_4 != 0 {
+                            moves.push(Move::new((32 + self.double_pawn_push - 1) as u32, (40 + self.double_pawn_push) as u32, EN_PASSANT_FLAG));
+                        }
+                    }
+                    if self.double_pawn_push != 7 {
+                        let right_mask = FILE_A >> self.double_pawn_push + 1;
+                        if self.board.wp & right_mask & RANK_4 != 0 {
+                            moves.push(Move::new((32 + self.double_pawn_push + 1) as u32, (40 + self.double_pawn_push) as u32, EN_PASSANT_FLAG));
+                        }
+                    }
+                }
                 let king_src = self.board.bk;
                 let mut white_attacks = knight_attacks(self.board.wn) |
                     king_attacks(self.board.wk) |
@@ -244,37 +276,51 @@ impl State {
                 match flag {
                     KNIGHT_MOVE_FLAG => {
                         self.board.wn ^= src_dst;
+                        self.double_pawn_push = -1;
                     },
                     BISHOP_MOVE_FLAG => {
                         self.board.wb ^= src_dst;
+                        self.double_pawn_push = -1;
                     },
                     ROOK_MOVE_FLAG => {
                         self.board.wr ^= src_dst;
+                        self.double_pawn_push = -1;
                     },
                     QUEEN_MOVE_FLAG => {
                         self.board.wq ^= src_dst;
+                        self.double_pawn_push = -1;
                     },
                     KING_MOVE_FLAG => {
                         self.board.wk ^= src_dst;
+                        self.double_pawn_push = -1;
                     },
-                    PAWN_MOVE_FLAG | PAWN_DOUBLE_MOVE_FLAG | EN_PASSANT_FLAG => {
+                    PAWN_MOVE_FLAG | EN_PASSANT_FLAG => {
                         self.board.wp ^= src_dst;
+                        self.double_pawn_push = -1;
+                    },
+                    PAWN_DOUBLE_MOVE_FLAG => {
+                        self.board.wp ^= src_dst;
+                        self.double_pawn_push = (src_sq % 8) as i8;
                     },
                     PROMOTE_TO_QUEEN_FLAG => {
                         self.board.wq |= dst;
                         self.board.wp &= !src;
+                        self.double_pawn_push = -1;
                     },
                     PROMOTE_TO_KNIGHT_FLAG => {
                         self.board.wn |= dst;
                         self.board.wp &= !src;
+                        self.double_pawn_push = -1;
                     },
                     PROMOTE_TO_ROOK_FLAG => {
                         self.board.wr |= dst;
                         self.board.wp &= !src;
+                        self.double_pawn_push = -1;
                     },
                     PROMOTE_TO_BISHOP_FLAG => {
                         self.board.wb |= dst;
                         self.board.wp &= !src;
+                        self.double_pawn_push = -1;
                     },
                     CASTLE_FLAG => {
                         self.board.wk &= !0x08;
@@ -288,15 +334,19 @@ impl State {
                             self.board.wr |= 0x10;
                             self.board.wk |= 0x20;
                         }
+                        self.double_pawn_push = -1;
                     },
                     _ => {
                         panic!("invalid move flag");
                     }
                 }
+                self.turn = Color::Black;
             },
             Color::Black => {
                 // TODO: implement
+                self.turn = Color::White;
             }
         }
+        self.ply += 1;
     }
 }
