@@ -250,10 +250,10 @@ impl State {
                 for dst in unpack_bb(king_moves) {
                     moves.push(Move::new(king_src.leading_zeros(), dst.leading_zeros(), KING_MOVE_FLAG));
                 }
-                if self.bk_castle && ((black_occ | white_attacks) & WHITE_CASTLE_SHORT == 0) {
+                if self.bk_castle && ((black_occ | white_attacks) & BLACK_CASTLE_SHORT == 0) {
                     moves.push(Move::new(king_src.leading_zeros(), (king_src >> 2).leading_zeros(), CASTLE_FLAG));
                 }
-                if self.bq_castle && ((black_occ | white_attacks) & WHITE_CASTLE_LONG == 0) {
+                if self.bq_castle && ((black_occ | white_attacks) & BLACK_CASTLE_LONG == 0) {
                     moves.push(Move::new(king_src.leading_zeros(), (king_src << 2).leading_zeros(), CASTLE_FLAG));
                 }
             }
@@ -402,15 +402,15 @@ impl State {
                     CASTLE_FLAG => {
                         self.board.bk &= !0x08;
                         if dst == src >> 2 { // short castle
-                            self.board.br &= !0x01;
-                            self.board.br |= 0x04;
-                            self.board.bk |= 0x02;
+                            self.board.br &= !(0x01 << 56);
+                            self.board.br |= 0x04 << 56;
+                            self.board.bk |= 0x02 << 56;
                             self.bk_castle = false;
                         }
                         else if dst == src << 2 { // long castle
-                            self.board.br &= !0x80;
-                            self.board.br |= 0x10;
-                            self.board.bk |= 0x20;
+                            self.board.br &= !(0x80 << 56);
+                            self.board.br |= 0x10 << 56;
+                            self.board.bk |= 0x20 << 56;
                             self.bq_castle = false;
                         }
                         self.double_pawn_push = -1;
