@@ -52,22 +52,23 @@ impl Board {
     }
 
     pub fn from_cb(cb: Charboard) -> Board {
-        let mut board = Board::initial();
+        let mut board = Board::blank();
         for (i, row) in cb.iter().enumerate() {
             for (j, &piece) in row.iter().enumerate() {
+                let loc = 1 << (63 - i * 8 - j);
                 match piece {
-                    'P' => board.wp |= 1 << (i * 8 + j),
-                    'N' => board.wn |= 1 << (i * 8 + j),
-                    'B' => board.wb |= 1 << (i * 8 + j),
-                    'R' => board.wr |= 1 << (i * 8 + j),
-                    'Q' => board.wq |= 1 << (i * 8 + j),
-                    'K' => board.wk |= 1 << (i * 8 + j),
-                    'p' => board.bp |= 1 << (i * 8 + j),
-                    'n' => board.bn |= 1 << (i * 8 + j),
-                    'b' => board.bb |= 1 << (i * 8 + j),
-                    'r' => board.br |= 1 << (i * 8 + j),
-                    'q' => board.bq |= 1 << (i * 8 + j),
-                    'k' => board.bk |= 1 << (i * 8 + j),
+                    'P' => board.wp |= loc,
+                    'N' => board.wn |= loc,
+                    'B' => board.wb |= loc,
+                    'R' => board.wr |= loc,
+                    'Q' => board.wq |= loc,
+                    'K' => board.wk |= loc,
+                    'p' => board.bp |= loc,
+                    'n' => board.bn |= loc,
+                    'b' => board.bb |= loc,
+                    'r' => board.br |= loc,
+                    'q' => board.bq |= loc,
+                    'k' => board.bk |= loc,
                     _ => ()
                 }
             }

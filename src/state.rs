@@ -220,15 +220,15 @@ impl State {
                 }
                 // en passant
                 if self.double_pawn_push != -1 {
-                    if self.double_pawn_push != 0 {
+                    if self.double_pawn_push != 0 { // if not on file A
                         let left_mask = FILE_A >> self.double_pawn_push - 1;
-                        if self.board.wp & left_mask & RANK_4 != 0 {
+                        if self.board.bp & left_mask & RANK_4 != 0 {
                             moves.push(Move::new((32 + self.double_pawn_push - 1) as u32, (40 + self.double_pawn_push) as u32, EN_PASSANT_FLAG));
                         }
                     }
-                    if self.double_pawn_push != 7 {
+                    if self.double_pawn_push != 7 { // if not on file H
                         let right_mask = FILE_A >> self.double_pawn_push + 1;
-                        if self.board.wp & right_mask & RANK_4 != 0 {
+                        if self.board.bp & right_mask & RANK_4 != 0 {
                             moves.push(Move::new((32 + self.double_pawn_push + 1) as u32, (40 + self.double_pawn_push) as u32, EN_PASSANT_FLAG));
                         }
                     }
@@ -328,11 +328,13 @@ impl State {
                             self.board.wr &= !0x01;
                             self.board.wr |= 0x04;
                             self.board.wk |= 0x02;
+                            self.wk_castle = false;
                         }
                         else if dst == src << 2 { // long castle
                             self.board.wr &= !0x80;
                             self.board.wr |= 0x10;
                             self.board.wk |= 0x20;
+                            self.wq_castle = false;
                         }
                         self.double_pawn_push = -1;
                     },
@@ -403,11 +405,13 @@ impl State {
                             self.board.br &= !0x01;
                             self.board.br |= 0x04;
                             self.board.bk |= 0x02;
+                            self.bk_castle = false;
                         }
                         else if dst == src << 2 { // long castle
                             self.board.br &= !0x80;
                             self.board.br |= 0x10;
                             self.board.bk |= 0x20;
+                            self.bq_castle = false;
                         }
                         self.double_pawn_push = -1;
                     },
