@@ -31,6 +31,33 @@ impl State {
         }
     }
 
+    pub fn from_pgn(pgn: &str) -> State {
+        let mut state = State::initial();
+        let mut move_strs = pgn.split_whitespace();
+        while let Some(move_str) = move_strs.next() {
+            if move_str.starts_with('[',) {
+                continue;
+            }
+            // let moves = state.get_moves();
+            if move_str.ends_with('.') {
+                continue;
+            }
+            let move_str_start: usize;
+            let period_index = move_str.find('.');
+            if period_index.is_some() {
+                move_str_start = period_index.unwrap() + 1;
+            }
+            else {
+                move_str_start = 0;
+            }
+            let code_str = move_str.matches("[+#]*");
+            assert!(code_str.len() == 1);
+            let dst_str = &move_str[move_str.len() - 2..];
+            let src_str = &move_str[move_str_start..move_str_start + 2];
+        }
+        state
+    }
+
     pub fn get_moves(&self) -> Vec<Move> {
         let white_occ = self.board.white();
         let black_occ = self.board.black();
