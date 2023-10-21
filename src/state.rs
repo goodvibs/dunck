@@ -31,31 +31,64 @@ impl State {
         }
     }
 
-    pub fn from_pgn(pgn: &str) -> State {
-        let mut state = State::initial();
-        let mut move_strs = pgn.split_whitespace();
-        while let Some(move_str) = move_strs.next() {
-            if move_str.starts_with('[',) {
-                continue;
-            }
-            // let moves = state.get_moves();
-            if move_str.ends_with('.') {
-                continue;
-            }
-            let move_str_start: usize;
-            let period_index = move_str.find('.');
-            if period_index.is_some() {
-                move_str_start = period_index.unwrap() + 1;
-            }
-            else {
-                move_str_start = 0;
-            }
-            let code_str = move_str.matches("[+#]*");
-            assert!(code_str.len() == 1);
-            let dst_str = &move_str[move_str.len() - 2..];
-            let src_str = &move_str[move_str_start..move_str_start + 2];
+    pub fn from_pgn(pgn: &str) -> (State, Vec<Move>) {
+        enum ParseState {
+            MoveNum,
+            Move
         }
-        state
+
+        let mut state = State::initial();
+        let mut moves: Vec<Move> = Vec::new();
+        let mut move_num_str = String::new();
+        let mut move_str = String::new();
+        let mut parse_state = ParseState::MoveNum;
+        for c in pgn.chars() {
+            match parse_state {
+                ParseState::MoveNum => {
+                    if c.is_ascii_whitespace() && move_num_str.is_empty() {
+                        continue;
+                    }
+                    else if c == '.' {
+                        assert_eq!(move_num_str.parse::<u16>().unwrap(), state.ply / 2 + 1);
+                        parse_state = ParseState::Move;
+                    }
+                    else {
+                        move_num_str.push(c);
+                    }
+                },
+                ParseState::Move => {
+                    if c.is_ascii_whitespace() {
+                        if move_str.is_empty() {
+                            continue;
+                        }
+                        let possible_moves = state.get_moves();
+                        let mut matched_move: Option<Move> = None;
+                        for mv in possible_moves {
+                            if mv.matches(&move_str) {
+                                if matched_move.is_some() {
+                                    panic!("ambiguous move: {}", move_str);
+                                }
+                                matched_move = Some(mv);
+                                if state.turn == Color::White {
+                                    parse_state = ParseState::MoveNum;
+                                }
+                            }
+                        }
+                        match matched_move {
+                            Some(mv) => {
+                                moves.push(mv);
+                                state.play_move(mv);
+                            },
+                            None => panic!("invalid move: {}", move_str)
+                        }
+                    }
+                    else {
+                        move_str.push(c);
+                    }
+                }
+            }
+        }
+        (state, moves)
     }
 
     pub fn get_moves(&self) -> Vec<Move> {

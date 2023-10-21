@@ -1,11 +1,13 @@
 pub type Bitboard = u64;
 pub type Charboard = [[char; 8]; 8];
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Color {
     White,
     Black
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Piece {
     Pawn,
     Knight,

@@ -59,4 +59,45 @@ impl Move {
         };
         (src_str, dst_str, flag_str)
     }
+
+    pub fn matches(&self, move_str: &str) -> bool {
+        if move_str.len() < 2 {
+            return false;
+        }
+        let (src_str, dst_str, flag_str) = self.to_readable();
+        if move_str == "0-0" {
+            return flag_str == "castling" && dst_str.starts_with('g');
+        }
+        if move_str == "0-0-0" {
+            return flag_str == "castling" && dst_str.starts_with('c');
+        }
+        let bytes = move_str.as_bytes();
+        let mut end = move_str.len() - move_str.ends_with(r"[+#]") as usize;
+        if bytes[end - 1].is_ascii_uppercase() {
+            if flag_str != "P to ?".replace('?', &move_str[end - 1..end]) {
+                return false;
+            }
+            end -= (bytes[end - 2] == b'=') as usize;
+        }
+        let is_capture = move_str.contains('x');
+        if &move_str[end - 3..end] != dst_str {
+            return false;
+        }
+        let is_piece_move = bytes[0].is_ascii_uppercase();
+        if is_piece_move {
+            if flag_str != &move_str[0..1] {
+                return false;
+            }
+        }
+        else {
+            if !flag_str.contains('P') {
+                return false;
+            }
+        }
+        return match end - is_piece_move as usize - is_capture as usize {
+            2 => true,
+            3 => src_str.contains(bytes[is_piece_move as usize] as char),
+            _ => false
+        }
+    }
 }
