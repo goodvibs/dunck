@@ -64,24 +64,28 @@ fn main() {
     //     println!();
     // }
 
-    let cb: Charboard = [
-        ['r', 'n', ' ', ' ', 'k', ' ', ' ', 'r'],
-        ['p', ' ', ' ', ' ', 'p', ' ', ' ', ' '],
-        [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-        [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-        [' ', ' ', ' ', ' ', ' ', ' ', 'P', 'p'],
-        [' ', 'B', ' ', ' ', ' ', ' ', ' ', ' '],
-        ['P', ' ', ' ', ' ', 'P', ' ', ' ', 'P'],
-        ['R', 'N', 'B', ' ', 'K', ' ', ' ', 'R']
-    ];
-    let mut game = State::initial();
-    game.board = Board::from_cb(cb);
-    game.double_pawn_push = 6;
-    game.turn = Color::Black;
+    // let cb: Charboard = [
+    //     ['r', 'n', ' ', ' ', 'k', ' ', ' ', 'r'],
+    //     ['p', ' ', ' ', ' ', 'p', ' ', ' ', ' '],
+    //     [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    //     [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
+    //     [' ', ' ', ' ', ' ', ' ', ' ', 'P', 'p'],
+    //     [' ', 'B', ' ', ' ', ' ', ' ', ' ', ' '],
+    //     ['P', ' ', ' ', ' ', 'P', ' ', ' ', 'P'],
+    //     ['R', 'N', 'B', ' ', 'K', ' ', ' ', 'R']
+    // ];
+    // let mut game = State::initial();
+    // game.board = Board::from_cb(cb);
+    // game.double_pawn_push = 6;
+    // game.turn = Color::Black;
+    // game.board.print();
+    // let moves = game.get_moves();
+    // for (i, mv) in moves.iter().enumerate() {
+    //     let (from, to, info) = mv.to_readable();
+    //     println!("{}: {}{} {}", i, from, to, info);
+    // }
+
+    let pgn = "1. e4 e5 2. Nf3 Nc6";
+    let (game, moves) = State::from_pgn(pgn);
     game.board.print();
-    let moves = game.get_moves();
-    for (i, mv) in moves.iter().enumerate() {
-        let (from, to, info) = mv.to_readable();
-        println!("{}: {}{} {}", i, from, to, info);
-    }
 }

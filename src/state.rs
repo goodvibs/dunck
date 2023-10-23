@@ -51,6 +51,7 @@ impl State {
                     else if c == '.' {
                         assert_eq!(move_num_str.parse::<u16>().unwrap(), state.ply / 2 + 1);
                         parse_state = ParseState::Move;
+                        move_num_str.clear();
                     }
                     else {
                         move_num_str.push(c);
@@ -69,15 +70,16 @@ impl State {
                                     panic!("ambiguous move: {}", move_str);
                                 }
                                 matched_move = Some(mv);
-                                if state.turn == Color::White {
-                                    parse_state = ParseState::MoveNum;
-                                }
                             }
                         }
                         match matched_move {
                             Some(mv) => {
                                 moves.push(mv);
                                 state.play_move(mv);
+                                if state.turn == Color::White {
+                                    parse_state = ParseState::MoveNum;
+                                }
+                                move_str.clear();
                             },
                             None => panic!("invalid move: {}", move_str)
                         }

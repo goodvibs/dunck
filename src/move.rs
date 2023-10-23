@@ -80,7 +80,7 @@ impl Move {
             end -= (bytes[end - 2] == b'=') as usize;
         }
         let is_capture = move_str.contains('x');
-        if &move_str[end - 3..end] != dst_str {
+        if &move_str[end - 2..end] != dst_str {
             return false;
         }
         let is_piece_move = bytes[0].is_ascii_uppercase();
