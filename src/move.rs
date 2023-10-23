@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use crate::squares::SQUARE_NAMES;
 
 pub const NO_FLAG: u8 = 0;
@@ -65,10 +65,10 @@ impl Move {
             return false;
         }
         let (src_str, dst_str, flag_str) = self.to_readable();
-        if move_str == "0-0" {
+        if move_str == "0-0" || move_str == "O-O" {
             return flag_str == "castling" && dst_str.starts_with('g');
         }
-        if move_str == "0-0-0" {
+        if move_str == "0-0-0" || move_str == "O-O-O" {
             return flag_str == "castling" && dst_str.starts_with('c');
         }
         let bytes = move_str.as_bytes();
@@ -99,5 +99,12 @@ impl Move {
             3 => src_str.contains(bytes[is_piece_move as usize] as char),
             _ => false
         }
+    }
+}
+
+impl Display for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (src_str, dst_str, flag_str) = self.to_readable();
+        write!(f, "{}{}{}", src_str, dst_str, flag_str)
     }
 }

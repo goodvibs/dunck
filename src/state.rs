@@ -42,7 +42,7 @@ impl State {
         let mut move_num_str = String::new();
         let mut move_str = String::new();
         let mut parse_state = ParseState::MoveNum;
-        for c in pgn.chars() {
+        for c in pgn.chars().chain(std::iter::once(' ')) {
             match parse_state {
                 ParseState::MoveNum => {
                     if c.is_ascii_whitespace() && move_num_str.is_empty() {
@@ -462,7 +462,7 @@ impl State {
                         self.double_pawn_push = -1;
                     },
                     CASTLE_FLAG => {
-                        self.board.bk &= !0x08;
+                        self.board.bk &= !(0x08 << 56);
                         if dst == src >> 2 { // short castle
                             self.board.br &= !(0x01 << 56);
                             self.board.br |= 0x04 << 56;
