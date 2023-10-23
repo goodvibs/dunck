@@ -65,9 +65,6 @@ impl Move {
             return false;
         }
         let (src_str, dst_str, flag_str) = self.to_readable();
-        if move_str == "Bxf7+" {
-            print!("");
-        }
         if move_str == "0-0" || move_str == "O-O" {
             return flag_str == "castling" && dst_str.starts_with('g');
         }

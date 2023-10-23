@@ -33,30 +33,62 @@ impl State {
 
     pub fn from_pgn(pgn: &str) -> (State, Vec<Move>) {
         enum ParseState {
+            Tag,
             MoveNum,
-            Move
+            Move,
+            Comment,
+            Annotation,
+            Variation
         }
 
         let mut state = State::initial();
         let mut moves: Vec<Move> = Vec::new();
         let mut move_num_str = String::new();
         let mut move_str = String::new();
+        let mut period_count: u16 = 0;
+        let mut nest_level: u16 = 0;
         let mut parse_state = ParseState::MoveNum;
         for c in pgn.chars().chain(std::iter::once(' ')) {
             match parse_state {
+                ParseState::Tag => {
+                    if c == ']' {
+                        parse_state = ParseState::MoveNum;
+                    }
+                }
                 ParseState::MoveNum => {
-                    if c.is_ascii_whitespace() && move_num_str.is_empty() {
+                    if c == '{' {
+                        parse_state = ParseState::Comment;
+                    }
+                    else if c == '[' {
+                        parse_state = ParseState::Tag;
+                    }
+                    else if c == '(' {
+                        parse_state = ParseState::Variation;
+                    }
+                    else if c.is_ascii_whitespace() && move_num_str.is_empty() {
                         continue;
                     }
                     else if c == '.' {
-                        assert_eq!(move_num_str.parse::<u16>().unwrap(), state.ply / 2 + 1);
-                        parse_state = ParseState::Move;
-                        move_num_str.clear();
+                        period_count += 1;
+                        if state.turn == Color::White || period_count == 3 {
+                            assert_eq!(move_num_str.parse::<u16>().unwrap(), state.ply / 2 + 1);
+                            parse_state = ParseState::Move;
+                            move_num_str.clear();
+                            period_count = 0;
+                        }
                     }
-                    else {
+                    else if c.is_ascii_digit() {
+                        assert_eq!(period_count, 0);
                         move_num_str.push(c);
                     }
-                },
+                    else if state.turn == Color::Black {
+                        move_str.push(c);
+                        parse_state = ParseState::Move;
+                    }
+                    else {
+                        panic!("invalid character in move number: {}", c);
+                    }
+                }
                 ParseState::Move => {
                     if c.is_ascii_whitespace() {
                         if move_str.is_empty() {
@@ -76,16 +108,48 @@ impl State {
                             Some(mv) => {
                                 moves.push(mv);
                                 state.play_move(mv);
-                                if state.turn == Color::White {
-                                    parse_state = ParseState::MoveNum;
-                                }
+                                parse_state = ParseState::MoveNum;
                                 move_str.clear();
                             },
                             None => panic!("invalid move: {}", move_str)
                         }
                     }
+                    else if c == '!' || c == '?' {
+                        parse_state = ParseState::Annotation;
+                    }
                     else {
                         move_str.push(c);
+                    }
+                }
+                ParseState::Comment => {
+                    if c == '}' {
+                        if nest_level == 0 {
+                            parse_state = ParseState::MoveNum;
+                        }
+                        else {
+                            nest_level -= 1;
+                        }
+                    }
+                    else if c == '{' {
+                        nest_level += 1;
+                    }
+                }
+                ParseState::Annotation => {
+                    if c.is_ascii_whitespace() {
+                        parse_state = ParseState::MoveNum;
+                    }
+                }
+                ParseState::Variation => {
+                    if c == ')' {
+                        if nest_level == 0 {
+                            parse_state = ParseState::MoveNum;
+                        }
+                        else {
+                            nest_level -= 1;
+                        }
+                    }
+                    else if c == '(' {
+                        nest_level += 1;
                     }
                 }
             }
