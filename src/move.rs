@@ -65,6 +65,9 @@ impl Move {
             return false;
         }
         let (src_str, dst_str, flag_str) = self.to_readable();
+        if move_str == "Bxf7+" {
+            print!("");
+        }
         if move_str == "0-0" || move_str == "O-O" {
             return flag_str == "castling" && dst_str.starts_with('g');
         }
@@ -72,7 +75,7 @@ impl Move {
             return flag_str == "castling" && dst_str.starts_with('c');
         }
         let bytes = move_str.as_bytes();
-        let mut end = move_str.len() - move_str.ends_with(r"[+#]") as usize;
+        let mut end = move_str.len() - move_str.ends_with('+') as usize - move_str.ends_with('#') as usize;
         if bytes[end - 1].is_ascii_uppercase() {
             if flag_str != "P to ?".replace('?', &move_str[end - 1..end]) {
                 return false;
