@@ -136,8 +136,16 @@ cxd5 {} 32...Bxd5 {??} 33.Rf5 )
 Rxe4 Qxe4 {Many authors praise the high level of this positional game. The
 score had become 4-4. The match continued in New Orleans.}";
 
-    let (game, moves) = State::from_pgn(pgn);
+    let (_, moves) = State::from_pgn(pgn);
+    let mut game = State::initial();
     game.board.print();
+    println!();
+    for mv in moves {
+        game.play_move(mv);
+        println!("{}", mv);
+        game.board.print();
+        println!();
+    }
 
     // let pgn = "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6
 // 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8 10. d4 Nbd7

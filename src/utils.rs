@@ -63,19 +63,24 @@ pub fn pprint_bb(bb: Bitboard) {
     print_cb(&bb_to_cb(bb));
 }
 
-pub fn print_cb(cb: &Charboard) {
-    for (i, row) in cb.iter().enumerate() {
-        print!("{} ", 8 - i);
-        for &piece in row.iter() {
-            if piece == ' ' {
-                print!(". ");
-                continue;
+pub fn cb_to_string(cb: &Charboard) -> String {
+    let mut res = String::new();
+    for i in 0..8u8 {
+        res += &*format!("{} ", 8 - i);
+        for j in 0..8u8 {
+            if cb[i as usize][j as usize] == ' ' {
+                res.push('.');
             }
             else {
-                print!("{} ", piece);
+                res.push(cb[i as usize][j as usize])
             }
+            res.push(' ');
         }
-        println!();
+        res.push('\n')
     }
-    println!("  a b c d e f g h");
+    res + "  a b c d e f g h"
+}
+
+pub fn print_cb(cb: &Charboard) {
+    println!("{}", cb_to_string(cb));
 }

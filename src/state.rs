@@ -127,11 +127,9 @@ impl State {
                             parse_state = ParseState::MoveNum;
                         }
                         else {
+                            parse_state = ParseState::Variation;
                             nest_level -= 1;
                         }
-                    }
-                    else if c == '{' {
-                        nest_level += 1;
                     }
                 }
                 ParseState::Annotation => {
@@ -150,6 +148,10 @@ impl State {
                     }
                     else if c == '(' {
                         nest_level += 1;
+                    }
+                    else if c == '{' {
+                        nest_level += 1;
+                        parse_state = ParseState::Comment;
                     }
                 }
             }
