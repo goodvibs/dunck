@@ -1,8 +1,11 @@
+use std::collections::HashMap;
 use crate::board::Board;
 use crate::r#move::*;
 use crate::utils::*;
 use crate::attacks::*;
+use crate::consts::*;
 use crate::masks::*;
+use crate::preload::ZOBRIST_TABLE;
 
 pub struct State {
     pub board: Board,
@@ -11,21 +14,24 @@ pub struct State {
     pub bk_castle: bool,
     pub bq_castle: bool,
     pub in_check: bool,
-    pub double_pawn_push: i8, // file of double pawn push, if any, else -1
+    pub double_pawn_push: i8, // file of double pawn push, if any, else -1,
+    pub position_count: HashMap<u64, u8>,
     pub turn: Color,
     pub ply: u16
 }
 
 impl State {
     pub fn initial() -> State {
+        let board = Board::initial();
         State {
-            board: Board::initial(),
+            board: board,
             wk_castle: true,
             wq_castle: true,
             bk_castle: true,
             bq_castle: true,
             in_check: false,
             double_pawn_push: -1,
+            position_count: HashMap::from([(board.zobrist_hash(), 1)]),
             turn: Color::White,
             ply: 0
         }

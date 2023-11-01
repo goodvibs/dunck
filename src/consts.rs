@@ -73,3 +73,16 @@ pub const SQUARE_NAMES: [&str; 64] = [
     "a2", "b2", "c2", "d2", "e2", "f2", "g2", "h2",
     "a1", "b1", "c1", "d1", "e1", "f1", "g1", "h1"
 ];
+
+pub const WP: usize = 0;
+pub const WN: usize = 1;
+pub const WB: usize = 2;
+pub const WR: usize = 3;
+pub const WQ: usize = 4;
+pub const WK: usize = 5;
+pub const BP: usize = 6;
+pub const BN: usize = 7;
+pub const BB: usize = 8;
+pub const BR: usize = 9;
+pub const BQ: usize = 10;
+pub const BK: usize = 11;

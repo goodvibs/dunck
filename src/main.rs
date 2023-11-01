@@ -16,7 +16,8 @@ mod magic;
 mod state;
 mod manual_attacks;
 mod r#move;
-mod squares;
+mod consts;
+mod zobrist;
 
 fn main() {
     // let cb: Charboard = [

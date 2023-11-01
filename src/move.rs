@@ -1,5 +1,5 @@
 use std::fmt;
-use crate::squares::SQUARE_NAMES;
+use crate::consts::SQUARE_NAMES;
 
 pub const NO_FLAG: u8 = 0;
 pub const KNIGHT_MOVE_FLAG: u8 = 1;

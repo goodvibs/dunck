@@ -1,4 +1,6 @@
 use std::fmt;
+use crate::consts::*;
+use crate::preload::ZOBRIST_TABLE;
 use crate::utils::*;
 
 #[derive(Clone)]
@@ -50,6 +52,43 @@ impl Board {
             bq: 0,
             bk: 0
         }
+    }
+
+    pub fn zobrist_hash(&self) -> u64 {
+        let mut hash: u64 = 0;
+        for index in bb_to_square_indices(self.wp) {
+            hash ^= ZOBRIST_TABLE[WP][index as usize];
+        }
+        for index in bb_to_square_indices(self.wn) {
+            hash ^= ZOBRIST_TABLE[WN][index as usize];
+        }
+        for index in bb_to_square_indices(self.wb) {
+            hash ^= ZOBRIST_TABLE[WB][index as usize];
+        }
+        for index in bb_to_square_indices(self.wr) {
+            hash ^= ZOBRIST_TABLE[WR][index as usize];
+        }
+        for index in bb_to_square_indices(self.wq) {
+            hash ^= ZOBRIST_TABLE[WQ][index as usize];
+        }
+        for index in bb_to_square_indices(self.bp) {
+            hash ^= ZOBRIST_TABLE[BP][index as usize];
+        }
+        for index in bb_to_square_indices(self.bn) {
+            hash ^= ZOBRIST_TABLE[BN][index as usize];
+        }
+        for index in bb_to_square_indices(self.bb) {
+            hash ^= ZOBRIST_TABLE[BB][index as usize];
+        }
+        for index in bb_to_square_indices(self.br) {
+            hash ^= ZOBRIST_TABLE[BR][index as usize];
+        }
+        for index in bb_to_square_indices(self.bq) {
+            hash ^= ZOBRIST_TABLE[BQ][index as usize];
+        }
+        hash ^= ZOBRIST_TABLE[WK][self.wk.leading_zeros() as usize];
+        hash ^= ZOBRIST_TABLE[BK][self.bk.leading_zeros() as usize];
+        hash
     }
 
     pub fn from_cb(cb: Charboard) -> Board {
