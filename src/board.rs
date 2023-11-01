@@ -1,3 +1,4 @@
+use std::fmt;
 use crate::utils::*;
 
 #[derive(Clone)]
@@ -131,7 +132,12 @@ impl Board {
     }
 
     pub fn print(&self) {
-        let cb = self.to_cb();
-        print_cb(&cb);
+        println!("{}", self);
+    }
+}
+
+impl fmt::Display for Board {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", cb_to_string(&self.to_cb()).as_str())
     }
 }

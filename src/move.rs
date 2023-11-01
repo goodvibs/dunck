@@ -1,4 +1,4 @@
-use std::fmt::{Debug, Display};
+use std::fmt;
 use crate::squares::SQUARE_NAMES;
 
 pub const NO_FLAG: u8 = 0;
@@ -102,7 +102,7 @@ impl Move {
     }
 }
 
-impl Display for Move {
+impl fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let (src_str, dst_str, flag_str) = self.to_readable();
         write!(f, "{}{}{}", src_str, dst_str, flag_str)

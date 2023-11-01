@@ -143,7 +143,7 @@ score had become 4-4. The match continued in New Orleans.}";
     for mv in moves {
         game.play_move(mv);
         println!("{}", mv);
-        game.board.print();
+        println!("{}", game.board);
         println!();
     }
 
