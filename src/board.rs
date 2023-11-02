@@ -2,6 +2,7 @@ use std::fmt;
 use crate::consts::*;
 use crate::preload::ZOBRIST_TABLE;
 use crate::utils::*;
+use crate::attacks::*;
 
 #[derive(Clone)]
 pub struct Board {
@@ -54,40 +55,81 @@ impl Board {
         }
     }
 
+    pub fn is_in_check(&self, color: Color) -> bool {
+        let white_occ = self.white();
+        let black_occ = self.black();
+        let all_occ = white_occ | black_occ;
+        match color {
+            Color::White => {
+                let mut attacks = pawn_attacks(self.bp, Color::Black);
+                attacks |= knight_attacks(self.bn);
+                for bb in unpack_bb(self.bb) {
+                    attacks |= bishop_attacks(bb, all_occ);
+                }
+                for bb in unpack_bb(self.br) {
+                    attacks |= rook_attacks(bb, all_occ);
+                }
+                for bb in unpack_bb(self.bq) {
+                    attacks |= bishop_attacks(bb, all_occ) | rook_attacks(bb, all_occ);
+                }
+                attacks |= king_attacks(self.bk);
+                attacks & self.wk != 0
+            },
+            Color::Black => {
+                let mut attacks = pawn_attacks(self.wp, Color::White);
+                attacks |= knight_attacks(self.wn);
+                for bb in unpack_bb(self.wb) {
+                    attacks |= bishop_attacks(bb, all_occ);
+                }
+                for bb in unpack_bb(self.wr) {
+                    attacks |= rook_attacks(bb, all_occ);
+                }
+                for bb in unpack_bb(self.wq) {
+                    attacks |= bishop_attacks(bb, all_occ) | rook_attacks(bb, all_occ);
+                }
+                attacks |= king_attacks(self.wk);
+                attacks & self.bk != 0
+            }
+        }
+    }
+
     pub fn zobrist_hash(&self) -> u64 {
         let mut hash: u64 = 0;
         for index in bb_to_square_indices(self.wp) {
-            hash ^= ZOBRIST_TABLE[WP][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][WP];
         }
         for index in bb_to_square_indices(self.wn) {
-            hash ^= ZOBRIST_TABLE[WN][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][WN];
         }
         for index in bb_to_square_indices(self.wb) {
-            hash ^= ZOBRIST_TABLE[WB][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][WB];
         }
         for index in bb_to_square_indices(self.wr) {
-            hash ^= ZOBRIST_TABLE[WR][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][WR];
         }
         for index in bb_to_square_indices(self.wq) {
-            hash ^= ZOBRIST_TABLE[WQ][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][WQ];
+        }
+        for index in bb_to_square_indices(self.wk) {
+            hash ^= ZOBRIST_TABLE[index as usize][WK];
         }
         for index in bb_to_square_indices(self.bp) {
-            hash ^= ZOBRIST_TABLE[BP][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][BP];
         }
         for index in bb_to_square_indices(self.bn) {
-            hash ^= ZOBRIST_TABLE[BN][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][BN];
         }
         for index in bb_to_square_indices(self.bb) {
-            hash ^= ZOBRIST_TABLE[BB][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][BB];
         }
         for index in bb_to_square_indices(self.br) {
-            hash ^= ZOBRIST_TABLE[BR][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][BR];
         }
         for index in bb_to_square_indices(self.bq) {
-            hash ^= ZOBRIST_TABLE[BQ][index as usize];
+            hash ^= ZOBRIST_TABLE[index as usize][BQ];
         }
-        hash ^= ZOBRIST_TABLE[WK][self.wk.leading_zeros() as usize];
-        hash ^= ZOBRIST_TABLE[BK][self.bk.leading_zeros() as usize];
+        hash ^= ZOBRIST_TABLE[self.wk.leading_zeros() as usize][WK];
+        hash ^= ZOBRIST_TABLE[self.bk.leading_zeros() as usize][BK];
         hash
     }
 
