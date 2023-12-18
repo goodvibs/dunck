@@ -5,6 +5,7 @@
 use crate::utils::*;
 use crate::attacks::*;
 use crate::board::Board;
+use crate::history::History;
 use crate::state::State;
 
 mod board;
@@ -18,6 +19,7 @@ mod manual_attacks;
 mod r#move;
 mod consts;
 mod zobrist;
+mod history;
 
 fn main() {
     // let cb: Charboard = [
@@ -137,15 +139,29 @@ cxd5 {} 32...Bxd5 {??} 33.Rf5 )
 Rxe4 Qxe4 {Many authors praise the high level of this positional game. The
 score had become 4-4. The match continued in New Orleans.}";
 
-    let (_, moves) = State::from_pgn(pgn);
-    let mut game = State::initial();
-    game.board.print();
+    // let (_, moves) = State::from_pgn(pgn);
+    // let mut game = State::initial();
+    // game.board.print();
+    // println!();
+    // for mv in moves {
+    //     game.play_move(mv);
+    //     println!("{}", mv);
+    //     println!("{}", game.board);
+    //     println!();
+    // }
+
+    let history = History::from_pgn(pgn);
     println!();
-    for mv in moves {
-        game.play_move(mv);
-        println!("{}", mv);
-        println!("{}", game.board);
-        println!();
+    match history {
+        Ok(hist) => unsafe {
+            for tag in hist.tags {
+                println!("{}", tag);
+            }
+            println!("{}", (*hist.head.unwrap()).final_state.board);
+        }
+        Err(parse_error) => {
+            println!("{:?}", parse_error);
+        }
     }
 
     // let pgn = "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6

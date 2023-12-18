@@ -7,6 +7,7 @@ use crate::consts::*;
 use crate::masks::*;
 use crate::preload::ZOBRIST_TABLE;
 
+#[derive(Clone)]
 pub enum Termination {
     Checkmate,
     Stalemate,
@@ -15,6 +16,7 @@ pub enum Termination {
     FiftyMoveRule
 }
 
+#[derive(Clone)]
 pub struct State {
     pub board: Board,
     pub wk_castle: bool,
