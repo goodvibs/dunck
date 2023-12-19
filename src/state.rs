@@ -16,6 +16,19 @@ pub enum Termination {
     FiftyMoveRule
 }
 
+#[derive(Debug)]
+pub enum FenParseError {
+    InvalidFieldCount(usize),
+    InvalidRankCount(usize),
+    InvalidRow(String),
+    InvalidSideToMove(String),
+    InvalidCastle(String),
+    InvalidEnPassantTarget(String),
+    InvalidHalfmoveClock(String),
+    InvalidFullmoveCounter(String),
+    InvalidState(String)
+}
+
 #[derive(Clone)]
 pub struct State {
     pub board: Board,
@@ -33,6 +46,25 @@ pub struct State {
 }
 
 impl State {
+    pub fn blank() -> State {
+        let board = Board::blank();
+        let position_count: HashMap<u64, u8> = HashMap::new();
+        State {
+            board: board,
+            wk_castle: false,
+            wq_castle: false,
+            bk_castle: false,
+            bq_castle: false,
+            in_check: false,
+            double_pawn_push: -1,
+            position_count,
+            turn: Color::White,
+            halfmove: 0,
+            halfmove_clock: 0,
+            termination: None
+        }
+    }
+
     pub fn initial() -> State {
         let board = Board::initial();
         let position_count: HashMap<u64, u8> = HashMap::from([(board.zobrist_hash(), 1)]);
@@ -49,6 +81,154 @@ impl State {
             halfmove: 0,
             halfmove_clock: 0,
             termination: None
+        }
+    }
+
+    pub fn from_fen(fen: &str) -> Result<State, FenParseError> {
+        let mut state = State::blank();
+        let mut fen_iter = fen.split_ascii_whitespace();
+        let field_count = fen_iter.clone().count();
+        if field_count != 6 {
+            return Err(FenParseError::InvalidFieldCount(field_count));
+        }
+        let mut fen_board = fen_iter.next().unwrap();
+        let mut fen_turn = fen_iter.next().unwrap();
+        if fen_turn == "w" {
+            state.turn = Color::White;
+        }
+        else if fen_turn == "b" {
+            state.turn = Color::Black;
+        }
+        else {
+            return Err(FenParseError::InvalidSideToMove(fen_turn.to_string()));
+        }
+        let mut fen_castle = fen_iter.next().unwrap();
+        if fen_castle != "-" {
+            if fen_castle.len() > 4 {
+                return Err(FenParseError::InvalidCastle(fen_castle.to_string()));
+            }
+            for c in fen_castle.chars() {
+                match c {
+                    'K' => state.wk_castle = true,
+                    'Q' => state.wq_castle = true,
+                    'k' => state.bk_castle = true,
+                    'q' => state.bq_castle = true,
+                    _ => return Err(FenParseError::InvalidCastle(fen_castle.to_string()))
+                }
+            }
+        }
+        let mut fen_double_pawn_push = fen_iter.next().unwrap();
+        if fen_double_pawn_push != "-" {
+            if fen_double_pawn_push.len() > 2 {
+                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
+            }
+            let file = fen_double_pawn_push.chars().next().unwrap();
+            if !file.is_ascii_alphabetic() {
+                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
+            }
+            let file = file.to_ascii_lowercase();
+            let file = file as u8 - 'a' as u8;
+            if file > 7 {
+                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
+            }
+            let rank = fen_double_pawn_push.chars().last().unwrap();
+            if !rank.is_ascii_digit() {
+                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
+            }
+            let rank = rank.to_digit(10).unwrap();
+            if rank != 3 && rank != 6 {
+                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
+            }
+            state.double_pawn_push = file as i8;
+        }
+        let mut fen_halfmove_clock = fen_iter.next().unwrap();
+        if fen_halfmove_clock != "-" {
+            let halfmove_clock_parsed = fen_halfmove_clock.parse::<u16>();
+            if halfmove_clock_parsed.is_err() {
+                return Err(FenParseError::InvalidHalfmoveClock(fen_halfmove_clock.to_string()));
+            }
+            state.halfmove = halfmove_clock_parsed.unwrap();
+        }
+        let mut fen_fullmove = fen_iter.next().unwrap();
+        if fen_fullmove != "-" {
+            let fullmove_parsed = fen_fullmove.parse::<u16>();
+            if fullmove_parsed.is_err() {
+                return Err(FenParseError::InvalidFullmoveCounter(fen_fullmove.to_string()));
+            }
+            state.halfmove = fullmove_parsed.unwrap() + (state.turn == Color::Black) as u16;
+        }
+        let mut row_from_top = 0;
+        let rows = fen_board.split('/');
+        let row_count = rows.clone().count();
+        if row_count != 8 {
+            return Err(FenParseError::InvalidRankCount(row_count));
+        }
+        for row in rows {
+            if row.len() > 8 || row.is_empty() {
+                return Err(FenParseError::InvalidRow(row.to_string()));
+            }
+            let mut file = 0;
+            for c in row.chars() {
+                let dst =  1 << (63 - (row_from_top * 8 + file));
+                match c {
+                    'P' => {
+                        state.board.wp |= dst;
+                    },
+                    'N' => {
+                        state.board.wn |= dst;
+                    },
+                    'B' => {
+                        state.board.wb |= dst;
+                    },
+                    'R' => {
+                        state.board.wr |= dst;
+                    },
+                    'Q' => {
+                        state.board.wq |= dst;
+                    },
+                    'K' => {
+                        state.board.wk |= dst;
+                    },
+                    'p' => {
+                        state.board.bp |= dst;
+                    },
+                    'n' => {
+                        state.board.bn |= dst;
+                    },
+                    'b' => {
+                        state.board.bb |= dst;
+                    },
+                    'r' => {
+                        state.board.br |= dst;
+                    },
+                    'q' => {
+                        state.board.bq |= dst;
+                    },
+                    'k' => {
+                        state.board.bk |= dst;
+                    },
+                    c if c.is_ascii_whitespace() => {
+                        file -= 1;
+                    },
+                    _ if c.is_ascii_digit() => {
+                        file += c.to_digit(10).unwrap() as usize - 1;
+                        if file > 8 {
+                            return Err(FenParseError::InvalidRow(row.to_string()));
+                        }
+                    },
+                    _ => {
+                        return Err(FenParseError::InvalidRow(row.to_string()));
+                    }
+                }
+                file += 1;
+            }
+            row_from_top += 1;
+        }
+        if state.is_valid() {
+            return Ok(state);
+        }
+        else {
+            return Err(FenParseError::InvalidState(fen.to_string()));
         }
     }
 
@@ -674,5 +854,66 @@ impl State {
         else if self.halfmove_clock == 100 {
             self.termination = Some(Termination::FiftyMoveRule);
         }
+    }
+
+    pub fn to_fen(&self) -> String {
+        let mut fen_board = String::new();
+        for row_from_top in 0..8 {
+            let mut empty_count: u8 = 0;
+            for file in 0..8 {
+                let square_mask = 1 << (63 - (row_from_top * 8 + file));
+                let piece_found_res = self.board.piece_at(square_mask);
+                match piece_found_res {
+                    Some(piece_color_tuple) => {
+                        if empty_count > 0 || file == 7 {
+                            fen_board.push_str(&empty_count.to_string());
+                            empty_count = 0;
+                        }
+                        fen_board.push(colored_piece_to_char(piece_color_tuple.0, piece_color_tuple.1));
+                    },
+                    None => {
+                        empty_count += 1;
+                    }
+                }
+            }
+            if empty_count > 0 {
+                fen_board.push_str(&empty_count.to_string());
+            }
+            fen_board.push('/');
+        }
+        fen_board.pop();
+        let turn = match self.turn {
+            Color::White => 'w',
+            Color::Black => 'b'
+        };
+        let mut castle = String::new();
+        if self.wk_castle {
+            castle.push('K');
+        }
+        if self.wq_castle {
+            castle.push('Q');
+        }
+        if self.bk_castle {
+            castle.push('k');
+        }
+        if self.bq_castle {
+            castle.push('q');
+        }
+        if castle.is_empty() {
+            castle.push('-');
+        }
+        let mut double_pawn_push = String::new();
+        if self.double_pawn_push == -1 {
+            double_pawn_push.push('-');
+        }
+        else {
+            double_pawn_push.push((self.double_pawn_push as u8 + 'a' as u8) as char);
+            double_pawn_push.push(if self.turn == Color::White {'6'} else {'3'});
+        }
+        format!("{} {} {} {} {} {}", fen_board, turn, castle, double_pawn_push, self.halfmove, self.halfmove_clock)
+    }
+
+    pub fn is_valid(&self) -> bool {
+        return true; // TODO implement
     }
 }

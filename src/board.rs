@@ -21,6 +21,7 @@ pub struct Board {
 }
 
 impl Board {
+
     pub fn initial() -> Board {
         Board {
             wp: 0x000000000000FF00,
@@ -90,6 +91,48 @@ impl Board {
                 attacks |= king_attacks(self.wk);
                 attacks & self.bk != 0
             }
+        }
+    }
+
+    pub fn piece_at(&self, square_mask: Bitboard) -> Option<(Piece, Color)> {
+        if self.wp & square_mask != 0 {
+            Some((Piece::Pawn, Color::White))
+        }
+        else if self.wn & square_mask != 0 {
+            Some((Piece::Knight, Color::White))
+        }
+        else if self.wb & square_mask != 0 {
+            Some((Piece::Bishop, Color::White))
+        }
+        else if self.wr & square_mask != 0 {
+            Some((Piece::Rook, Color::White))
+        }
+        else if self.wq & square_mask != 0 {
+            Some((Piece::Queen, Color::White))
+        }
+        else if self.wk & square_mask != 0 {
+            Some((Piece::King, Color::White))
+        }
+        else if self.bp & square_mask != 0 {
+            Some((Piece::Pawn, Color::Black))
+        }
+        else if self.bn & square_mask != 0 {
+            Some((Piece::Knight, Color::Black))
+        }
+        else if self.bb & square_mask != 0 {
+            Some((Piece::Bishop, Color::Black))
+        }
+        else if self.br & square_mask != 0 {
+            Some((Piece::Rook, Color::Black))
+        }
+        else if self.bq & square_mask != 0 {
+            Some((Piece::Queen, Color::Black))
+        }
+        else if self.bk & square_mask != 0 {
+            Some((Piece::King, Color::Black))
+        }
+        else {
+            None
         }
     }
 

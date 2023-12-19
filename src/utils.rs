@@ -17,6 +17,27 @@ pub enum Piece {
     King
 }
 
+pub fn colored_piece_to_char(piece: Piece, color: Color) -> char {
+    match color {
+        Color::White => match piece {
+            Piece::Pawn => 'P',
+            Piece::Knight => 'N',
+            Piece::Bishop => 'B',
+            Piece::Rook => 'R',
+            Piece::Queen => 'Q',
+            Piece::King => 'K'
+        },
+        Color::Black => match piece {
+            Piece::Pawn => 'p',
+            Piece::Knight => 'n',
+            Piece::Bishop => 'b',
+            Piece::Rook => 'r',
+            Piece::Queen => 'q',
+            Piece::King => 'k'
+        }
+    }
+}
+
 pub fn cb_to_bb(cb: &Charboard) -> Bitboard {
     let mut bb: Bitboard = 0;
     for i in 0..8 {

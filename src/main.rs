@@ -150,30 +150,21 @@ score had become 4-4. The match continued in New Orleans.}";
     //     println!();
     // }
 
-    let history = History::from_pgn(pgn);
-    println!();
-    match history {
-        Ok(hist) => unsafe {
-            for tag in hist.tags {
-                println!("{}", tag);
-            }
-            println!("{}", (*hist.head.unwrap()).final_state.board);
-        }
-        Err(parse_error) => {
-            println!("{:?}", parse_error);
-        }
-    }
+    // let history = History::from_pgn(pgn);
+    // println!();
+    // match history {
+    //     Ok(hist) => {
+    //         for tag in hist.tags {
+    //             println!("{}", tag);
+    //         }
+    //         println!("{}", (*hist.head.unwrap()).borrow().final_state.board);
+    //     }
+    //     Err(parse_error) => {
+    //         println!("{:?}", parse_error);
+    //     }
+    // }
 
-    // let pgn = "1. e4 e5 2. Nf3 Nc6 3. Bb5 a6
-// 4. Ba4 Nf6 5. O-O Be7 6. Re1 b5 7. Bb3 d6 8. c3 O-O 9. h3 Nb8 10. d4 Nbd7
-// 11. c4 c6 12. cxb5 axb5 13. Nc3 Bb7 14. Bg5 b4 15. Nb1 h6 16. Bh4 c5 17. dxe5
-// Nxe4 18. Bxe7 Qxe7 19. exd6 Qf6 20. Nbd2 Nxd6 21. Nc4 Nxc4 22. Bxc4 Nb6
-// 23. Ne5 Rae8 24. Bxf7+ Rxf7";
-//     let (game, moves) = State::from_pgn(pgn);
-//     game.board.print();
-//     let possible_moves = game.get_moves();
-//     for (i, mv) in possible_moves.iter().enumerate() {
-//         let (from, to, info) = mv.to_readable();
-//         println!("{}: {}{} {}", i, from, to, info);
-//     }
+    let fen = "3r1q1k/p5p1/4ppQN/1p6/b1rP4/5R1P/P2R1PP1/6K1 b - - 0 33";
+    let mut game = State::from_fen(fen).unwrap();
+    game.board.print();
 }
