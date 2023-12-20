@@ -5,19 +5,17 @@ use crate::r#move::Move;
 use crate::state::State;
 use crate::utils::Color;
 
-type HistoryNodePtr = Rc<RefCell<HistoryNode>>;
-
 #[derive(Clone)]
 pub struct HistoryNode {
     pub moves: Vec<Move>,
     pub final_state: State,
-    pub prev_node: Option<HistoryNodePtr>,
-    pub next_nodes: Vec<HistoryNodePtr>
+    pub prev_node: Option<*mut HistoryNode>,
+    pub next_nodes: Vec<*mut HistoryNode>
 }
 
 impl HistoryNode {
-    fn new(moves: Vec<Move>, final_state: State, prev_node: Option<HistoryNodePtr>) -> HistoryNodePtr {
-        Rc::new(RefCell::new(HistoryNode {
+    fn new(moves: Vec<Move>, final_state: State, prev_node: Option<*mut HistoryNode>) -> *mut HistoryNode {
+        Box::into_raw(Box::new(HistoryNode {
             moves,
             final_state,
             prev_node,
@@ -25,14 +23,14 @@ impl HistoryNode {
         }))
     }
 
-    fn next_main(&self) -> Option<HistoryNodePtr> {
+    fn next_main(&self) -> Option<*mut HistoryNode> {
         self.next_nodes.last().cloned()
     }
 }
 
 pub struct History {
     pub tags: Vec<String>,
-    pub head: Option<HistoryNodePtr>,
+    pub head: Option<*mut HistoryNode>,
 }
 
 #[derive(Debug)]
@@ -60,13 +58,14 @@ pub enum PgnParseError {
 impl History {
     pub fn from_pgn(pgn: &str) -> Result<History, PgnParseError> {
         let mut tags: Vec<String> = Vec::new();
-        let mut head: Option<HistoryNodePtr> = None;
+        let mut head: Option<*mut HistoryNode> = None;
 
-        let mut state = State::initial();
-        let mut last_state = State::initial();
+        let mut current_state = State::initial();
+        let mut state_before_move = State::initial(); // remember state before move in case of variation
+        let mut state_stack: Vec<(State, State)> = Vec::new();
         let mut moves: Vec<Move> = Vec::new();
-        let mut prev_node: Option<HistoryNodePtr> = None;
-        let mut variation_nest_level: u16 = 0;
+        let mut prev_node: Option<*mut HistoryNode> = None;
+        // let mut variation_nest_level: u16 = 0;
 
         let mut tag = String::new();
         let mut move_num_str = String::new();
@@ -101,20 +100,41 @@ impl History {
                     }
                 }
                 PgnParseState::MoveNum => {
-                    let expected_number = state.halfmove / 2 + 1;
+                    let expected_number = current_state.halfmove / 2 + 1;
                     if c == '{' {
                         parse_state = PgnParseState::Comment;
                     }
                     else if c == '(' {
                         // TODO: create variation fork
-                        variation_nest_level += 1;
+                        let new_node = HistoryNode::new(moves.clone(), current_state.clone(), prev_node);
+                        if prev_node.is_some() {
+                            unsafe {
+                                (*prev_node.unwrap()).next_nodes.push(new_node);
+                                (*new_node).prev_node = prev_node;
+                            }
+                        }
+                        else {
+                            head = Some(new_node);
+                        }
+                        prev_node = Some(new_node);
+                        moves.clear();
+                        state_stack.push((current_state.clone(), state_before_move.clone()));
+                        current_state = state_before_move.clone();
+                        // variation_nest_level += 1;
                     }
                     else if c == ')' {
-                        if !move_num_str.is_empty() || prev_node.is_none() {
+                        if !move_num_str.is_empty() || prev_node.is_none() || state_stack.is_empty() {
                             return Err(PgnParseError::UnexpectedCharacter(PgnParseState::MoveNum, '('))
                         }
                         // TODO: end variation fork and go back to parent
-                        variation_nest_level -= 1;
+                        let new_node = HistoryNode::new(moves.clone(), current_state.clone(), prev_node);
+                        unsafe {
+                            (*prev_node.unwrap()).next_nodes.push(new_node);
+                            (*new_node).prev_node = prev_node;
+                        }
+                        moves.clear();
+                        (current_state, state_before_move) = state_stack.pop().unwrap();
+                        // variation_nest_level -= 1;
                     }
                     else if c == '$' {
                         parse_state = PgnParseState::Nag;
@@ -139,7 +159,7 @@ impl History {
                         move_num_str.clear();
                         parse_state = PgnParseState::Move;
                     }
-                    else if state.turn == Color::Black && (c.is_ascii_alphabetic() || c == '0') {
+                    else if current_state.turn == Color::Black && (c.is_ascii_alphabetic() || c == '0') {
                         move_str.push(c);
                         parse_state = PgnParseState::Move;
                     }
@@ -155,7 +175,7 @@ impl History {
                         if move_str.is_empty() {
                             continue;
                         }
-                        let possible_moves = state.get_moves();
+                        let possible_moves = current_state.get_moves();
                         let mut matched_move: Option<Move> = None;
                         for mv in possible_moves {
                             if mv.matches(&move_str) {
@@ -168,8 +188,8 @@ impl History {
                         match matched_move {
                             Some(mv) => {
                                 moves.push(mv);
-                                last_state = state.clone();
-                                state.play_move(mv);
+                                state_before_move = current_state.clone();
+                                current_state.play_move(mv);
                                 move_str.clear();
                             },
                             None => return Err(PgnParseError::BadMove(move_str))

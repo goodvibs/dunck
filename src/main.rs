@@ -153,11 +153,13 @@ score had become 4-4. The match continued in New Orleans.}";
     let history = History::from_pgn(pgn);
     println!();
     match history {
-        Ok(hist) => {
+        Ok(hist) => unsafe {
             for tag in hist.tags {
                 println!("{}", tag);
             }
-            println!("{}", (*hist.head.unwrap()).borrow().final_state.board);
+            println!("{}", (*hist.head.unwrap()).final_state.board);
+            println!();
+            println!("{}", (**(*hist.head.unwrap()).next_nodes.last().unwrap()).final_state.board);
         }
         Err(parse_error) => {
             println!("{:?}", parse_error);
