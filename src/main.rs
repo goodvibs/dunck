@@ -150,26 +150,26 @@ score had become 4-4. The match continued in New Orleans.}";
     //     println!();
     // }
 
-    // let history = History::from_pgn(pgn);
-    // println!();
-    // match history {
-    //     Ok(hist) => {
-    //         for tag in hist.tags {
-    //             println!("{}", tag);
-    //         }
-    //         println!("{}", (*hist.head.unwrap()).borrow().final_state.board);
-    //     }
-    //     Err(parse_error) => {
-    //         println!("{:?}", parse_error);
-    //     }
-    // }
-
-    let fen = "3r1q1k/p5p1/4ppQN/1p6/b1rP4/5R1P/P2R1PP1/6K1 b - - 0 33";
-    let game = State::from_fen(fen).unwrap();
-    game.board.print();
-    let moves = game.get_moves();
-    for (i, mv) in moves.iter().enumerate() {
-        let (from, to, info) = mv.to_readable();
-        println!("{}: {}{} {}", i, from, to, info);
+    let history = History::from_pgn(pgn);
+    println!();
+    match history {
+        Ok(hist) => {
+            for tag in hist.tags {
+                println!("{}", tag);
+            }
+            println!("{}", (*hist.head.unwrap()).borrow().final_state.board);
+        }
+        Err(parse_error) => {
+            println!("{:?}", parse_error);
+        }
     }
+
+    // let fen = "3r1q1k/p5p1/4ppQN/1p6/b1rP4/5R1P/P2R1PP1/6K1 b - - 0 33";
+    // let game = State::from_fen(fen).unwrap();
+    // game.board.print();
+    // let moves = game.get_moves();
+    // for (i, mv) in moves.iter().enumerate() {
+    //     let (from, to, info) = mv.to_readable();
+    //     println!("{}: {}{} {}", i, from, to, info);
+    // }
 }

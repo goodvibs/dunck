@@ -15,8 +15,8 @@ pub fn king_attacks(kings: Bitboard) -> Bitboard {
 
 pub fn pawn_attacks(pawns: Bitboard, color: Color) -> Bitboard {
     match color {
-        Color::White => (pawns << 7 & !FILE_H) | (pawns << 9 & !FILE_A),
-        Color::Black => (pawns >> 7 & !FILE_A) | (pawns >> 9 & !FILE_H)
+        Color::White => (pawns << 9 & !FILE_H) | (pawns << 7 & !FILE_A),
+        Color::Black => (pawns >> 7 & !FILE_H) | (pawns >> 9 & !FILE_A)
     }
 }
 

@@ -74,7 +74,6 @@ impl History {
 
         let mut parse_state = PgnParseState::Initial;
         for c in pgn.chars().chain(std::iter::once(' ')) {
-            print!("{}", c);
             match parse_state {
                 PgnParseState::Initial => {
                     if c.is_ascii_whitespace() {
@@ -191,18 +190,7 @@ impl History {
                                 state.play_move(mv);
                                 move_str.clear();
                             },
-                            // None => return Err(PgnParseError::BadMove(move_str))
-                            None => {
-                                println!("Game state:");
-                                state.board.print();
-                                println!("It is {}'s turn.",  if state.turn == Color::White {"white"} else {"black"});
-                                let moves = state.get_moves();
-                                for (i, mv) in moves.iter().enumerate() {
-                                    let (from, to, info) = mv.to_readable();
-                                    println!("{}: {}{} {}", i, from, to, info);
-                                }
-                                return Err(PgnParseError::BadMove(move_str));
-                            }
+                            None => return Err(PgnParseError::BadMove(move_str))
                         }
                         parse_state = PgnParseState::MoveNum;
                     }
