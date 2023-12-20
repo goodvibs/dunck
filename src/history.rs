@@ -1,5 +1,3 @@
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::string::ParseError;
 use crate::r#move::Move;
 use crate::state::State;
@@ -25,6 +23,16 @@ impl HistoryNode {
 
     fn next_main(&self) -> Option<*mut HistoryNode> {
         self.next_nodes.last().cloned()
+    }
+}
+
+impl Drop for HistoryNode {
+    fn drop(&mut self) {
+        for node in self.next_nodes.iter() {
+            unsafe {
+                drop(Box::from_raw(*node));
+            }
+        }
     }
 }
 
@@ -224,5 +232,15 @@ impl History {
             tags,
             head
         })
+    }
+}
+
+impl Drop for History {
+    fn drop(&mut self) {
+        if let Some(head) = self.head {
+            unsafe {
+                drop(Box::from_raw(head));
+            }
+        }
     }
 }

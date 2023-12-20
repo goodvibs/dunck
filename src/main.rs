@@ -154,7 +154,7 @@ score had become 4-4. The match continued in New Orleans.}";
     println!();
     match history {
         Ok(hist) => unsafe {
-            for tag in hist.tags {
+            for tag in hist.tags.clone() {
                 println!("{}", tag);
             }
             println!("{}", (*hist.head.unwrap()).final_state.board);
