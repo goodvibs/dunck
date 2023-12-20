@@ -91,8 +91,8 @@ impl State {
         if field_count != 6 {
             return Err(FenParseError::InvalidFieldCount(field_count));
         }
-        let mut fen_board = fen_iter.next().unwrap();
-        let mut fen_turn = fen_iter.next().unwrap();
+        let fen_board = fen_iter.next().unwrap();
+        let fen_turn = fen_iter.next().unwrap();
         if fen_turn == "w" {
             state.turn = Color::White;
         }
@@ -102,7 +102,7 @@ impl State {
         else {
             return Err(FenParseError::InvalidSideToMove(fen_turn.to_string()));
         }
-        let mut fen_castle = fen_iter.next().unwrap();
+        let fen_castle = fen_iter.next().unwrap();
         if fen_castle != "-" {
             if fen_castle.len() > 4 {
                 return Err(FenParseError::InvalidCastle(fen_castle.to_string()));
@@ -117,7 +117,7 @@ impl State {
                 }
             }
         }
-        let mut fen_double_pawn_push = fen_iter.next().unwrap();
+        let fen_double_pawn_push = fen_iter.next().unwrap();
         if fen_double_pawn_push != "-" {
             if fen_double_pawn_push.len() > 2 {
                 return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
@@ -141,7 +141,7 @@ impl State {
             }
             state.double_pawn_push = file as i8;
         }
-        let mut fen_halfmove_clock = fen_iter.next().unwrap();
+        let fen_halfmove_clock = fen_iter.next().unwrap();
         if fen_halfmove_clock != "-" {
             let halfmove_clock_parsed = fen_halfmove_clock.parse::<u16>();
             if halfmove_clock_parsed.is_err() {
@@ -149,7 +149,7 @@ impl State {
             }
             state.halfmove = halfmove_clock_parsed.unwrap();
         }
-        let mut fen_fullmove = fen_iter.next().unwrap();
+        let fen_fullmove = fen_iter.next().unwrap();
         if fen_fullmove != "-" {
             let fullmove_parsed = fen_fullmove.parse::<u16>();
             if fullmove_parsed.is_err() {
@@ -208,7 +208,7 @@ impl State {
                         state.board.bk |= dst;
                     },
                     c if c.is_ascii_whitespace() => {
-                        file -= 1;
+                        continue;
                     },
                     _ if c.is_ascii_digit() => {
                         file += c.to_digit(10).unwrap() as usize - 1;
@@ -224,11 +224,10 @@ impl State {
             }
             row_from_top += 1;
         }
-        if state.is_valid() {
-            return Ok(state);
-        }
-        else {
-            return Err(FenParseError::InvalidState(fen.to_string()));
+        return if state.is_valid() {
+            Ok(state)
+        } else {
+            Err(FenParseError::InvalidState(fen.to_string()))
         }
     }
 
