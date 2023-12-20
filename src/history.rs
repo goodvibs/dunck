@@ -106,32 +106,14 @@ impl History {
                         parse_state = PgnParseState::Comment;
                     }
                     else if c == '(' {
-                        let new_node = HistoryNode::new(
-                            moves.clone(),
-                            state.clone(),
-                            prev_node.clone()
-                        );
-                        state = last_state.clone();
-                        prev_node = Some(new_node);
-                        if head.is_none() {
-                            head = prev_node.clone();
-                        }
-                        else {
-                            let prev_node_unwrapped = prev_node.clone().unwrap();
-                            prev_node_unwrapped.borrow_mut().next_nodes.push(prev_node.clone().unwrap());
-                        }
+                        // TODO: create variation fork
                         variation_nest_level += 1;
                     }
                     else if c == ')' {
                         if !move_num_str.is_empty() || prev_node.is_none() {
                             return Err(PgnParseError::UnexpectedCharacter(PgnParseState::MoveNum, '('))
                         }
-                        let node = HistoryNode::new(moves.clone(), state.clone(), prev_node.clone());
-                        let prev_node_unwrapped = prev_node.unwrap();
-                        prev_node_unwrapped.borrow_mut().next_nodes.push(node);
-                        state = prev_node_unwrapped.borrow().final_state.clone();
-                        moves = prev_node_unwrapped.borrow().moves.clone();
-                        prev_node = prev_node_unwrapped.borrow().prev_node.clone();
+                        // TODO: end variation fork and go back to parent
                         variation_nest_level -= 1;
                     }
                     else if c == '$' {
