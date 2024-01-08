@@ -153,13 +153,30 @@ score had become 4-4. The match continued in New Orleans.}";
     let history = History::from_pgn(pgn);
     println!();
     match history {
-        Ok(hist) => unsafe {
-            for tag in hist.tags.clone() {
-                println!("{}", tag);
+        Ok(hist) => {
+            let mut state = State::initial();
+            let moves = hist.main_line();
+            for mv in moves.clone() {
+                println!("{}", mv);
             }
-            println!("{}", (*hist.head.unwrap()).final_state.board);
-            println!();
-            println!("{}", (**(*hist.head.unwrap()).next_nodes.last().unwrap()).final_state.board);
+            let mut movenum = 1;
+            for mv in moves {
+                let possible_moves = state.get_moves();
+                if possible_moves.iter().find(|&m| *m == mv).is_none() {
+                    println!("Illegal move: {}", mv);
+                    println!("Turn: {:?}", state.turn);
+                    println!("Halfmove: {}", state.halfmove);
+                    break;
+                }
+                println!("{}. {:?} played {}", movenum, state.turn, mv);
+                state.play_move(mv);
+                if state.turn == Color::White {
+                    movenum += 1;
+                }
+                println!("State after move:");
+                println!("{}", state.board);
+                println!();
+            }
         }
         Err(parse_error) => {
             println!("{:?}", parse_error);

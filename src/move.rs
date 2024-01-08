@@ -16,7 +16,7 @@ pub const PROMOTE_TO_KNIGHT_FLAG: u8 = 13;
 pub const PROMOTE_TO_ROOK_FLAG: u8 = 14;
 pub const PROMOTE_TO_BISHOP_FLAG: u8 = 15;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub struct Move {
     // format: FFFFTTTTTTSSSSSS
     // F = flag, T = target square, S = source square

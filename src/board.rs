@@ -4,7 +4,7 @@ use crate::preload::ZOBRIST_TABLE;
 use crate::utils::*;
 use crate::attacks::*;
 
-#[derive(Clone)]
+#[derive(Eq, PartialEq, Clone)]
 pub struct Board {
     pub wp: Bitboard,
     pub wn: Bitboard,

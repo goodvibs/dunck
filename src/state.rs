@@ -7,7 +7,7 @@ use crate::consts::*;
 use crate::masks::*;
 use crate::preload::ZOBRIST_TABLE;
 
-#[derive(Clone)]
+#[derive(Eq, PartialEq, Clone)]
 pub enum Termination {
     Checkmate,
     Stalemate,
@@ -16,7 +16,7 @@ pub enum Termination {
     FiftyMoveRule
 }
 
-#[derive(Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum FenParseError {
     InvalidFieldCount(usize),
     InvalidRankCount(usize),
@@ -29,7 +29,7 @@ pub enum FenParseError {
     InvalidState(String)
 }
 
-#[derive(Clone)]
+#[derive(Eq, PartialEq, Clone)]
 pub struct State {
     pub board: Board,
     pub wk_castle: bool,

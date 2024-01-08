@@ -8,7 +8,8 @@ pub struct HistoryNode {
     pub moves: Vec<Move>,
     pub final_state: State,
     pub prev_node: Option<*mut HistoryNode>,
-    pub next_nodes: Vec<*mut HistoryNode>
+    pub variation_nodes: Vec<*mut HistoryNode>,
+    pub next_node: Option<*mut HistoryNode>
 }
 
 impl HistoryNode {
@@ -17,18 +18,15 @@ impl HistoryNode {
             moves,
             final_state,
             prev_node,
-            next_nodes: Vec::new()
+            variation_nodes: Vec::new(),
+            next_node: None
         }))
-    }
-
-    fn next_main(&self) -> Option<*mut HistoryNode> {
-        self.next_nodes.last().cloned()
     }
 }
 
 impl Drop for HistoryNode {
     fn drop(&mut self) {
-        for node in self.next_nodes.iter() {
+        for node in self.variation_nodes.iter() {
             unsafe {
                 drop(Box::from_raw(*node));
             }
@@ -38,6 +36,7 @@ impl Drop for HistoryNode {
 
 pub struct History {
     pub tags: Vec<String>,
+    pub initial_state: Option<State>,
     pub head: Option<*mut HistoryNode>,
 }
 
@@ -73,13 +72,13 @@ impl History {
         let mut state_stack: Vec<(State, State)> = Vec::new();
         let mut moves: Vec<Move> = Vec::new();
         let mut prev_node: Option<*mut HistoryNode> = None;
-        // let mut variation_nest_level: u16 = 0;
 
         let mut tag = String::new();
         let mut move_num_str = String::new();
         let mut move_str = String::new();
 
         let mut parse_state = PgnParseState::Initial;
+        let mut is_first_node_in_nest_level = true;
         for c in pgn.chars().chain(std::iter::once(' ')) {
             match parse_state {
                 PgnParseState::Initial => {
@@ -117,9 +116,15 @@ impl History {
                         let new_node = HistoryNode::new(moves.clone(), current_state.clone(), prev_node);
                         if prev_node.is_some() {
                             unsafe {
-                                (*prev_node.unwrap()).next_nodes.push(new_node);
+                                if is_first_node_in_nest_level {
+                                    (*prev_node.unwrap()).variation_nodes.push(new_node);
+                                }
+                                else {
+                                    (*prev_node.unwrap()).next_node = Some(new_node);
+                                }
                                 (*new_node).prev_node = prev_node;
                             }
+                            is_first_node_in_nest_level = true;
                         }
                         else {
                             head = Some(new_node);
@@ -137,9 +142,16 @@ impl History {
                         // TODO: end variation fork and go back to parent
                         let new_node = HistoryNode::new(moves.clone(), current_state.clone(), prev_node);
                         unsafe {
-                            (*prev_node.unwrap()).next_nodes.push(new_node);
+                            // (*prev_node.unwrap()).variation_nodes.push(new_node);
+                            if is_first_node_in_nest_level {
+                                (*prev_node.unwrap()).variation_nodes.push(new_node);
+                            }
+                            else {
+                                (*prev_node.unwrap()).next_node = Some(new_node);
+                            }
                             (*new_node).prev_node = prev_node;
                         }
+                        is_first_node_in_nest_level = false;
                         moves.clear();
                         (current_state, state_before_move) = state_stack.pop().unwrap();
                         // variation_nest_level -= 1;
@@ -230,8 +242,27 @@ impl History {
         }
         Ok(History {
             tags,
+            initial_state: None,
             head
         })
+    }
+
+    pub fn main_line(&self) -> Vec<Move> {
+        let mut res: Vec<Move> = Vec::new();
+        if let Some(head) = self.head {
+            let mut current_node = head;
+            unsafe {
+                while let Some(next_node) = (*current_node).next_node {
+                    res.extend_from_slice(&(*current_node).moves);
+                    current_node = next_node;
+                }
+                res.extend_from_slice(&(*current_node).moves);
+                res
+            }
+        }
+        else {
+            res
+        }
     }
 }
 
