@@ -359,6 +359,10 @@ impl State {
         (state, moves)
     }
 
+    pub fn get_fullmove(&self) -> u16 {
+        self.halfmove / 2 + 1
+    }
+
     pub fn get_moves(&self) -> Vec<Move> {
         if self.termination.is_some() {
             return Vec::with_capacity(0);
