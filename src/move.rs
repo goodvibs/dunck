@@ -111,23 +111,48 @@ impl Move {
         if final_state.termination == Some(Termination::Checkmate) {
             annotation_str = "#";
         }
-        else if final_state.in_check {
+        else if final_state.board.is_in_check(final_state.turn) {
             annotation_str = "+";
         }
         else {
             annotation_str = "";
         }
-        let disambiguation_str = match piece_str.is_empty() {
+        let disambiguation_str;
+        return match piece_str.is_empty() {
             true => {
-                if is_capture {
+                disambiguation_str = if is_capture {
                     src_file.to_string()
                 } else {
                     "".to_string()
-                }
+                };
+                format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
             }
-            false => src_str.to_string()
+            false => {
+                let disambiguation_str_options = ["".to_string(), src_file.to_string(), src_rank.to_string()];
+                let mut possible_sans = ["".to_string(), "".to_string(), "".to_string()];
+                for (i, disambiguation_str) in disambiguation_str_options.iter().enumerate() {
+                    possible_sans[i] = format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
+                }
+                let possible_moves = initial_state.get_moves();
+                for possible_san in possible_sans {
+                    let mut is_ambiguous = false;
+                    let mut has_match = false;
+                    for mv in possible_moves.iter() {
+                        if mv.matches(possible_san.as_str()) {
+                            if has_match {
+                                is_ambiguous = true;
+                                break;
+                            }
+                            has_match = true;
+                        }
+                    }
+                    if !is_ambiguous {
+                        return possible_san;
+                    }
+                }
+                format!("{}{}{}{}{}{}", piece_str, src_str, capture_str, dst_str, promotion_str, annotation_str)
+            }
         };
-        format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
     }
 
     pub fn matches(&self, move_str: &str) -> bool {
