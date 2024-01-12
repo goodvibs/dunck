@@ -48,6 +48,38 @@ impl MoveNode {
             }
         }
     }
+
+    fn pgn(&self, initial_state: State, mut should_remind_fullmove: bool) -> String {
+        let mut res = String::new();
+        let mut current_state = initial_state.clone();
+        current_state.play_move(self.current_move);
+        let san = self.current_move.san(&initial_state, &current_state);
+        res += match initial_state.turn {
+            Color::White => format!("{}. {} ", self.fullmove, san),
+            Color::Black => match should_remind_fullmove {
+                true => format!("{}... {} ", self.fullmove, san),
+                false => format!("{} ", san),
+            }
+        }.as_str();
+        should_remind_fullmove = false;
+        if self.has_variation() {
+            let variations = self.next_variation_nodes();
+            res += "\n(";
+            for variation in variations {
+                unsafe {
+                    res += &*format!("{} ", (*variation).pgn(initial_state.clone(), true));
+                }
+            }
+            res += ")\n ";
+            should_remind_fullmove = true;
+        }
+        if let Some(next_node) = self.next_main_node() {
+            unsafe {
+                res += &*format!("{}", (*next_node).pgn(current_state, should_remind_fullmove));
+            }
+        }
+        res
+    }
 }
 
 impl Drop for MoveNode {
@@ -223,7 +255,7 @@ impl History {
                                 state_before_move = current_state.clone();
                                 current_state.play_move(mv);
                                 move_str.clear();
-                                let new_node = MoveNode::new(mv, current_state.get_fullmove(), current_state.turn, previous_node);
+                                let new_node = MoveNode::new(mv, state_before_move.get_fullmove(), state_before_move.turn, previous_node);
                                 if previous_node.is_some() {
                                     unsafe {
                                         (*previous_node.unwrap()).next_nodes.push(new_node);
@@ -269,15 +301,31 @@ impl History {
         })
     }
 
-    pub fn to_pgn(&self) -> String {
+    fn tags_pgn(&self) -> String {
         let mut res = String::new();
         for tag in self.tags.iter() {
             res += &*format!("[{}]\n", tag);
         }
+        res
+    }
+
+    pub fn pgn(&self) -> String {
+        let mut res = self.tags_pgn();
+        if let Some(head) = self.head {
+            unsafe {
+                res += &*format!("{}", (*head).pgn(self.initial_state.clone().unwrap_or(State::initial()), false));
+            }
+        }
+        res
+    }
+
+    pub fn main_line_pgn(&self) -> String {
+        let mut res = self.tags_pgn();
         if let Some(head) = self.head {
             let mut current_state = self.initial_state.clone().unwrap_or(State::initial());
             let mut previous_state;
             let mut current_node = head;
+            let ended_variation = false;
             unsafe {
                 loop {
                     previous_state = current_state.clone();
@@ -285,7 +333,10 @@ impl History {
                     let san = (*current_node).current_move.san(&previous_state, &current_state);
                     res += match previous_state.turn {
                         Color::White => format!("{}. {} ", (*current_node).fullmove, san),
-                        Color::Black => format!("{} ", san)
+                        Color::Black => match ended_variation {
+                            true => format!("{}... {} ", (*current_node).fullmove, san),
+                            false => format!("{} ", san)
+                        }
                     }.as_str();
                     if let Some(next_node) = (*current_node).next_main_node() {
                         current_node = next_node;

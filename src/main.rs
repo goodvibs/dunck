@@ -155,7 +155,7 @@ score had become 4-4. The match continued in New Orleans.}";
     match history {
         Ok(hist) => {
             println!("Okay!");
-            println!("{}", hist.to_pgn());
+            println!("{}", hist.pgn());
             // let mut state = State::initial();
             // let moves = hist.main_line();
             // for mv in moves.clone() {
