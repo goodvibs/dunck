@@ -5,7 +5,7 @@ use crate::r#move::Move;
 use crate::state::State;
 use crate::utils::Color;
 
-#[derive(Clone, Eq)]
+#[derive(Eq)]
 pub struct MoveNode {
     pub current_move: Move,
     pub fullmove: u16,
@@ -49,7 +49,7 @@ impl MoveNode {
         }
     }
 
-    fn pgn(&self, initial_state: State, should_render_variations: bool, mut should_remind_fullmove: bool) -> String {
+    fn pgn(&self, initial_state: State, should_render_variations: bool, mut should_remind_fullmove: bool, prepend_tabs: u8) -> String {
         let mut res = String::new();
         let mut current_state = initial_state.clone();
         current_state.play_move(self.current_move);
@@ -64,18 +64,18 @@ impl MoveNode {
         should_remind_fullmove = false;
         if should_render_variations && self.has_variation() {
             let variations = self.next_variation_nodes();
-            res += "\n(";
+            res += format!("\n{}(", "    ".repeat(prepend_tabs as usize + 1)).as_str();
             for variation in variations {
                 unsafe {
-                    res += &*format!("{} ", (*variation).pgn(initial_state.clone(), true, true));
+                    res += &*format!("{} ", (*variation).pgn(initial_state.clone(), true, true, prepend_tabs + 1));
                 }
             }
-            res += ")\n ";
+            res += format!(")\n{}", "    ".repeat(prepend_tabs as usize)).as_str();
             should_remind_fullmove = true;
         }
         if let Some(next_node) = self.next_main_node() {
             unsafe {
-                res += &*format!("{}", (*next_node).pgn(current_state, should_render_variations, should_remind_fullmove));
+                res += &*format!("{}", (*next_node).pgn(current_state, should_render_variations, should_remind_fullmove, prepend_tabs));
             }
         }
         res
@@ -113,7 +113,7 @@ impl PartialEq<Self> for MoveNode {
     }
 }
 
-#[derive(Clone, Eq)]
+#[derive(Eq)]
 pub struct History {
     pub tags: Vec<String>,
     pub initial_state: Option<State>,
@@ -335,7 +335,7 @@ impl History {
         let mut res = String::new();
         if let Some(head) = self.head {
             unsafe {
-                res += &*format!("{}", (*head).pgn(self.initial_state.clone().unwrap_or(State::initial()), should_render_variations, false));
+                res += &*format!("{}", (*head).pgn(self.initial_state.clone().unwrap_or(State::initial()), should_render_variations, false, 0));
             }
         }
         res
