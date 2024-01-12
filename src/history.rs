@@ -25,8 +25,28 @@ impl MoveNode {
         }))
     }
 
+    fn has_next(&self) -> bool {
+        !self.next_nodes.is_empty()
+    }
+
+    fn has_variation(&self) -> bool {
+        self.next_nodes.len() > 1
+    }
+
     fn next_main_node(&self) -> Option<*mut MoveNode> {
         self.next_nodes.last().cloned()
+    }
+
+    fn next_variation_nodes(&self) -> Vec<*mut MoveNode> {
+        self.next_nodes[..self.next_nodes.len() - 1].to_vec()
+    }
+
+    fn remove_line(&mut self) {
+        if self.previous_node.is_some() {
+            unsafe {
+                (*self.previous_node.unwrap()).next_nodes.retain(|&node| node != self as *mut MoveNode);
+            }
+        }
     }
 }
 
