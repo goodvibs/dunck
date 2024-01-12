@@ -1,5 +1,5 @@
 use std::any::Any;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::string::ParseError;
 use crate::r#move::Move;
 use crate::state::State;
@@ -92,6 +92,7 @@ impl Drop for MoveNode {
     }
 }
 
+#[derive(Clone, Eq)]
 pub struct History {
     pub tags: Vec<String>,
     pub initial_state: Option<State>,
@@ -310,7 +311,7 @@ impl History {
     }
 
     fn pgn_helper(&self, should_render_variations: bool) -> String {
-        let mut res = self.tags_pgn();
+        let mut res = String::new();
         if let Some(head) = self.head {
             unsafe {
                 res += &*format!("{}", (*head).pgn(self.initial_state.clone().unwrap_or(State::initial()), should_render_variations, false));
@@ -320,7 +321,7 @@ impl History {
     }
 
     pub fn pgn(&self) -> String {
-        self.pgn_helper(true)
+        format!("{}\n{}", self.tags_pgn(), self.pgn_helper(true))
     }
 
     pub fn main_line_pgn(&self) -> String {
@@ -349,5 +350,23 @@ impl Drop for History {
                 drop(Box::from_raw(head));
             }
         }
+    }
+}
+
+impl Display for History {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.pgn())
+    }
+}
+
+impl Debug for History {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.tags_pgn())
+    }
+}
+
+impl PartialEq<Self> for History {
+    fn eq(&self, other: &Self) -> bool {
+        self.initial_state == other.initial_state && self.head == other.head
     }
 }
