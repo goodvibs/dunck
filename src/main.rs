@@ -160,8 +160,8 @@ score had become 4-4. The match continued in New Orleans.}";
             let new_hist = History::from_pgn(&pgn).unwrap();
             let new_pgn = new_hist.pgn();
             println!("{}\n", new_pgn);
-            assert_eq!(pgn, new_pgn);
-            // assert_eq!(hist, new_hist);
+            // assert_eq!(pgn, new_pgn);
+            assert_eq!(hist, new_hist);
             // let mut state = State::initial();
             // let moves = hist.main_line();
             // for mv in moves.clone() {

@@ -5,7 +5,7 @@ use crate::r#move::Move;
 use crate::state::State;
 use crate::utils::Color;
 
-#[derive(Clone)]
+#[derive(Clone, Eq)]
 pub struct MoveNode {
     pub current_move: Move,
     pub fullmove: u16,
@@ -89,6 +89,27 @@ impl Drop for MoveNode {
                 drop(Box::from_raw(*node));
             }
         }
+    }
+}
+
+impl PartialEq<Self> for MoveNode {
+    fn eq(&self, other: &Self) -> bool {
+        if !(self.current_move == other.current_move &&
+            self.fullmove == other.fullmove &&
+            self.turn == other.turn) {
+                return false;
+        }
+        if self.previous_node.is_some() ^ other.previous_node.is_some() {
+            return false;
+        }
+        unsafe {
+            for (i, node) in self.next_nodes.iter().enumerate() {
+                if !(**node == *other.next_nodes[i]) {
+                    return false;
+                }
+            }
+        }
+        true
     }
 }
 
@@ -328,7 +349,7 @@ impl History {
         self.pgn_helper(false)
     }
 
-    pub fn main_line(&self) -> Vec<Move> {
+    pub fn main_line_moves(&self) -> Vec<Move> {
         let mut res: Vec<Move> = Vec::new();
         if let Some(head) = self.head {
             let mut current_node = head;
@@ -367,6 +388,17 @@ impl Debug for History {
 
 impl PartialEq<Self> for History {
     fn eq(&self, other: &Self) -> bool {
-        self.initial_state == other.initial_state && self.head == other.head
+        if self.initial_state != other.initial_state {
+            return false;
+        }
+        if self.head.is_some() && other.head.is_some() {
+            unsafe {
+                return *self.head.unwrap() == *other.head.unwrap();
+            }
+        }
+        else if self.head.is_some() || other.head.is_some() {
+            return false;
+        }
+        true
     }
 }
