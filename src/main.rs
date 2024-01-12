@@ -155,29 +155,30 @@ score had become 4-4. The match continued in New Orleans.}";
     match history {
         Ok(hist) => {
             println!("Okay!");
-            let mut state = State::initial();
-            let moves = hist.main_line();
-            for mv in moves.clone() {
-                println!("{}", mv);
-            }
-            let mut movenum = 1;
-            for mv in moves {
-                let possible_moves = state.get_moves();
-                if possible_moves.iter().find(|&m| *m == mv).is_none() {
-                    println!("Illegal move: {}", mv);
-                    println!("Turn: {:?}", state.turn);
-                    println!("Halfmove: {}", state.halfmove);
-                    break;
-                }
-                println!("{}. {:?} played {}", movenum, state.turn, mv);
-                state.play_move(mv);
-                if state.turn == Color::White {
-                    movenum += 1;
-                }
-                println!("State after move:");
-                println!("{}", state.board);
-                println!();
-            }
+            println!("{}", hist.to_pgn());
+            // let mut state = State::initial();
+            // let moves = hist.main_line();
+            // for mv in moves.clone() {
+            //     println!("{}", mv);
+            // }
+            // let mut movenum = 1;
+            // for mv in moves {
+            //     let possible_moves = state.get_moves();
+            //     if possible_moves.iter().find(|&m| *m == mv).is_none() {
+            //         println!("Illegal move: {}", mv);
+            //         println!("Turn: {:?}", state.turn);
+            //         println!("Halfmove: {}", state.halfmove);
+            //         break;
+            //     }
+            //     println!("{}. {:?} played {}", movenum, state.turn, mv);
+            //     state.play_move(mv);
+            //     if state.turn == Color::White {
+            //         movenum += 1;
+            //     }
+            //     println!("State after move:");
+            //     println!("{}", state.board);
+            //     println!();
+            // }
         }
         Err(parse_error) => {
             println!("{:?}", parse_error);

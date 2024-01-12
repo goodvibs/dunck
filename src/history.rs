@@ -249,6 +249,36 @@ impl History {
         })
     }
 
+    pub fn to_pgn(&self) -> String {
+        let mut res = String::new();
+        for tag in self.tags.iter() {
+            res += &*format!("[{}]\n", tag);
+        }
+        if let Some(head) = self.head {
+            let mut current_state = self.initial_state.clone().unwrap_or(State::initial());
+            let mut previous_state;
+            let mut current_node = head;
+            unsafe {
+                loop {
+                    previous_state = current_state.clone();
+                    current_state.play_move((*current_node).current_move);
+                    let san = (*current_node).current_move.san(&previous_state, &current_state);
+                    res += match previous_state.turn {
+                        Color::White => format!("{}. {} ", (*current_node).fullmove, san),
+                        Color::Black => format!("{} ", san)
+                    }.as_str();
+                    if let Some(next_node) = (*current_node).next_main_node() {
+                        current_node = next_node;
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+        }
+        res
+    }
+
     pub fn main_line(&self) -> Vec<Move> {
         let mut res: Vec<Move> = Vec::new();
         if let Some(head) = self.head {

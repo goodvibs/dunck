@@ -16,6 +16,16 @@ pub enum Termination {
     FiftyMoveRule
 }
 
+impl Termination {
+    pub fn is_conclusive(&self) -> bool {
+        self == &Termination::Checkmate
+    }
+
+    pub fn is_draw(&self) -> bool {
+        !self.is_conclusive()
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum FenParseError {
     InvalidFieldCount(usize),

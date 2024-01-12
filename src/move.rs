@@ -1,5 +1,7 @@
 use std::fmt;
 use crate::consts::SQUARE_NAMES;
+use crate::state::{State, Termination};
+use crate::utils::Color;
 
 pub const NO_FLAG: u8 = 0;
 pub const KNIGHT_MOVE_FLAG: u8 = 1;
@@ -58,6 +60,74 @@ impl Move {
             _ => ""
         };
         (src_str, dst_str, flag_str)
+    }
+
+    pub fn is_pawn_move(&self) -> bool {
+        let (_, _, flag) = self.unpack();
+        flag == PAWN_MOVE_FLAG || flag == PAWN_DOUBLE_MOVE_FLAG || flag == EN_PASSANT_FLAG || flag == PROMOTE_TO_QUEEN_FLAG || flag == PROMOTE_TO_KNIGHT_FLAG || flag == PROMOTE_TO_ROOK_FLAG || flag == PROMOTE_TO_BISHOP_FLAG
+    }
+
+    pub fn is_piece_move(&self) -> bool {
+        !self.is_pawn_move()
+    }
+
+    pub fn san(&self, initial_state: &State, final_state: &State) -> String {
+        let (src, dst, flag) = self.unpack();
+        let src_str = SQUARE_NAMES[src as usize];
+        let dst_str = SQUARE_NAMES[dst as usize];
+        let (src_file, src_rank) = (src_str.chars().nth(0).unwrap(), src_str.chars().nth(1).unwrap());
+        let (piece_str, promotion_str) = match flag {
+            PAWN_MOVE_FLAG => ("", ""),
+            PAWN_DOUBLE_MOVE_FLAG => {
+                return dst_str.to_string();
+            },
+            EN_PASSANT_FLAG => {
+                return format!("{}x{}", src_file, dst_str);
+            },
+            KNIGHT_MOVE_FLAG => ("N", ""),
+            BISHOP_MOVE_FLAG => ("B", ""),
+            ROOK_MOVE_FLAG => ("R", ""),
+            QUEEN_MOVE_FLAG => ("Q", ""),
+            KING_MOVE_FLAG => ("K", ""),
+            CASTLE_FLAG => {
+                return if dst_str.contains('g') {
+                    "O-O".to_string()
+                } else {
+                    "O-O-O".to_string()
+                }
+            },
+            PROMOTE_TO_QUEEN_FLAG => ("", "=Q"),
+            PROMOTE_TO_KNIGHT_FLAG => ("", "=N"),
+            PROMOTE_TO_ROOK_FLAG => ("", "=R"),
+            PROMOTE_TO_BISHOP_FLAG => ("", "=B"),
+            _ => ("", "")
+        };
+        let is_capture = match initial_state.turn {
+            Color::White => initial_state.board.black() != final_state.board.black(),
+            Color::Black => initial_state.board.white() != final_state.board.white()
+        };
+        let capture_str = if is_capture { "x" } else { "" };
+        let annotation_str;
+        if final_state.termination == Some(Termination::Checkmate) {
+            annotation_str = "#";
+        }
+        else if final_state.in_check {
+            annotation_str = "+";
+        }
+        else {
+            annotation_str = "";
+        }
+        let disambiguation_str = match piece_str.is_empty() {
+            true => {
+                if is_capture {
+                    src_file.to_string()
+                } else {
+                    "".to_string()
+                }
+            }
+            false => src_str.to_string()
+        };
+        format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
     }
 
     pub fn matches(&self, move_str: &str) -> bool {
