@@ -49,7 +49,7 @@ impl MoveNode {
         }
     }
 
-    fn pgn(&self, initial_state: State, mut should_remind_fullmove: bool) -> String {
+    fn pgn(&self, initial_state: State, should_render_variations: bool, mut should_remind_fullmove: bool) -> String {
         let mut res = String::new();
         let mut current_state = initial_state.clone();
         current_state.play_move(self.current_move);
@@ -62,12 +62,12 @@ impl MoveNode {
             }
         }.as_str();
         should_remind_fullmove = false;
-        if self.has_variation() {
+        if should_render_variations && self.has_variation() {
             let variations = self.next_variation_nodes();
             res += "\n(";
             for variation in variations {
                 unsafe {
-                    res += &*format!("{} ", (*variation).pgn(initial_state.clone(), true));
+                    res += &*format!("{} ", (*variation).pgn(initial_state.clone(), true, true));
                 }
             }
             res += ")\n ";
@@ -75,7 +75,7 @@ impl MoveNode {
         }
         if let Some(next_node) = self.next_main_node() {
             unsafe {
-                res += &*format!("{}", (*next_node).pgn(current_state, should_remind_fullmove));
+                res += &*format!("{}", (*next_node).pgn(current_state, should_render_variations, should_remind_fullmove));
             }
         }
         res
@@ -309,45 +309,22 @@ impl History {
         res
     }
 
-    pub fn pgn(&self) -> String {
+    fn pgn_helper(&self, should_render_variations: bool) -> String {
         let mut res = self.tags_pgn();
         if let Some(head) = self.head {
             unsafe {
-                res += &*format!("{}", (*head).pgn(self.initial_state.clone().unwrap_or(State::initial()), false));
+                res += &*format!("{}", (*head).pgn(self.initial_state.clone().unwrap_or(State::initial()), should_render_variations, false));
             }
         }
         res
     }
 
+    pub fn pgn(&self) -> String {
+        self.pgn_helper(true)
+    }
+
     pub fn main_line_pgn(&self) -> String {
-        let mut res = self.tags_pgn();
-        if let Some(head) = self.head {
-            let mut current_state = self.initial_state.clone().unwrap_or(State::initial());
-            let mut previous_state;
-            let mut current_node = head;
-            let ended_variation = false;
-            unsafe {
-                loop {
-                    previous_state = current_state.clone();
-                    current_state.play_move((*current_node).current_move);
-                    let san = (*current_node).current_move.san(&previous_state, &current_state);
-                    res += match previous_state.turn {
-                        Color::White => format!("{}. {} ", (*current_node).fullmove, san),
-                        Color::Black => match ended_variation {
-                            true => format!("{}... {} ", (*current_node).fullmove, san),
-                            false => format!("{} ", san)
-                        }
-                    }.as_str();
-                    if let Some(next_node) = (*current_node).next_main_node() {
-                        current_node = next_node;
-                    }
-                    else {
-                        break;
-                    }
-                }
-            }
-        }
-        res
+        self.pgn_helper(false)
     }
 
     pub fn main_line(&self) -> Vec<Move> {
