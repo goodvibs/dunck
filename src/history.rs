@@ -8,18 +8,16 @@ use crate::utils::Color;
 #[derive(Eq)]
 pub struct MoveNode {
     pub current_move: Move,
-    pub fullmove: u16,
-    pub turn: Color,
+    pub initial_state: State,
     pub previous_node: Option<*mut MoveNode>,
     pub next_nodes: Vec<*mut MoveNode>
 }
 
 impl MoveNode {
-    fn new(current_move: Move, fullmove: u16, turn: Color, previous_node: Option<*mut MoveNode>) -> *mut MoveNode {
+    fn new(current_move: Move, initial_state: State, previous_node: Option<*mut MoveNode>) -> *mut MoveNode {
         Box::into_raw(Box::new(MoveNode {
             current_move,
-            fullmove,
-            turn,
+            initial_state,
             previous_node,
             next_nodes: Vec::new()
         }))
@@ -38,6 +36,9 @@ impl MoveNode {
     }
 
     fn next_variation_nodes(&self) -> Vec<*mut MoveNode> {
+        if self.next_nodes.len() < 2 {
+            return Vec::new();
+        }
         self.next_nodes[..self.next_nodes.len() - 1].to_vec()
     }
 
@@ -55,9 +56,9 @@ impl MoveNode {
         current_state.play_move(self.current_move);
         let san = self.current_move.san(&initial_state, &current_state);
         res += match initial_state.turn {
-            Color::White => format!("{}. {} ", self.fullmove, san),
+            Color::White => format!("{}. {} ", self.initial_state.get_fullmove(), san),
             Color::Black => match should_remind_fullmove {
-                true => format!("{}... {} ", self.fullmove, san),
+                true => format!("{}... {} ", self.initial_state.get_fullmove(), san),
                 false => format!("{} ", san),
             }
         }.as_str();
@@ -95,8 +96,7 @@ impl Drop for MoveNode {
 impl PartialEq<Self> for MoveNode {
     fn eq(&self, other: &Self) -> bool {
         if !(self.current_move == other.current_move &&
-            self.fullmove == other.fullmove &&
-            self.turn == other.turn) {
+            self.initial_state == other.initial_state) {
                 return false;
         }
         if self.previous_node.is_some() ^ other.previous_node.is_some() {
@@ -277,7 +277,7 @@ impl History {
                                 state_before_move = current_state.clone();
                                 current_state.play_move(mv);
                                 move_str.clear();
-                                let new_node = MoveNode::new(mv, state_before_move.get_fullmove(), state_before_move.turn, previous_node);
+                                let new_node = MoveNode::new(mv, state_before_move.clone(), previous_node);
                                 if previous_node.is_some() {
                                     unsafe {
                                         (*previous_node.unwrap()).next_nodes.push(new_node);
@@ -401,4 +401,55 @@ impl PartialEq<Self> for History {
         }
         true
     }
+}
+
+pub struct HistoryTraverser<'a> {
+    history: &'a History,
+    current_node: Option<*mut MoveNode>
+}
+
+impl<'a> HistoryTraverser<'a> {
+    pub fn new(history: &'a History) -> Self {
+        HistoryTraverser {
+            history,
+            current_node: history.head
+        }
+    }
+
+    pub fn current_state(&self) -> State {
+        if let Some(current_node) = self.current_node {
+            unsafe {
+                let mut state = (*current_node).initial_state.clone();
+                state.play_move((*current_node).current_move);
+                state
+            }
+        }
+        else {
+            self.history.initial_state.clone().unwrap_or(State::initial())
+        }
+    }
+
+    pub fn has_next(&self) -> bool {
+        if let Some(current_node) = self.current_node {
+            unsafe {
+                (*current_node).has_next()
+            }
+        }
+        else {
+            false
+        }
+    }
+
+    pub fn has_variation(&self) -> bool {
+        if let Some(current_node) = self.current_node {
+            unsafe {
+                (*current_node).has_variation()
+            }
+        }
+        else {
+            false
+        }
+    }
+
+
 }
