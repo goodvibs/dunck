@@ -79,14 +79,14 @@ impl State {
         let board = Board::initial();
         let position_count: HashMap<u64, u8> = HashMap::from([(board.zobrist_hash(), 1)]);
         State {
-            board: board,
+            board,
             wk_castle: true,
             wq_castle: true,
             bk_castle: true,
             bq_castle: true,
             in_check: false,
             double_pawn_push: -1,
-            position_count: position_count,
+            position_count,
             turn: Color::White,
             halfmove: 0,
             halfmove_clock: 0,

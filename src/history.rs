@@ -8,16 +8,16 @@ use crate::utils::Color;
 #[derive(Eq)]
 pub struct MoveNode {
     pub current_move: Move,
-    pub initial_state: State,
+    pub state_after_move: State,
     pub previous_node: Option<*mut MoveNode>,
     pub next_nodes: Vec<*mut MoveNode>
 }
 
 impl MoveNode {
-    fn new(current_move: Move, initial_state: State, previous_node: Option<*mut MoveNode>) -> *mut MoveNode {
+    fn new(current_move: Move, state_after_move: State, previous_node: Option<*mut MoveNode>) -> *mut MoveNode {
         Box::into_raw(Box::new(MoveNode {
             current_move,
-            initial_state,
+            state_after_move,
             previous_node,
             next_nodes: Vec::new()
         }))
@@ -56,9 +56,9 @@ impl MoveNode {
         current_state.play_move(self.current_move);
         let san = self.current_move.san(&initial_state, &current_state);
         res += match initial_state.turn {
-            Color::White => format!("{}. {} ", self.initial_state.get_fullmove(), san),
+            Color::White => format!("{}. {} ", self.state_after_move.get_fullmove(), san),
             Color::Black => match should_remind_fullmove {
-                true => format!("{}... {} ", self.initial_state.get_fullmove(), san),
+                true => format!("{}... {} ", self.state_after_move.get_fullmove(), san),
                 false => format!("{} ", san),
             }
         }.as_str();
@@ -96,7 +96,7 @@ impl Drop for MoveNode {
 impl PartialEq<Self> for MoveNode {
     fn eq(&self, other: &Self) -> bool {
         if !(self.current_move == other.current_move &&
-            self.initial_state == other.initial_state) {
+            self.state_after_move == other.state_after_move) {
                 return false;
         }
         if self.previous_node.is_some() ^ other.previous_node.is_some() {
@@ -116,7 +116,7 @@ impl PartialEq<Self> for MoveNode {
 #[derive(Eq)]
 pub struct History {
     pub tags: Vec<String>,
-    pub initial_state: Option<State>,
+    pub initial_state: State,
     pub head: Option<*mut MoveNode>,
 }
 
@@ -318,7 +318,7 @@ impl History {
         }
         Ok(History {
             tags,
-            initial_state: None,
+            initial_state: State::initial(),
             head
         })
     }
@@ -335,7 +335,7 @@ impl History {
         let mut res = String::new();
         if let Some(head) = self.head {
             unsafe {
-                res += &*format!("{}", (*head).pgn(self.initial_state.clone().unwrap_or(State::initial()), should_render_variations, false, 0));
+                res += &*format!("{}", (*head).pgn(self.initial_state.clone(), should_render_variations, false, 0));
             }
         }
         res
@@ -405,32 +405,21 @@ impl PartialEq<Self> for History {
 
 pub struct HistoryTraverser<'a> {
     history: &'a History,
-    current_node: Option<*mut MoveNode>
+    current_state: &'a State,
+    next_node: Option<*mut MoveNode>
 }
 
 impl<'a> HistoryTraverser<'a> {
     pub fn new(history: &'a History) -> Self {
         HistoryTraverser {
             history,
-            current_node: history.head
-        }
-    }
-
-    pub fn current_state(&self) -> State {
-        if let Some(current_node) = self.current_node {
-            unsafe {
-                let mut state = (*current_node).initial_state.clone();
-                state.play_move((*current_node).current_move);
-                state
-            }
-        }
-        else {
-            self.history.initial_state.clone().unwrap_or(State::initial())
+            current_state: &history.initial_state,
+            next_node: history.head,
         }
     }
 
     pub fn has_next(&self) -> bool {
-        if let Some(current_node) = self.current_node {
+        if let Some(current_node) = self.next_node {
             unsafe {
                 (*current_node).has_next()
             }
@@ -441,7 +430,7 @@ impl<'a> HistoryTraverser<'a> {
     }
 
     pub fn has_variation(&self) -> bool {
-        if let Some(current_node) = self.current_node {
+        if let Some(current_node) = self.next_node {
             unsafe {
                 (*current_node).has_variation()
             }
@@ -450,6 +439,4 @@ impl<'a> HistoryTraverser<'a> {
             false
         }
     }
-
-
 }

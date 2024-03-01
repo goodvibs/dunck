@@ -162,6 +162,7 @@ score had become 4-4. The match continued in New Orleans.}";
             println!("{}\n", new_pgn);
             // assert_eq!(pgn, new_pgn);
             assert_eq!(hist, new_hist);
+            println!("Equal!");
             // let mut state = State::initial();
             // let moves = hist.main_line();
             // for mv in moves.clone() {

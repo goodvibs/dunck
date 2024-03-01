@@ -1,3 +1,5 @@
+use crate::state::State;
+
 pub const A8: u8 = 0;
 pub const B8: u8 = 1;
 pub const C8: u8 = 2;
