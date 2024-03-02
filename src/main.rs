@@ -2,12 +2,6 @@
 #![allow(unused_variables)]
 #![allow(unused_imports)]
 
-use crate::utils::*;
-use crate::attacks::*;
-use crate::board::Board;
-use crate::history::History;
-use crate::state::State;
-
 mod board;
 mod attacks;
 mod utils;
@@ -19,7 +13,13 @@ mod manual_attacks;
 mod r#move;
 mod consts;
 mod zobrist;
-mod history;
+mod pgn;
+
+use crate::utils::*;
+use crate::attacks::*;
+use crate::board::Board;
+use crate::pgn::PgnHistoryTree;
+use crate::state::State;
 
 fn main() {
     // let cb: Charboard = [
@@ -150,14 +150,14 @@ score had become 4-4. The match continued in New Orleans.}";
     //     println!();
     // }
 
-    let history = History::from_pgn(pgn);
+    let history = PgnHistoryTree::from_pgn(pgn);
     println!();
     match history {
         Ok(hist) => {
             println!("Okay!");
             let pgn = hist.pgn();
             println!("{}\n", pgn);
-            let new_hist = History::from_pgn(&pgn).unwrap();
+            let new_hist = PgnHistoryTree::from_pgn(&pgn).unwrap();
             let new_pgn = new_hist.pgn();
             println!("{}\n", new_pgn);
             // assert_eq!(pgn, new_pgn);
