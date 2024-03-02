@@ -67,7 +67,7 @@ impl PgnHistoryTree {
         let mut previous_state = State::blank();
         
         // for variations
-        let mut current_and_previous_states_and_tail_node_stack: Vec<(State, State, *mut PgnMoveNode)> = Vec::new();
+        let mut current_state_and_tail_node_stack: Vec<(State, *mut PgnMoveNode)> = Vec::new();
 
         // for building string values
         let mut tag_builder = String::new();
@@ -113,24 +113,19 @@ impl PgnHistoryTree {
                         },
                         '(' => {
                             match tail_node {
-                                Some(tail_node_unwrapped) => unsafe {
-                                    current_and_previous_states_and_tail_node_stack.push((current_state.clone(), previous_state.clone(), tail_node_unwrapped));
-                                    // match (*tail_node_unwrapped).previous_node { 
-                                    //     Some(tail_node_unwrapped) => current_state = (*tail_node_unwrapped).state_after_move.clone(),
-                                    //     None => return Err(PgnParseError::UnexpectedVariation(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[i..].to_string()))
-                                    // }
+                                Some(tail_node_unwrapped) => {
+                                    current_state_and_tail_node_stack.push((current_state.clone(), tail_node_unwrapped));
                                     current_state = previous_state.clone();
                                 },
                                 None => return Err(PgnParseError::UnexpectedVariation(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[i..].to_string()))
                             }
                         },
                         ')' => {
-                            match current_and_previous_states_and_tail_node_stack.pop() {
-                                Some((state1, state2, previous_node_unwrapped)) => {
-                                    current_state = state1;
-                                    previous_state = state2;
-                                    tail_node = Some(previous_node_unwrapped);
-                                },
+                            match current_state_and_tail_node_stack.pop() {
+                                Some((new_current_state, tail_node_unwrapped)) => {
+                                    current_state = new_current_state;
+                                    tail_node = Some(tail_node_unwrapped);
+                                }
                                 None => return Err(PgnParseError::UnfinishedVariation(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[..i+1].to_string()))
                             }
                         },
