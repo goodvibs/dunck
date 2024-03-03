@@ -18,7 +18,7 @@ mod pgn;
 use crate::utils::*;
 use crate::attacks::*;
 use crate::board::Board;
-use crate::pgn::PgnHistoryTree;
+use crate::pgn::PgnMoveTree;
 use crate::state::State;
 
 fn main() {
@@ -150,14 +150,14 @@ score had become 4-4. The match continued in New Orleans.}";
     //     println!();
     // }
 
-    let history = PgnHistoryTree::from_pgn(pgn);
+    let history = PgnMoveTree::from_pgn(pgn);
     println!();
     match history {
         Ok(hist) => {
             println!("Okay!");
             let pgn = hist.pgn();
             println!("{}\n", pgn);
-            let new_hist = PgnHistoryTree::from_pgn(&pgn).unwrap();
+            let new_hist = PgnMoveTree::from_pgn(&pgn).unwrap();
             let new_pgn = new_hist.pgn();
             println!("{}\n", new_pgn);
             // assert_eq!(pgn, new_pgn);

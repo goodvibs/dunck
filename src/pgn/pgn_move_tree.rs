@@ -1,12 +1,13 @@
 use std::collections::HashMap;
-use std::fmt::{Debug, Display};
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter};
 use indexmap::IndexMap;
 use crate::pgn::pgn_move_node::PgnMoveNode;
 use crate::r#move::Move;
 use crate::state::State;
 
 #[derive(Eq)]
-pub struct PgnHistoryTree {
+pub struct PgnMoveTree {
     pub tags: IndexMap<String, String>,
     pub initial_state: State,
     pub head: Option<*mut PgnMoveNode>,
@@ -23,49 +24,50 @@ pub enum PgnParseState {
     ParsingNag
 }
 
+#[derive(Debug)]
 pub enum PgnParseError {
-    UnexpectedCharacter(PgnParseState, String),
     UnexpectedValue(PgnParseState, String),
-    BadMoveNumber(PgnParseState, String),
+    WrongMoveNumber(PgnParseState, String),
     AmbiguousMove(PgnParseState, String),
-    BadMove(PgnParseState, String),
-    UnexpectedVariation(PgnParseState, String),
+    IllegalMove(PgnParseState, String),
+    IllegalVariationStart(PgnParseState, String),
     UnfinishedVariation(PgnParseState, String),
     UnfinishedComment(PgnParseState, String)
 }
 
-impl Debug for PgnParseError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for PgnParseError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PgnParseError::UnexpectedCharacter(state, parsed) => write!(f, "PGN Parse Error: 'Unexpected character' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::UnexpectedValue(state, parsed) => write!(f, "PGN Parse Error: 'Unexpected value' at state '{:?}'\nParsed:\n'{}'", state, parsed),
-            PgnParseError::BadMoveNumber(state, parsed) => write!(f, "PGN Parse Error: 'Bad move number' at state '{:?}'\nParsed:\n'{}'", state, parsed),
+            PgnParseError::WrongMoveNumber(state, parsed) => write!(f, "PGN Parse Error: 'Wrong move number' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::AmbiguousMove(state, parsed) => write!(f, "PGN Parse Error: 'Ambiguous move' at state '{:?}'\nParsed:\n'{}'", state, parsed),
-            PgnParseError::BadMove(state, parsed) => write!(f, "PGN Parse Error: 'Bad move' at state '{:?}'\nParsed:\n'{}'", state, parsed),
-            PgnParseError::UnexpectedVariation(state, parsed) => write!(f, "PGN Parse Error: 'Unexpected variation' at state '{:?}'\nParsed:\n'{}'", state, parsed),
+            PgnParseError::IllegalMove(state, parsed) => write!(f, "PGN Parse Error: 'Illegal move' at state '{:?}'\nParsed:\n'{}'", state, parsed),
+            PgnParseError::IllegalVariationStart(state, parsed) => write!(f, "PGN Parse Error: 'Illegal variation start' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::UnfinishedVariation(state, parsed) => write!(f, "PGN Parse Error: 'Unfinished variation' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::UnfinishedComment(state, parsed) => write!(f, "PGN Parse Error: 'Unfinished comment' at state '{:?}'\nParsed:\n'{}'", state, parsed)
         }
     }
 }
 
-impl PgnHistoryTree {
+impl Error for PgnParseError {}
+
+impl PgnMoveTree {
     fn check_and_add_tag(&mut self, tag: &str) {
         // todo!();
     }
 
-    pub fn from_pgn(pgn: &str) -> Result<PgnHistoryTree, PgnParseError> {
-        let mut pgn_history_tree: PgnHistoryTree = PgnHistoryTree {
+    pub fn from_pgn(pgn: &str) -> Result<PgnMoveTree, PgnParseError> {
+        let mut pgn_history_tree: PgnMoveTree = PgnMoveTree {
             tags: IndexMap::new(),
             initial_state: State::initial(),
             head: None
         };
-        
+
         let mut parse_state = PgnParseState::InitialState;
         let mut tail_node: Option<*mut PgnMoveNode> = None;
         let mut current_state = State::initial();
         let mut previous_state = State::blank();
-        
+
         // for variations
         let mut current_state_and_tail_node_stack: Vec<(State, *mut PgnMoveNode)> = Vec::new();
 
@@ -89,7 +91,7 @@ impl PgnHistoryTree {
                             parse_state = PgnParseState::ParsingMoveNumberOrSomethingElse;
                         },
                         _ => {
-                            return Err(PgnParseError::UnexpectedCharacter(PgnParseState::InitialState, pgn[..i+1].to_string()));
+                            return Err(PgnParseError::UnexpectedValue(PgnParseState::InitialState, pgn[..i+1].to_string()));
                         }
                     }
                 }
@@ -117,7 +119,7 @@ impl PgnHistoryTree {
                                     current_state_and_tail_node_stack.push((current_state.clone(), tail_node_unwrapped));
                                     current_state = previous_state.clone();
                                 },
-                                None => return Err(PgnParseError::UnexpectedVariation(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[i..].to_string()))
+                                None => return Err(PgnParseError::IllegalVariationStart(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[i..].to_string()))
                             }
                         },
                         ')' => {
@@ -137,7 +139,7 @@ impl PgnHistoryTree {
                             match move_number_parse_result {
                                 Ok(move_number) => {
                                     if move_number != expected_number {
-                                        return Err(PgnParseError::BadMoveNumber(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[..i+1].to_string()));
+                                        return Err(PgnParseError::WrongMoveNumber(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[..i+1].to_string()));
                                     }
                                 },
                                 Err(_) => return Err(PgnParseError::UnexpectedValue(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[..i+1].to_string()))
@@ -156,7 +158,7 @@ impl PgnHistoryTree {
                             parse_state = PgnParseState::ParsingMove;
                         },
                         _ => {
-                            return Err(PgnParseError::UnexpectedCharacter(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[..i+1].to_string()));
+                            return Err(PgnParseError::UnexpectedValue(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[..i+1].to_string()));
                         }
                     }
                 }
@@ -186,7 +188,8 @@ impl PgnHistoryTree {
                                 Some(mv) => {
                                     previous_state = current_state.clone();
                                     current_state.play_move(mv);
-                                    let new_node = PgnMoveNode::new(mv, current_state.clone(), tail_node);
+                                    let san = mv.san(&previous_state, &current_state);
+                                    let new_node = PgnMoveNode::new(mv, san, current_state.clone(), tail_node);
                                     match tail_node {
                                         Some(previous_node_unwrapped) => unsafe {
                                             (*previous_node_unwrapped).next_nodes.push(new_node);
@@ -195,7 +198,7 @@ impl PgnHistoryTree {
                                     }
                                     tail_node = Some(new_node);
                                 },
-                                None => return Err(PgnParseError::BadMove(PgnParseState::ParsingMove, pgn[..i+1].to_string()))
+                                None => return Err(PgnParseError::IllegalMove(PgnParseState::ParsingMove, pgn[..i+1].to_string()))
                             }
                             parse_state = PgnParseState::ParsingMoveNumberOrSomethingElse;
                             move_san_builder.clear();
@@ -257,7 +260,7 @@ impl PgnHistoryTree {
             let mut current_node = head;
             unsafe {
                 while let Some(next_node) = (*current_node).next_main_node() {
-                    res.push((*current_node).current_move);
+                    res.push((*current_node).move_);
                     current_node = next_node;
                 }
             }
@@ -266,7 +269,7 @@ impl PgnHistoryTree {
     }
 }
 
-impl Drop for PgnHistoryTree {
+impl Drop for PgnMoveTree {
     fn drop(&mut self) {
         if let Some(head) = self.head {
             unsafe {
@@ -276,19 +279,19 @@ impl Drop for PgnHistoryTree {
     }
 }
 
-impl Display for PgnHistoryTree {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for PgnMoveTree {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.pgn())
     }
 }
 
-impl Debug for PgnHistoryTree {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Debug for PgnMoveTree {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.tags_pgn())
     }
 }
 
-impl PartialEq<Self> for PgnHistoryTree {
+impl PartialEq<Self> for PgnMoveTree {
     fn eq(&self, other: &Self) -> bool {
         if self.initial_state != other.initial_state {
             return false;

@@ -4,16 +4,18 @@ use crate::utils::Color;
 
 #[derive(Eq)]
 pub(crate) struct PgnMoveNode {
-    pub(crate) current_move: Move,
+    pub(crate) move_: Move,
+    pub(crate) san: String,
     pub(crate) state_after_move: State,
     pub(crate) previous_node: Option<*mut PgnMoveNode>,
     pub(crate) next_nodes: Vec<*mut PgnMoveNode>
 }
 
 impl PgnMoveNode {
-    pub(crate) fn new(current_move: Move, state_after_move: State, previous_node: Option<*mut PgnMoveNode>) -> *mut PgnMoveNode {
+    pub(crate) fn new(move_: Move, san: String, state_after_move: State, previous_node: Option<*mut PgnMoveNode>) -> *mut PgnMoveNode {
         Box::into_raw(Box::new(PgnMoveNode {
-            current_move,
+            move_,
+            san,
             state_after_move,
             previous_node,
             next_nodes: Vec::new()
@@ -32,14 +34,14 @@ impl PgnMoveNode {
         self.next_nodes.last().cloned()
     }
 
-    fn next_variation_nodes(&self) -> Vec<*mut PgnMoveNode> {
+    pub(crate) fn next_variation_nodes(&self) -> Vec<*mut PgnMoveNode> {
         if self.next_nodes.len() < 2 {
             return Vec::new();
         }
         self.next_nodes[..self.next_nodes.len() - 1].to_vec()
     }
 
-    fn remove_line(&mut self) {
+    pub(crate) fn remove_line(&mut self) {
         if self.previous_node.is_some() {
             unsafe {
                 (*self.previous_node.unwrap()).next_nodes.retain(|&node| node != self as *mut PgnMoveNode);
@@ -49,7 +51,7 @@ impl PgnMoveNode {
 
     pub(crate) fn pgn(&self, initial_state: State, should_render_variations: bool, mut should_remind_fullmove: bool, prepend_tabs: u8) -> String {
         let mut res = String::new();
-        let san = self.current_move.san(&initial_state, &self.state_after_move);
+        let san = self.move_.san(&initial_state, &self.state_after_move);
         res += match initial_state.turn {
             Color::White => format!("{}. {} ", self.state_after_move.get_fullmove(), san),
             Color::Black => match should_remind_fullmove {
@@ -90,7 +92,7 @@ impl Drop for PgnMoveNode {
 
 impl PartialEq<Self> for PgnMoveNode {
     fn eq(&self, other: &Self) -> bool {
-        if !(self.current_move == other.current_move &&
+        if !(self.move_ == other.move_ &&
             self.state_after_move == other.state_after_move) {
             return false;
         }
