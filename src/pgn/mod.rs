@@ -1,5 +1,5 @@
 // pgn/pgn
-mod pgn_move_node;
+mod pgn_move_tree_node;
 pub mod pgn_move_tree_traverser;
 pub mod pgn_move_tree;
 

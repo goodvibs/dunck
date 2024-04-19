@@ -139,57 +139,29 @@ cxd5 {} 32...Bxd5 {??} 33.Rf5 )
 Rxe4 Qxe4 {Many authors praise the high level of this positional game. The
 score had become 4-4. The match continued in New Orleans.}";
 
-    // let (_, moves) = State::from_pgn(pgn);
-    // let mut game = State::initial();
-    // game.board.print();
-    // println!();
-    // for mv in moves {
-    //     game.play_move(mv);
-    //     println!("{}", mv);
-    //     println!("{}", game.board);
-    //     println!();
-    // }
-
-    let history = PgnMoveTree::from_pgn(pgn);
+    let mut history = PgnMoveTree::from_pgn(pgn);
+    let output_pgn = history.unwrap().pgn();
+    println!("{}", output_pgn);
     println!();
+    history = PgnMoveTree::from_pgn(output_pgn.as_str());
+    println!("Parsed once!");
     match history {
         Ok(hist) => {
-            println!("Okay!");
-            let pgn = hist.pgn();
-            println!("{}\n", pgn);
-            let new_hist = PgnMoveTree::from_pgn(&pgn).unwrap();
-            let new_pgn = new_hist.pgn();
-            println!("{}\n", new_pgn);
-            // assert_eq!(pgn, new_pgn);
-            assert_eq!(hist, new_hist);
-            println!("Equal!");
-            // let mut state = State::initial();
-            // let moves = hist.main_line();
-            // for mv in moves.clone() {
-            //     println!("{}", mv);
-            // }
-            // let mut movenum = 1;
-            // for mv in moves {
-            //     let possible_moves = state.get_moves();
-            //     if possible_moves.iter().find(|&m| *m == mv).is_none() {
-            //         println!("Illegal move: {}", mv);
-            //         println!("Turn: {:?}", state.turn);
-            //         println!("Halfmove: {}", state.halfmove);
-            //         break;
-            //     }
-            //     println!("{}. {:?} played {}", movenum, state.turn, mv);
-            //     state.play_move(mv);
-            //     if state.turn == Color::White {
-            //         movenum += 1;
-            //     }
-            //     println!("State after move:");
-            //     println!("{}", state.board);
-            //     println!();
-            // }
+            println!("Parsed twice!");
+            let mut traverser = hist.traverser();
+            loop {
+                let (mv, san) = traverser.get_next_main_line_move().unwrap();
+                println!("{}", san);
+                if !traverser.has_next() {
+                    break;
+                }
+                traverser.step_forward_with_main_line().unwrap();
+            }
+        },
+        Err(e) => {
+            println!("Error: {:?}", e);
         }
-        Err(parse_error) => {
-            println!("{:?}", parse_error);
-        }
+            
     }
 
     // let fen = "3r1q1k/p5p1/4ppQN/1p6/b1rP4/5R1P/P2R1PP1/6K1 b - - 0 33";

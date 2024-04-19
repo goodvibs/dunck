@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::fs;
 use indexmap::IndexMap;
-use crate::pgn::pgn_move_node::PgnMoveNode;
+use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
+use crate::pgn::pgn_move_tree_traverser::PgnMoveTreeTraverseError;
+use crate::pgn::PgnMoveTreeTraverser;
 use crate::r#move::Move;
 use crate::state::State;
 
-#[derive(Eq)]
 pub struct PgnMoveTree {
     pub tags: IndexMap<String, String>,
-    pub initial_state: State,
-    pub head: Option<*mut PgnMoveNode>,
+    pub head: *mut PgnMoveTreeNode,
 }
 
 #[derive(Debug)]
@@ -59,17 +60,16 @@ impl PgnMoveTree {
     pub fn from_pgn(pgn: &str) -> Result<PgnMoveTree, PgnParseError> {
         let mut pgn_history_tree: PgnMoveTree = PgnMoveTree {
             tags: IndexMap::new(),
-            initial_state: State::initial(),
-            head: None
+            head: PgnMoveTreeNode::new_raw_linked_to_previous(None, "".to_string(), None, State::initial())
         };
 
         let mut parse_state = PgnParseState::InitialState;
-        let mut tail_node: Option<*mut PgnMoveNode> = None;
+        let mut tail_node: *mut PgnMoveTreeNode = pgn_history_tree.head;
         let mut current_state = State::initial();
         let mut previous_state = State::blank();
 
         // for variations
-        let mut current_state_and_tail_node_stack: Vec<(State, *mut PgnMoveNode)> = Vec::new();
+        let mut current_state_and_tail_node_stack: Vec<(State, *mut PgnMoveTreeNode)> = Vec::new();
 
         // for building string values
         let mut tag_builder = String::new();
@@ -113,20 +113,21 @@ impl PgnMoveTree {
                         '{' => {
                             parse_state = PgnParseState::ParsingComment;
                         },
-                        '(' => {
-                            match tail_node {
-                                Some(tail_node_unwrapped) => {
-                                    current_state_and_tail_node_stack.push((current_state.clone(), tail_node_unwrapped));
+                        '(' => unsafe {
+                            match (*tail_node).move_and_san_and_previous_node {
+                                Some((_, _, node)) => {
+                                    current_state_and_tail_node_stack.push((current_state.clone(), tail_node));
                                     current_state = previous_state.clone();
+                                    // tail_node = node;
                                 },
                                 None => return Err(PgnParseError::IllegalVariationStart(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[i..].to_string()))
                             }
                         },
                         ')' => {
                             match current_state_and_tail_node_stack.pop() {
-                                Some((new_current_state, tail_node_unwrapped)) => {
+                                Some((new_current_state, new_tail_node)) => {
                                     current_state = new_current_state;
-                                    tail_node = Some(tail_node_unwrapped);
+                                    tail_node = new_tail_node;
                                 }
                                 None => return Err(PgnParseError::UnfinishedVariation(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[..i+1].to_string()))
                             }
@@ -189,14 +190,8 @@ impl PgnMoveTree {
                                     previous_state = current_state.clone();
                                     current_state.play_move(mv);
                                     let san = mv.san(&previous_state, &current_state);
-                                    let new_node = PgnMoveNode::new(mv, san, current_state.clone(), tail_node);
-                                    match tail_node {
-                                        Some(previous_node_unwrapped) => unsafe {
-                                            (*previous_node_unwrapped).next_nodes.push(new_node);
-                                        },
-                                        None => pgn_history_tree.head = Some(new_node)
-                                    }
-                                    tail_node = Some(new_node);
+                                    let new_node = PgnMoveTreeNode::new_raw_linked_to_previous(Some(mv), san, Some(tail_node), current_state.clone());
+                                    tail_node = new_node;
                                 },
                                 None => return Err(PgnParseError::IllegalMove(PgnParseState::ParsingMove, pgn[..i+1].to_string()))
                             }
@@ -238,15 +233,16 @@ impl PgnMoveTree {
 
     fn pgn_helper(&self, should_render_variations: bool) -> String {
         let mut res = String::new();
-        if let Some(head) = self.head {
-            unsafe {
-                res += &*format!("{}", (*head).pgn(self.initial_state.clone(), should_render_variations, false, 0));
-            }
+        unsafe {
+            res += &*format!("{}", (*self.head).pgn(should_render_variations, true, 0));
         }
         res
     }
 
     pub fn pgn(&self) -> String {
+        if self.tags.is_empty() {
+            return self.pgn_helper(true);
+        }
         format!("{}\n{}", self.tags_pgn(), self.pgn_helper(true))
     }
 
@@ -254,27 +250,32 @@ impl PgnMoveTree {
         self.pgn_helper(false)
     }
 
-    pub fn main_line_moves(&self) -> Vec<Move> {
-        let mut res: Vec<Move> = Vec::new();
-        if let Some(head) = self.head {
-            let mut current_node = head;
-            unsafe {
-                while let Some(next_node) = (*current_node).next_main_node() {
-                    res.push((*current_node).move_);
-                    current_node = next_node;
-                }
-            }
-        }
-        res
+    // pub fn main_line_moves(&self) -> Vec<Move> {
+    //     let mut res: Vec<Move> = Vec::new();
+    //     unsafe {
+    //         match (*self.head).move_and_san_and_previous_node {
+    //             None => (),
+    //             Some((mv, _, _)) => { 
+    //                 res.push(mv);
+    //                 while let Some(next_node) = (*self.head).next_main_node() {
+    //                     res.push((*next_node).move_and_san_and_previous_node.unwrap().0);
+    //                 }
+    //             }
+    //         }
+    //     }
+    //     
+    //     res
+    // }
+    
+    pub fn traverser(&self) -> PgnMoveTreeTraverser {
+        PgnMoveTreeTraverser::new(self)
     }
 }
 
 impl Drop for PgnMoveTree {
     fn drop(&mut self) {
-        if let Some(head) = self.head {
-            unsafe {
-                drop(Box::from_raw(head));
-            }
+        unsafe {
+            drop(Box::from_raw(self.head));
         }
     }
 }
@@ -291,19 +292,45 @@ impl Debug for PgnMoveTree {
     }
 }
 
-impl PartialEq<Self> for PgnMoveTree {
-    fn eq(&self, other: &Self) -> bool {
-        if self.initial_state != other.initial_state {
-            return false;
+#[cfg(test)]
+mod tests {
+    
+    use super::*;
+    
+    fn load_input_and_expected_pgn(file_name: &str) -> (String, String) {
+        let input_pgn = fs::read_to_string(format!("src/pgn/test_pgn_files/{}.pgn", file_name)).expect("Could not read file");
+        let expected_pgn = fs::read_to_string(format!("src/pgn/test_pgn_files/{}_formatted.pgn", file_name)).expect("Could not read file");
+        (input_pgn, expected_pgn)
+    }
+    
+    fn test_pgn(input_pgn: &str, expected_pgn: &str) {
+        let pgn_tree = PgnMoveTree::from_pgn(input_pgn).unwrap();
+        assert_eq!(pgn_tree.pgn(), expected_pgn);
+    }
+    
+    fn generic_pgn_test(file_name: &str) {
+        let (input_pgn, expected_pgn) = load_input_and_expected_pgn(file_name);
+        test_pgn(&input_pgn, &expected_pgn);
+    }
+    
+    #[test]
+    fn empty_pgn_test() {
+        let input_pgn = "";
+        let pgn_tree = PgnMoveTree::from_pgn(input_pgn).unwrap();
+        assert!(pgn_tree.tags.is_empty());
+        unsafe { 
+            assert!((*pgn_tree.head).move_and_san_and_previous_node.is_none());
         }
-        if self.head.is_some() && other.head.is_some() {
-            unsafe {
-                return *self.head.unwrap() == *other.head.unwrap();
-            }
-        }
-        else if self.head.is_some() || other.head.is_some() {
-            return false;
-        }
-        true
+        assert_eq!(pgn_tree.pgn(), "");
+    }
+    
+    #[test]
+    fn complex_pgn_test() {
+        generic_pgn_test("complex");
+    }
+    
+    #[test]
+    fn rosen1_pgn_test() {
+        generic_pgn_test("rosen1");
     }
 }

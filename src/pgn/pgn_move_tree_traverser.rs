@@ -1,13 +1,13 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use crate::pgn::PgnMoveTree;
-use crate::pgn::pgn_move_node::PgnMoveNode;
+use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
 use crate::r#move::Move;
 use crate::state::State;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum PgnMoveTreeTraverseError {
-    TreeIsEmpty,
+    NoMovePlayed,
     NoNextNode,
     NoPreviousNode,
     VariationDoesNotExist
@@ -16,7 +16,7 @@ pub enum PgnMoveTreeTraverseError {
 impl Display for PgnMoveTreeTraverseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PgnMoveTreeTraverseError::TreeIsEmpty => write!(f, "Tree is empty"),
+            PgnMoveTreeTraverseError::NoMovePlayed => write!(f, "No move played"),
             PgnMoveTreeTraverseError::NoNextNode => write!(f, "No next node"),
             PgnMoveTreeTraverseError::NoPreviousNode => write!(f, "No previous node"),
             PgnMoveTreeTraverseError::VariationDoesNotExist => write!(f, "Variation does not exist")
@@ -27,20 +27,31 @@ impl Display for PgnMoveTreeTraverseError {
 impl Error for PgnMoveTreeTraverseError {}
 
 pub struct PgnMoveTreeTraverser<'a> {
-    history: &'a PgnMoveTree,
-    state_before_move: &'a State,
-    current_move_node: *mut PgnMoveNode
+    tree: &'a PgnMoveTree,
+    current_move_node: *mut PgnMoveTreeNode
 }
 
 impl<'a> PgnMoveTreeTraverser<'a> {
-    pub fn new(history: &'a PgnMoveTree) -> Result<Self, PgnMoveTreeTraverseError> {
-        match history.head {
-            None => Err(PgnMoveTreeTraverseError::TreeIsEmpty),
-            Some(head) => Ok(PgnMoveTreeTraverser {
-                history,
-                state_before_move: &history.initial_state,
-                current_move_node: head
-            })
+    
+    pub fn new(tree: &'a PgnMoveTree) -> PgnMoveTreeTraverser<'a> {
+        PgnMoveTreeTraverser {
+            tree,
+            current_move_node: tree.head
+        }
+    }
+    
+    pub fn get_current_state(&self) -> &State {
+        unsafe {
+            &(*self.current_move_node).state_after_move
+        }
+    }
+    
+    pub fn get_played_move(&self) -> Result<(Move, String), PgnMoveTreeTraverseError> {
+        unsafe {
+            match (*self.current_move_node).move_and_san_and_previous_node.clone() {
+                None => Err(PgnMoveTreeTraverseError::NoMovePlayed),
+                Some((mv, san, _)) => Ok((mv, san))
+            }
         }
     }
 
@@ -59,41 +70,41 @@ impl<'a> PgnMoveTreeTraverser<'a> {
     pub fn get_next_main_line_move(&self) -> Result<(Move, String), PgnMoveTreeTraverseError> {
         unsafe {
             match (*self.current_move_node).next_main_node() {
-                Some(next_main_node) => Ok(((*next_main_node).move_, (*next_main_node).san.clone())),
-                None => Err(PgnMoveTreeTraverseError::NoNextNode)
+                None => Err(PgnMoveTreeTraverseError::NoNextNode),
+                Some(node) => {
+                    let (mv, san, _): (Move, String, *mut PgnMoveTreeNode) = (*node).move_and_san_and_previous_node.clone().unwrap();
+                    Ok((mv, san))
+                }
             }
         }
     }
 
     pub fn get_all_next_variations(&self) -> Vec<(Move, String)> {
-        let mut variations = Vec::new();
         unsafe {
-            for variation_node in (*self.current_move_node).next_variation_nodes() {
-                variations.push(((*variation_node).move_, (*variation_node).san.clone()));
-            }
+            (*self.current_move_node).next_variation_nodes().iter().map(|node| {
+                let (mv, san, _): (Move, String, *mut PgnMoveTreeNode) = (**node).move_and_san_and_previous_node.clone().unwrap();
+                (mv, san)
+            }).collect()
         }
-        variations
     }
     
     pub fn step_forward_with_main_line(&mut self) -> Result<(), PgnMoveTreeTraverseError> {
-        if self.has_next() {
-            unsafe {
-                self.state_before_move = &(*self.current_move_node).state_after_move;
-                self.current_move_node = (*self.current_move_node).next_main_node().ok_or(PgnMoveTreeTraverseError::NoNextNode)?;
+        unsafe {
+            if let Some(next_node) = (*self.current_move_node).next_main_node() {
+                self.current_move_node = next_node;
                 Ok(())
             }
-        }
-        else {
-            Err(PgnMoveTreeTraverseError::NoNextNode)
+            else {
+                Err(PgnMoveTreeTraverseError::NoNextNode)
+            }
         }
     }
     
     pub fn step_forward_with_variation_by_move(&mut self, variation: Move) -> Result<(), PgnMoveTreeTraverseError> {
         let variations = self.get_all_next_variations();
-        if let Some(variation) = variations.iter().find(|(mv, _)| mv == &variation) {
+        if let Some((variation, _)) = variations.iter().find(|(mv, _)| *mv == variation) {
             unsafe {
-                self.state_before_move = &(*self.current_move_node).state_after_move;
-                self.current_move_node = *(*self.current_move_node).next_variation_nodes().iter().find(|&&node| (*node).move_ == variation.0).unwrap();
+                self.current_move_node = *(*self.current_move_node).next_variation_nodes().iter().find(|&&node| (*node).move_and_san_and_previous_node.clone().unwrap().0 == *variation).unwrap();
                 Ok(())
             }
         }
@@ -104,10 +115,9 @@ impl<'a> PgnMoveTreeTraverser<'a> {
     
     pub fn step_forward_with_variation_by_san(&mut self, variation_san: &str) -> Result<(), PgnMoveTreeTraverseError> {
         let variations = self.get_all_next_variations();
-        if let Some(variation) = variations.iter().find(|(_, san)| san == variation_san) {
+        if let Some(variation) = variations.iter().find(|(_, san)| *san == variation_san) {
             unsafe {
-                self.state_before_move = &(*self.current_move_node).state_after_move;
-                self.current_move_node = *(*self.current_move_node).next_variation_nodes().iter().find(|&&node| (*node).san == variation_san).unwrap();
+                self.current_move_node = *(*self.current_move_node).next_variation_nodes().iter().find(|&&node| (*node).move_and_san_and_previous_node.clone().unwrap().1 == variation_san).unwrap();
                 Ok(())
             }
         }
@@ -118,10 +128,9 @@ impl<'a> PgnMoveTreeTraverser<'a> {
     
     pub fn step_forward_with_variation_by_index(&mut self, variation_index: usize) -> Result<(), PgnMoveTreeTraverseError> {
         let variations = self.get_all_next_variations();
-        if variation_index < variations.len() {
+        if let Some(variation) = variations.get(variation_index) {
             unsafe {
-                self.state_before_move = &(*self.current_move_node).state_after_move;
-                self.current_move_node = *(*self.current_move_node).next_variation_nodes().get(variation_index).unwrap();
+                self.current_move_node = *(*self.current_move_node).next_variation_nodes().iter().find(|&&node| (*node).move_and_san_and_previous_node.clone().unwrap().1 == variation.1).unwrap();
                 Ok(())
             }
         }
@@ -132,13 +141,12 @@ impl<'a> PgnMoveTreeTraverser<'a> {
     
     pub fn step_backward(&mut self) -> Result<(), PgnMoveTreeTraverseError> {
         unsafe {
-            if let Some(previous_node) = (*self.current_move_node).previous_node {
-                self.state_before_move = &(*previous_node).state_after_move;
-                self.current_move_node = previous_node;
-                Ok(())
-            }
-            else {
-                Err(PgnMoveTreeTraverseError::NoPreviousNode)
+            match (*self.current_move_node).move_and_san_and_previous_node.clone() {
+                None => Err(PgnMoveTreeTraverseError::NoPreviousNode),
+                Some((_, _, previous_node)) => {
+                    self.current_move_node = previous_node;
+                    Ok(())
+                }
             }
         }
     }
