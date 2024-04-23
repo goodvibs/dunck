@@ -18,7 +18,7 @@ pub const PROMOTE_TO_KNIGHT_FLAG: u8 = 13;
 pub const PROMOTE_TO_ROOK_FLAG: u8 = 14;
 pub const PROMOTE_TO_BISHOP_FLAG: u8 = 15;
 
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Move {
     // format: FFFFTTTTTTSSSSSS
     // F = flag, T = target square, S = source square
@@ -201,5 +201,11 @@ impl fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let (src_str, dst_str, flag_str) = self.to_readable();
         write!(f, "{}{}{}", src_str, dst_str, flag_str)
+    }
+}
+
+impl fmt::Debug for Move {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self)
     }
 }
