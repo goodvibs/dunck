@@ -4,18 +4,19 @@
 
 mod board;
 mod attacks;
-mod utils;
+mod charboard;
 mod preload;
 mod masks;
 mod magic;
 mod state;
 mod manual_attacks;
 mod r#move;
-mod consts;
+mod enums;
 mod zobrist;
 mod pgn;
+mod bitboard;
 
-use crate::utils::*;
+use crate::charboard::*;
 use crate::attacks::*;
 use crate::board::Board;
 use crate::pgn::PgnMoveTree;

@@ -1,5 +1,5 @@
 use std::cmp;
-use crate::utils::*;
+use crate::charboard::*;
 use crate::masks::*;
 
 pub fn knight_attacks(knights: Bitboard) -> Bitboard {

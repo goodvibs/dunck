@@ -1,22 +1,31 @@
-use std::fmt;
-use crate::consts::SQUARE_NAMES;
+use crate::enums::{Color, Square};
+use crate::charboard::SQUARE_NAMES;
 use crate::state::{State, Termination};
-use crate::utils::Color;
 
-pub const NO_FLAG: u8 = 0;
-pub const KNIGHT_MOVE_FLAG: u8 = 1;
-pub const BISHOP_MOVE_FLAG: u8 = 2;
-pub const ROOK_MOVE_FLAG: u8 = 3;
-pub const QUEEN_MOVE_FLAG: u8 = 4;
-pub const KING_MOVE_FLAG: u8 = 5;
-pub const CASTLE_FLAG: u8 = 6;
-pub const PAWN_MOVE_FLAG: u8 = 8;
-pub const EN_PASSANT_FLAG: u8 = 10;
-pub const PAWN_DOUBLE_MOVE_FLAG: u8 = 11;
-pub const PROMOTE_TO_QUEEN_FLAG: u8 = 12;
-pub const PROMOTE_TO_KNIGHT_FLAG: u8 = 13;
-pub const PROMOTE_TO_ROOK_FLAG: u8 = 14;
-pub const PROMOTE_TO_BISHOP_FLAG: u8 = 15;
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MoveFlag {
+    NoFlag = 0,
+    KnightMove = 1,
+    BishopMove = 2,
+    RookMove = 3,
+    QueenMove = 4,
+    KingMove = 5,
+    Castle = 6,
+    PawnMove = 8,
+    EnPassant = 10,
+    PawnDoubleMove = 11,
+    PromoteToQueen = 12,
+    PromoteToKnight = 13,
+    PromoteToRook = 14,
+    PromoteToBishop = 15
+}
+
+impl MoveFlag {
+    pub const unsafe fn from(value: u8) -> MoveFlag {
+        assert!(value < 16, "Invalid MoveFlag value: {}", value);
+        std::mem::transmute::<u8, MoveFlag>(value)
+    }
+}
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Move {
@@ -26,16 +35,19 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(src: u32, dst: u32, flag: u8) -> Move {
+    pub fn new(src: Square, dst: Square, flag: MoveFlag) -> Move {
         Move {
             value: ((flag as u16) << 12) | ((dst as u16) << 6) | (src as u16)
         }
     }
 
-    pub fn unpack(&self) -> (u32, u32, u8) {
-        let src: u32 = (self.value & 0b0000000000111111) as u32;
-        let dst: u32 = ((self.value & 0b0000111111000000) >> 6) as u32;
-        let flag: u8 = ((self.value & 0b1111000000000000) >> 12) as u8;
+    pub fn unpack(&self) -> (Square, Square, MoveFlag) {
+        let src_int: u8 = (self.value & 0b0000000000111111) as u8;
+        let dst_int: u8 = ((self.value & 0b0000111111000000) >> 6) as u8;
+        let flag_int: u8 = ((self.value & 0b1111000000000000) >> 12) as u8;
+        let src = unsafe { Square::from(src_int) };
+        let dst = unsafe { Square::from(dst_int) };
+        let flag = unsafe { MoveFlag::from(flag_int) };
         (src, dst, flag)
     }
 
@@ -44,19 +56,19 @@ impl Move {
         let src_str = SQUARE_NAMES[src as usize];
         let dst_str = SQUARE_NAMES[dst as usize];
         let flag_str = match flag {
-            PAWN_MOVE_FLAG => "P",
-            PAWN_DOUBLE_MOVE_FLAG => "P2",
-            EN_PASSANT_FLAG => "Px",
-            KNIGHT_MOVE_FLAG => "N",
-            BISHOP_MOVE_FLAG => "B",
-            ROOK_MOVE_FLAG => "R",
-            QUEEN_MOVE_FLAG => "Q",
-            KING_MOVE_FLAG => "K",
-            CASTLE_FLAG => "castling",
-            PROMOTE_TO_QUEEN_FLAG => "P to Q",
-            PROMOTE_TO_KNIGHT_FLAG => "P to N",
-            PROMOTE_TO_ROOK_FLAG => "P to R",
-            PROMOTE_TO_BISHOP_FLAG => "P to B",
+            MoveFlag::PawnMove => "P",
+            MoveFlag::PawnDoubleMove => "P2",
+            MoveFlag::EnPassant => "Px",
+            MoveFlag::KnightMove => "N",
+            MoveFlag::BishopMove => "B",
+            MoveFlag::RookMove => "R",
+            MoveFlag::QueenMove => "Q",
+            MoveFlag::KingMove => "K",
+            MoveFlag::Castle => "castling",
+            MoveFlag::PromoteToQueen => "P to Q",
+            MoveFlag::PromoteToKnight => "P to N",
+            MoveFlag::PromoteToRook => "P to R",
+            MoveFlag::PromoteToBishop => "P to B",
             _ => ""
         };
         (src_str, dst_str, flag_str)
@@ -64,7 +76,10 @@ impl Move {
 
     pub fn is_pawn_move(&self) -> bool {
         let (_, _, flag) = self.unpack();
-        flag == PAWN_MOVE_FLAG || flag == PAWN_DOUBLE_MOVE_FLAG || flag == EN_PASSANT_FLAG || flag == PROMOTE_TO_QUEEN_FLAG || flag == PROMOTE_TO_KNIGHT_FLAG || flag == PROMOTE_TO_ROOK_FLAG || flag == PROMOTE_TO_BISHOP_FLAG
+        flag == MoveFlag::PawnMove ||
+            flag == MoveFlag::PawnDoubleMove ||
+            flag == MoveFlag::EnPassant ||
+            flag as u8 >= MoveFlag::PromoteToQueen as u8
     }
 
     pub fn is_piece_move(&self) -> bool {
@@ -77,29 +92,29 @@ impl Move {
         let dst_str = SQUARE_NAMES[dst as usize];
         let (src_file, src_rank) = (src_str.chars().nth(0).unwrap(), src_str.chars().nth(1).unwrap());
         let (piece_str, promotion_str) = match flag {
-            PAWN_MOVE_FLAG => ("", ""),
-            PAWN_DOUBLE_MOVE_FLAG => {
+            MoveFlag::PawnMove => ("", ""),
+            MoveFlag::PawnDoubleMove => {
                 return dst_str.to_string();
             },
-            EN_PASSANT_FLAG => {
+            MoveFlag::EnPassant => {
                 return format!("{}x{}", src_file, dst_str);
             },
-            KNIGHT_MOVE_FLAG => ("N", ""),
-            BISHOP_MOVE_FLAG => ("B", ""),
-            ROOK_MOVE_FLAG => ("R", ""),
-            QUEEN_MOVE_FLAG => ("Q", ""),
-            KING_MOVE_FLAG => ("K", ""),
-            CASTLE_FLAG => {
+            MoveFlag::KnightMove => ("N", ""),
+            MoveFlag::BishopMove => ("B", ""),
+            MoveFlag::RookMove => ("R", ""),
+            MoveFlag::QueenMove => ("Q", ""),
+            MoveFlag::KingMove => ("K", ""),
+            MoveFlag::Castle => {
                 return if dst_str.contains('g') {
                     "O-O".to_string()
                 } else {
                     "O-O-O".to_string()
                 }
             },
-            PROMOTE_TO_QUEEN_FLAG => ("", "=Q"),
-            PROMOTE_TO_KNIGHT_FLAG => ("", "=N"),
-            PROMOTE_TO_ROOK_FLAG => ("", "=R"),
-            PROMOTE_TO_BISHOP_FLAG => ("", "=B"),
+            MoveFlag::PromoteToQueen => ("", "=Q"),
+            MoveFlag::PromoteToKnight => ("", "=N"),
+            MoveFlag::PromoteToRook => ("", "=R"),
+            MoveFlag::PromoteToBishop => ("", "=B"),
             _ => ("", "")
         };
         let is_capture = match initial_state.turn {
@@ -197,14 +212,14 @@ impl Move {
     }
 }
 
-impl fmt::Display for Move {
+impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let (src_str, dst_str, flag_str) = self.to_readable();
         write!(f, "{}{}{}", src_str, dst_str, flag_str)
     }
 }
 
-impl fmt::Debug for Move {
+impl std::fmt::Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
     }

@@ -1,4 +1,4 @@
-use crate::utils::*;
+use crate::charboard::*;
 use crate::manual_attacks;
 
 pub fn knight_attacks(knights: Bitboard) -> Bitboard {

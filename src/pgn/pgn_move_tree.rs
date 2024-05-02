@@ -176,6 +176,10 @@ impl PgnMoveTree {
                                 continue;
                             }
                             let possible_moves = current_state.get_moves();
+                            if move_san_builder == "Bxb7" {
+                                println!("{:?}", possible_moves);
+                                current_state.board.print();
+                            }
                             let mut matched_move: Option<Move> = None;
                             for mv in possible_moves {
                                 if mv.matches(&move_san_builder) {

@@ -1,6 +1,6 @@
 use crate::r#move::Move;
 use crate::state::State;
-use crate::utils::Color;
+use crate::charboard::Color;
 
 // pub(crate) enum PgnMoveTreeNodeError {
 //     MismatchedPreviousNodeAndMoveOptionTypes
