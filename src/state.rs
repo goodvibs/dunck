@@ -315,7 +315,7 @@ impl State {
             
             // double push
             if single_move_dst & single_push_rank != 0 {
-                let double_move_dst = pawn_moves(single_move_dst, Color::White) & !all_occupancy_bb;
+                let double_move_dst = pawn_moves(single_move_dst, self.turn) & !all_occupancy_bb;
                 if double_move_dst != 0 {
                     unsafe {
                         let double_move_dst_square = Square::from(double_move_dst.leading_zeros() as u8);
@@ -492,6 +492,7 @@ impl State {
         self.turn = self.turn.flip();
         self.context = Box::new(new_context);
         self.in_check = self.board.is_in_check(self.turn);
+        self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] = self.board.bb_by_color[Color::White as usize] | self.board.bb_by_color[Color::Black as usize];
         
         if self.board.are_both_sides_insufficient_material() {
             self.termination = Some(Termination::InsufficientMaterial);
