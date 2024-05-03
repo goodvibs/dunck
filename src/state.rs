@@ -248,15 +248,13 @@ impl State {
     pub fn get_pseudolegal_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
         
-        let colored_piece_adjustment = self.turn as usize * ColoredPiece::COLOR_DIFFERENCE as usize;
+        // let colored_piece_adjustment = self.turn as usize * ColoredPiece::COLOR_DIFFERENCE as usize;
+        let color_bb = self.board.bb_by_color[self.turn as usize];
         let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
         
-        let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize + colored_piece_adjustment];
+        let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize] & color_bb;
         let pawn_srcs = unpack_bb(pawns_bb);
-        let promotion_rank = match self.turn {
-            Color::White => RANK_8,
-            Color::Black => RANK_1
-        };
+        let promotion_rank = RANK_8 >> (self.turn as u8 * 7 * 8); // RANK_8 for white, RANK_1 for black
         
         // pawn captures excluding en passant
         for src in pawn_srcs.clone() {
@@ -309,11 +307,11 @@ impl State {
             
             // single moves
             let single_move_dst = pawn_moves(*src_bb, self.turn) & !all_occupancy_bb;
-            let single_move_dst_square = unsafe { Square::from(single_move_dst.leading_zeros() as u8) };
-            
             if single_move_dst == 0 { // if no single moves
                 continue;
             }
+            
+            let single_move_dst_square = unsafe { Square::from(single_move_dst.leading_zeros() as u8) };
             
             // double push
             if single_move_dst & single_push_rank != 0 {
@@ -338,7 +336,7 @@ impl State {
         }
         
         // knight moves
-        let knights_bb = self.board.bb_by_piece_type[PieceType::Knight as usize + colored_piece_adjustment];
+        let knights_bb = self.board.bb_by_piece_type[PieceType::Knight as usize] & color_bb;
         for src_bb in unpack_bb(knights_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let knight_moves = knight_attacks(*src_bb) & !all_occupancy_bb;
@@ -349,7 +347,7 @@ impl State {
         }
         
         // bishop moves
-        let bishops_bb = self.board.bb_by_piece_type[PieceType::Bishop as usize + colored_piece_adjustment];
+        let bishops_bb = self.board.bb_by_piece_type[PieceType::Bishop as usize] & color_bb;
         for src_bb in unpack_bb(bishops_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let bishop_moves = bishop_attacks(*src_bb, all_occupancy_bb) & !all_occupancy_bb;
@@ -360,7 +358,7 @@ impl State {
         }
         
         // rook moves
-        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize + colored_piece_adjustment];
+        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize] & color_bb;
         for src_bb in unpack_bb(rooks_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let rook_moves = rook_attacks(*src_bb, all_occupancy_bb) & !all_occupancy_bb;
@@ -371,7 +369,7 @@ impl State {
         }
         
         // queen moves
-        let queens_bb = self.board.bb_by_piece_type[PieceType::Queen as usize + colored_piece_adjustment];
+        let queens_bb = self.board.bb_by_piece_type[PieceType::Queen as usize] & color_bb;
         for src_bb in unpack_bb(queens_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let queen_moves = (rook_attacks(*src_bb, all_occupancy_bb) | bishop_attacks(*src_bb, all_occupancy_bb)) & !all_occupancy_bb;
@@ -382,7 +380,7 @@ impl State {
         }
         
         // king moves
-        let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize + colored_piece_adjustment];
+        let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & color_bb;
         let king_src_square = unsafe { Square::from(king_src_bb.leading_zeros() as u8) };
         let king_moves = king_attacks(king_src_bb) & !all_occupancy_bb;
         for dst_bb in unpack_bb(king_moves).iter() {

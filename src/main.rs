@@ -27,13 +27,22 @@ fn main() {
     let mut state = State::initial();
     loop {
         state.board.print();
+        let moves = state.get_pseudolegal_moves();
+        println!("Moves: ");
+        for mv in moves.iter() {
+            let initial_state = state.clone();
+            let mut final_state = state.clone();
+            final_state.play_move(*mv);
+            print!("{} ", mv.san(&initial_state, &final_state));
+        }
+        println!();
+        println!("Enter move (q to quit): ");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
         let input = input.trim();
         if input == "q" {
             break;
         }
-        let moves = state.get_pseudolegal_moves();
         let mut found = false;
         for mv in moves.iter() {
             if mv.matches(input) {
