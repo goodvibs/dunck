@@ -1,4 +1,6 @@
+use crate::bitboard::Bitboard;
 use crate::charboard::*;
+use crate::enums::Color;
 use crate::manual_attacks;
 
 pub fn knight_attacks(knights: Bitboard) -> Bitboard {

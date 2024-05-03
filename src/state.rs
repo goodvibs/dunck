@@ -51,11 +51,11 @@ pub struct StateContext {
     
     // recomputed on every move
     pub captured_piece: PieceType,
-    pub previous: Box::<StateContext>
+    pub previous: Option<Box<StateContext>>
 }
 
 impl StateContext {
-    pub fn new(halfmove_clock: u8, double_pawn_push: i8, castling_info: u8, captured_piece: PieceType, previous: Box<StateContext>) -> StateContext {
+    pub fn new(halfmove_clock: u8, double_pawn_push: i8, castling_info: u8, captured_piece: PieceType, previous: Option<Box<StateContext>>) -> StateContext {
         StateContext {
             halfmove_clock,
             double_pawn_push,
@@ -71,7 +71,7 @@ impl StateContext {
             double_pawn_push: -1,
             castling_info: 0b00001111,
             captured_piece: PieceType::NoPieceType,
-            previous: Box::new(StateContext::initial())
+            previous: None
         }
     }
 }
@@ -259,7 +259,7 @@ impl State {
         };
         
         // pawn captures excluding en passant
-        for src in pawn_srcs {
+        for src in pawn_srcs.clone() {
             let captures = pawn_attacks(src, self.turn) & self.board.bb_by_color[self.turn.flip() as usize];
             for dst in unpack_bb(captures) {
                 let move_src = unsafe { Square::from(src.leading_zeros() as u8) };
@@ -393,12 +393,17 @@ impl State {
         moves
     }
     
+    pub fn get_moves(&self) -> Vec<Move> {
+        // todo
+        self.get_pseudolegal_moves()
+    }
+    
     pub fn play_move(&mut self, mv: Move) {
         let (src_square, dst_square, flag) = mv.unpack();
         let src = 1 << (63 - src_square as u8);
         let dst = 1 << (63 - dst_square as u8);
         let src_dst = src | dst;
-        let mut new_context = StateContext::new(self.context.halfmove_clock + 1, -1, self.context.castling_info.clone(), PieceType::NoPieceType, self.context.clone());
+        let mut new_context = StateContext::new(self.context.halfmove_clock + 1, -1, self.context.castling_info.clone(), PieceType::NoPieceType, Some(self.context.clone()));
         let color_adjustment = self.turn as usize * ColoredPiece::COLOR_DIFFERENCE as usize;
         let castling_color_adjustment = self.turn as usize * 2;
         if flag != MoveFlag::EnPassant && self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] & dst != 0 {
@@ -408,7 +413,8 @@ impl State {
             self.board.bb_by_color[self.turn.flip() as usize] &= !dst;
         }
         let previous_castling_rights = self.context.castling_info.clone();
-        self.board.bb_by_color[self.turn as usize] ^= src_dst;
+        self.board.bb_by_color[self.turn as usize] ^= src_dst; // works for all moves except the rook in castling
+        self.board.bb_by_color[self.turn.flip() as usize] &= !dst; // clear opponent's piece if any
         match flag {
             MoveFlag::PawnMove => { // can be a single pawn push or capture (non-promotion)
                 self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;

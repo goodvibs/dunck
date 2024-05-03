@@ -28,7 +28,7 @@ impl Color {
     }
     
     pub const fn flip(&self) -> Color {
-        unsafe { std::mem::transmute::<u8, Color>(!(self.clone() as u8)) }
+        unsafe { std::mem::transmute::<u8, Color>(!(*self as u8)) }
     }
 }
 
@@ -58,8 +58,11 @@ impl ColoredPiece {
     pub const LIMIT: usize = 15;
     pub const COLOR_DIFFERENCE: u8 = 8;
 
-    pub const unsafe fn from(color: Color, piece_type: PieceType) -> ColoredPiece {
-        std::mem::transmute::<u8, ColoredPiece>((color as u8) << 3 | piece_type as u8)
+    pub const fn from(color: Color, piece_type: PieceType) -> ColoredPiece {
+        let piece_type_int = piece_type as u8;
+        let is_piece = piece_type_int != PieceType::NoPieceType as u8;
+        let color_int_shifted = (is_piece as u8 & color as u8) << 3;
+        unsafe { std::mem::transmute::<u8, ColoredPiece>(color_int_shifted | piece_type_int) }
     }
     
     pub const fn get_color(&self) -> Color {

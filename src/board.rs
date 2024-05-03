@@ -1,4 +1,3 @@
-use std::fmt;
 use crate::enums::*;
 use crate::preload::ZOBRIST_TABLE;
 use crate::charboard::*;
@@ -64,23 +63,23 @@ impl Board {
         // A king and knight
         // A king and two knights, only if the other side is a lone king
         
-        if self.bb_by_piece_type[PieceType::Pawn] | self.bb_by_piece_type[PieceType::Rook] | self.bb_by_piece_type[PieceType::Queen] != 0 {
+        if self.bb_by_piece_type[PieceType::Pawn as usize] | self.bb_by_piece_type[PieceType::Rook as usize] | self.bb_by_piece_type[PieceType::Queen as usize] != 0 {
             return false;
         }
         
         for color_int in Color::White as u8.. Color::Black as u8 + 1 {
-            let bishops = self.bb_by_piece_type[PieceType::Bishop] & self.bb_by_color[color_int];
+            let bishops = self.bb_by_piece_type[PieceType::Bishop as usize] & self.bb_by_color[color_int as usize];
             let num_bishops = bishops.count_ones();
             if num_bishops > 1 {
                 return false;
             }
             
-            let knights = self.bb_by_piece_type[PieceType::Knight] & self.bb_by_color[color_int];
+            let knights = self.bb_by_piece_type[PieceType::Knight as usize] & self.bb_by_color[color_int as usize];
             let num_knights = knights.count_ones();
             
             if num_knights == 2 && num_bishops == 0 { // king and two knights
                 let opposite_side_bb = self.bb_by_color[Color::from(color_int != 0).flip() as usize];
-                let all_occupancy = self.bb_by_piece_type[PieceType::AllPieceTypes];
+                let all_occupancy = self.bb_by_piece_type[PieceType::AllPieceTypes as usize];
                 let opposite_side_is_lone_king = (opposite_side_bb & all_occupancy).count_ones() == 1;
                 return opposite_side_is_lone_king;
             }
@@ -125,19 +124,21 @@ impl Board {
 
     pub fn zobrist_hash(&self) -> u64 {
         let mut hash: u64 = 0;
-        for piece_type in PieceType::Pawn as u8..PieceType::King as u8 { // skip PieceType::NoPieceType, PieceType::King
-            for index in bb_to_square_indices(self.bb_by_piece_type[piece_type as usize]) {
-                hash ^= ZOBRIST_TABLE[index as usize][piece_type as usize - 1];
-            }
-            for index in bb_to_square_indices(self.bb_by_piece_type[piece_type as usize + ColoredPiece::COLOR_DIFFERENCE as usize]) {
-                hash ^= ZOBRIST_TABLE[index as usize][piece_type as usize - 1 + ColoredPiece::COLOR_DIFFERENCE as usize];
+        for piece_type_int in PieceType::Pawn as u8..PieceType::King as u8 { // skip PieceType::NoPieceType, PieceType::King
+            let piece_bb = self.bb_by_piece_type[piece_type_int as usize];
+            for color_int in Color::White as u8..Color::Black as u8 + 1 {
+                let color_bb = self.bb_by_color[color_int as usize];
+                let combined_bb = piece_bb & color_bb;
+                for index in bb_to_square_indices(combined_bb) {
+                    hash ^= ZOBRIST_TABLE[index as usize][piece_type_int as usize - 1];
+                }
             }
         }
-        let kings = self.bb_by_piece_type[PieceType::King as usize];
-        let white_king = kings & self.bb_by_color[Color::White as usize];
-        let black_king = kings & self.bb_by_color[Color::Black as usize];
-        hash ^= ZOBRIST_TABLE[white_king.leading_zeros() as usize][ColoredPiece::WhiteKing as usize - 1];
-        hash ^= ZOBRIST_TABLE[black_king.leading_zeros() as usize][ColoredPiece::BlackKing as usize - 1];
+        let kings_bb = self.bb_by_piece_type[PieceType::King as usize];
+        for color_int in Color::White as u8..Color::Black as u8 + 1 {
+            let colored_king_bb = kings_bb & self.bb_by_color[color_int as usize];
+            hash ^= ZOBRIST_TABLE[colored_king_bb.leading_zeros() as usize][PieceType::King as usize - 1];
+        }
         hash
     }
 
@@ -159,11 +160,11 @@ impl Board {
 
     pub fn to_cb(&self) -> Charboard {
         let mut cb: Charboard = [[' '; 8]; 8];
-        for i in 0..8 {
-            for j in 0..8 {
-                let mask = 1 << (63 - (i * 8 + j));
-                cb[i][j] = self.piece_at(mask).to_char();
-            }
+        for i in 0..64 {
+            let mask = 1 << (63 - i);
+            let piece_type = self.piece_type_at(mask);
+            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
+            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char();
         }
         cb
     }
@@ -173,8 +174,8 @@ impl Board {
     }
 }
 
-impl fmt::Display for Board {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+impl std::fmt::Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", cb_to_string(&self.to_cb()).as_str())
     }
 }

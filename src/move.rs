@@ -22,7 +22,7 @@ pub enum MoveFlag {
 
 impl MoveFlag {
     pub const unsafe fn from(value: u8) -> MoveFlag {
-        assert!(value < 16, "Invalid MoveFlag value: {}", value);
+        // assert!(value < 16, "Invalid MoveFlag value: {}", value);
         std::mem::transmute::<u8, MoveFlag>(value)
     }
 }
@@ -117,10 +117,7 @@ impl Move {
             MoveFlag::PromoteToBishop => ("", "=B"),
             _ => ("", "")
         };
-        let is_capture = match initial_state.turn {
-            Color::White => initial_state.board.black() != final_state.board.black(),
-            Color::Black => initial_state.board.white() != final_state.board.white()
-        };
+        let is_capture = initial_state.board.bb_by_color[initial_state.turn.flip() as usize] != final_state.board.bb_by_color[initial_state.turn.flip() as usize];
         let capture_str = if is_capture { "x" } else { "" };
         let annotation_str;
         if final_state.termination == Some(Termination::Checkmate) {
