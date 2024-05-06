@@ -1,3 +1,4 @@
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Square {
     A8=0, B8=1, C8=2, D8=3, E8=4, F8=5, G8=6, H8=7,
@@ -17,6 +18,7 @@ impl Square {
     }
 }
 
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Color {
     White=0, Black=1
@@ -32,6 +34,7 @@ impl Color {
     }
 }
 
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PieceType {
     NoPieceType=0, Pawn=1, Knight=2, Bishop=3, Rook=4, Queen=5, King=6
@@ -47,6 +50,7 @@ impl PieceType {
     }
 }
 
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ColoredPiece {
     NoPiece=0,

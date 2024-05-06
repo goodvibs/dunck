@@ -248,17 +248,18 @@ impl State {
     pub fn get_pseudolegal_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
         
-        // let colored_piece_adjustment = self.turn as usize * ColoredPiece::COLOR_DIFFERENCE as usize;
-        let color_bb = self.board.bb_by_color[self.turn as usize];
+        let same_color_bb = self.board.bb_by_color[self.turn as usize];
+        let opposite_color = self.turn.flip();
+        let opposite_color_bb = self.board.bb_by_color[opposite_color as usize];
         let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
         
-        let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize] & color_bb;
+        let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize] & same_color_bb;
         let pawn_srcs = unpack_bb(pawns_bb);
         let promotion_rank = RANK_8 >> (self.turn as u8 * 7 * 8); // RANK_8 for white, RANK_1 for black
         
         // pawn captures excluding en passant
         for src in pawn_srcs.clone() {
-            let captures = pawn_attacks(src, self.turn) & self.board.bb_by_color[self.turn.flip() as usize];
+            let captures = pawn_attacks(src, self.turn) & opposite_color_bb;
             for dst in unpack_bb(captures) {
                 let move_src = unsafe { Square::from(src.leading_zeros() as u8) };
                 let move_dst = unsafe { Square::from(dst.leading_zeros() as u8) };
@@ -336,10 +337,10 @@ impl State {
         }
         
         // knight moves
-        let knights_bb = self.board.bb_by_piece_type[PieceType::Knight as usize] & color_bb;
+        let knights_bb = self.board.bb_by_piece_type[PieceType::Knight as usize] & same_color_bb;
         for src_bb in unpack_bb(knights_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let knight_moves = knight_attacks(*src_bb) & !all_occupancy_bb;
+            let knight_moves = knight_attacks(*src_bb) & !same_color_bb;
             for dst_bb in unpack_bb(knight_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new(src_square, dst_square, MoveFlag::KnightMove));
@@ -347,10 +348,10 @@ impl State {
         }
         
         // bishop moves
-        let bishops_bb = self.board.bb_by_piece_type[PieceType::Bishop as usize] & color_bb;
+        let bishops_bb = self.board.bb_by_piece_type[PieceType::Bishop as usize] & same_color_bb;
         for src_bb in unpack_bb(bishops_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let bishop_moves = bishop_attacks(*src_bb, all_occupancy_bb) & !all_occupancy_bb;
+            let bishop_moves = bishop_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
             for dst_bb in unpack_bb(bishop_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new(src_square, dst_square, MoveFlag::BishopMove));
@@ -358,10 +359,10 @@ impl State {
         }
         
         // rook moves
-        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize] & color_bb;
+        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize] & same_color_bb;
         for src_bb in unpack_bb(rooks_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let rook_moves = rook_attacks(*src_bb, all_occupancy_bb) & !all_occupancy_bb;
+            let rook_moves = rook_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
             for dst_bb in unpack_bb(rook_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new(src_square, dst_square, MoveFlag::RookMove));
@@ -369,10 +370,10 @@ impl State {
         }
         
         // queen moves
-        let queens_bb = self.board.bb_by_piece_type[PieceType::Queen as usize] & color_bb;
+        let queens_bb = self.board.bb_by_piece_type[PieceType::Queen as usize] & same_color_bb;
         for src_bb in unpack_bb(queens_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let queen_moves = (rook_attacks(*src_bb, all_occupancy_bb) | bishop_attacks(*src_bb, all_occupancy_bb)) & !all_occupancy_bb;
+            let queen_moves = (rook_attacks(*src_bb, all_occupancy_bb) | bishop_attacks(*src_bb, all_occupancy_bb)) & !same_color_bb;
             for dst_bb in unpack_bb(queen_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new(src_square, dst_square, MoveFlag::QueenMove));
@@ -380,7 +381,7 @@ impl State {
         }
         
         // king moves
-        let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & color_bb;
+        let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & same_color_bb;
         let king_src_square = unsafe { Square::from(king_src_bb.leading_zeros() as u8) };
         let king_moves = king_attacks(king_src_bb) & !all_occupancy_bb;
         for dst_bb in unpack_bb(king_moves).iter() {
@@ -396,7 +397,7 @@ impl State {
         self.get_pseudolegal_moves()
     }
     
-    pub fn play_move(&mut self, mv: Move) {
+    pub fn play_move(&mut self, mv: Move) { // todo
         let (src_square, dst_square, flag) = mv.unpack();
         let src = 1 << (63 - src_square as u8);
         let dst = 1 << (63 - dst_square as u8);
@@ -404,15 +405,16 @@ impl State {
         let mut new_context = StateContext::new(self.context.halfmove_clock + 1, -1, self.context.castling_info.clone(), PieceType::NoPieceType, Some(self.context.clone()));
         let color_adjustment = self.turn as usize * ColoredPiece::COLOR_DIFFERENCE as usize;
         let castling_color_adjustment = self.turn as usize * 2;
+        let opposite_color = self.turn.flip();
         if flag != MoveFlag::EnPassant && self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] & dst != 0 {
             let captured_piece = self.board.piece_type_at(dst);
             new_context.captured_piece = captured_piece;
             new_context.halfmove_clock = 0;
-            self.board.bb_by_color[self.turn.flip() as usize] &= !dst;
+            self.board.bb_by_color[opposite_color as usize] &= !dst;
         }
         let previous_castling_rights = self.context.castling_info.clone();
         self.board.bb_by_color[self.turn as usize] ^= src_dst; // works for all moves except the rook in castling
-        self.board.bb_by_color[self.turn.flip() as usize] &= !dst; // clear opponent's piece if any
+        self.board.bb_by_color[opposite_color as usize] &= !dst; // clear opponent's piece if any
         match flag {
             MoveFlag::PawnMove => { // can be a single pawn push or capture (non-promotion)
                 self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
@@ -425,7 +427,7 @@ impl State {
                 new_context.halfmove_clock = 0;
             }
             MoveFlag::EnPassant => { // en passant capture
-                let en_passant_capture = ((dst << 8) * self.turn as u64) | ((dst >> 8) * self.turn.flip() as u64);
+                let en_passant_capture = ((dst << 8) * self.turn as u64) | ((dst >> 8) * opposite_color as u64);
                 self.board.bb_by_piece_type[PieceType::Pawn as usize] ^= src_dst | en_passant_capture;
                 new_context.captured_piece = PieceType::Pawn;
                 new_context.halfmove_clock = 0;
@@ -489,7 +491,7 @@ impl State {
         }
         // update data members
         self.halfmove += 1;
-        self.turn = self.turn.flip();
+        self.turn = opposite_color;
         self.context = Box::new(new_context);
         self.in_check = self.board.is_in_check(self.turn);
         self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] = self.board.bb_by_color[Color::White as usize] | self.board.bb_by_color[Color::Black as usize];
