@@ -1,14 +1,9 @@
 use std::collections::HashMap;
 use crate::board::Board;
 use crate::r#move::*;
-use crate::charboard::*;
-use crate::attacks::*;
-use crate::bitboard::unpack_bb;
 use crate::enums::*;
-use crate::masks::*;
+use crate::masks::{FILES, RANK_4, RANK_5, STARTING_BK, STARTING_BR_LONG, STARTING_BR_SHORT, STARTING_WK, STARTING_WR_LONG, STARTING_WR_SHORT};
 use crate::pgn::pgn_move_tree::PgnParseError;
-use crate::pgn::PgnMoveTree;
-use crate::preload::ZOBRIST_TABLE;
 
 #[derive(Eq, PartialEq, Clone)]
 pub enum Termination {
@@ -20,26 +15,13 @@ pub enum Termination {
 }
 
 impl Termination {
-    pub fn is_conclusive(&self) -> bool {
+    pub fn is_decisive(&self) -> bool {
         self == &Termination::Checkmate
     }
 
     pub fn is_draw(&self) -> bool {
-        !self.is_conclusive()
+        !self.is_decisive()
     }
-}
-
-#[derive(Eq, PartialEq, Debug)]
-pub enum FenParseError {
-    InvalidFieldCount(usize),
-    InvalidRankCount(usize),
-    InvalidRow(String),
-    InvalidSideToMove(String),
-    InvalidCastle(String),
-    InvalidEnPassantTarget(String),
-    InvalidHalfmoveClock(String),
-    InvalidFullmoveCounter(String),
-    InvalidState(String)
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -81,7 +63,7 @@ pub struct State {
     pub board: Board,
     pub in_check: bool,
     pub position_count: HashMap<u64, u8>,
-    pub turn: Color,
+    pub side_to_move: Color,
     pub halfmove: u16,
     pub termination: Option<Termination>,
     pub context: Box<StateContext>
@@ -94,7 +76,7 @@ impl State {
             board: Board::blank(),
             in_check: false,
             position_count,
-            turn: Color::White,
+            side_to_move: Color::White,
             halfmove: 0,
             termination: None,
             context: Box::new(StateContext::initial())
@@ -108,288 +90,20 @@ impl State {
             board,
             in_check: false,
             position_count,
-            turn: Color::White,
+            side_to_move: Color::White,
             halfmove: 0,
             termination: None,
             context: Box::new(StateContext::initial())
         }
     }
 
-    pub fn from_fen(fen: &str) -> Result<State, FenParseError> {
-        let mut state = State::blank();
-        let mut fen_iter = fen.split_ascii_whitespace();
-        let field_count = fen_iter.clone().count();
-        if field_count != 6 {
-            return Err(FenParseError::InvalidFieldCount(field_count));
-        }
-        let fen_board = fen_iter.next().unwrap();
-        let fen_turn = fen_iter.next().unwrap();
-        if fen_turn == "w" {
-            state.turn = Color::White;
-        }
-        else if fen_turn == "b" {
-            state.turn = Color::Black;
-        }
-        else {
-            return Err(FenParseError::InvalidSideToMove(fen_turn.to_string()));
-        }
-        let fen_castle = fen_iter.next().unwrap();
-        if fen_castle != "-" {
-            if fen_castle.len() > 4 {
-                return Err(FenParseError::InvalidCastle(fen_castle.to_string()));
-            }
-            for c in fen_castle.chars() {
-                match c {
-                    'K' => state.context.castling_info |= 0b00001000,
-                    'Q' => state.context.castling_info |= 0b00000100,
-                    'k' => state.context.castling_info |= 0b00000010,
-                    'q' => state.context.castling_info |= 0b00000001,
-                    _ => return Err(FenParseError::InvalidCastle(fen_castle.to_string()))
-                }
-            }
-        }
-        let fen_double_pawn_push = fen_iter.next().unwrap();
-        if fen_double_pawn_push != "-" {
-            if fen_double_pawn_push.len() > 2 {
-                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
-            }
-            let file = fen_double_pawn_push.chars().next().unwrap();
-            if !file.is_ascii_alphabetic() {
-                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
-            }
-            let file = file.to_ascii_lowercase();
-            let file = file as u8 - 'a' as u8;
-            if file > 7 {
-                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
-            }
-            let rank = fen_double_pawn_push.chars().last().unwrap();
-            if !rank.is_ascii_digit() {
-                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
-            }
-            let rank = rank.to_digit(10).unwrap();
-            if rank != 3 && rank != 6 {
-                return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
-            }
-            state.context.double_pawn_push = file as i8;
-        }
-        let fen_halfmove_clock = fen_iter.next().unwrap();
-        if fen_halfmove_clock != "-" {
-            let halfmove_clock_parsed = fen_halfmove_clock.parse::<u16>();
-            if halfmove_clock_parsed.is_err() {
-                return Err(FenParseError::InvalidHalfmoveClock(fen_halfmove_clock.to_string()));
-            }
-            state.halfmove = halfmove_clock_parsed.unwrap();
-        }
-        let fen_fullmove = fen_iter.next().unwrap();
-        if fen_fullmove != "-" {
-            let fullmove_parsed = fen_fullmove.parse::<u16>();
-            if fullmove_parsed.is_err() {
-                return Err(FenParseError::InvalidFullmoveCounter(fen_fullmove.to_string()));
-            }
-            state.halfmove = fullmove_parsed.unwrap() + (state.turn == Color::Black) as u16;
-        }
-        let mut row_from_top = 0;
-        let rows = fen_board.split('/');
-        let row_count = rows.clone().count();
-        if row_count != 8 {
-            return Err(FenParseError::InvalidRankCount(row_count));
-        }
-        for row in rows {
-            if row.len() > 8 || row.is_empty() {
-                return Err(FenParseError::InvalidRow(row.to_string()));
-            }
-            let mut file = 0;
-            for c in row.chars() {
-                let dst =  1 << (63 - (row_from_top * 8 + file));
-                match c {
-                    c if c.is_ascii_whitespace() => {
-                        continue;
-                    },
-                    _ if c.is_ascii_digit() => {
-                        file += c.to_digit(10).unwrap() as usize - 1;
-                        if file > 8 {
-                            return Err(FenParseError::InvalidRow(row.to_string()));
-                        }
-                    },
-                    _ if c.is_ascii_alphabetic() => {
-                        let colored_piece = ColoredPiece::from_char(c);
-                        if colored_piece == ColoredPiece::NoPiece {
-                            return Err(FenParseError::InvalidRow(row.to_string()));
-                        }
-                        let piece_type = colored_piece.get_piece_type();
-                        let color = colored_piece.get_color();
-                        state.board.bb_by_piece_type[piece_type as usize] |= dst;
-                        state.board.bb_by_color[color as usize] |= dst;
-                    },
-                    _ => {
-                        return Err(FenParseError::InvalidRow(row.to_string()));
-                    }
-                }
-                file += 1;
-            }
-            row_from_top += 1;
-        }
-        return if state.is_valid() {
-            Ok(state)
-        } else {
-            Err(FenParseError::InvalidState(fen.to_string()))
-        }
-    }
-
     pub fn from_pgn(pgn: &str) -> Result<State, PgnParseError> {
-        let move_tree = PgnMoveTree::from_pgn(pgn);
+        // let move_tree = PgnMoveTree::from_pgn(pgn);
         todo!()
     }
 
     pub fn get_fullmove(&self) -> u16 {
         self.halfmove / 2 + 1
-    }
-    
-    pub fn get_pseudolegal_moves(&self) -> Vec<Move> {
-        let mut moves: Vec<Move> = Vec::new();
-        
-        let same_color_bb = self.board.bb_by_color[self.turn as usize];
-        let opposite_color = self.turn.flip();
-        let opposite_color_bb = self.board.bb_by_color[opposite_color as usize];
-        let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
-        
-        let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize] & same_color_bb;
-        let pawn_srcs = unpack_bb(pawns_bb);
-        let promotion_rank = RANK_8 >> (self.turn as u8 * 7 * 8); // RANK_8 for white, RANK_1 for black
-        
-        // pawn captures excluding en passant
-        for src in pawn_srcs.clone() {
-            let captures = pawn_attacks(src, self.turn) & opposite_color_bb;
-            for dst in unpack_bb(captures) {
-                let move_src = unsafe { Square::from(src.leading_zeros() as u8) };
-                let move_dst = unsafe { Square::from(dst.leading_zeros() as u8) };
-                if dst & promotion_rank != 0 {
-                    moves.push(Move::new(move_src, move_dst, MoveFlag::PromoteToQueen));
-                    moves.push(Move::new(move_src, move_dst, MoveFlag::PromoteToKnight));
-                    moves.push(Move::new(move_src, move_dst, MoveFlag::PromoteToRook));
-                    moves.push(Move::new(move_src, move_dst, MoveFlag::PromoteToBishop));
-                }
-                else {
-                    moves.push(Move::new(move_src, move_dst, MoveFlag::PawnMove));
-                }
-            }
-        }
-        
-        // en passant
-        let pawn_double_push_rank = match self.turn {
-            Color::White => RANK_5,
-            Color::Black => RANK_4
-        };
-        let (src_offset, dst_offset) = match self.turn {
-            Color::White => (24, 16),
-            Color::Black => (32, 40)
-        };
-        if (*self.context).double_pawn_push != -1 { // if en passant is possible
-            for direction in [-1, 1].iter() { // left and right
-                let double_pawn_push_file = self.context.double_pawn_push as i32 + direction;
-                if double_pawn_push_file >= 0 && double_pawn_push_file <= 7 { // if within bounds
-                    let double_pawn_push_file_mask = FILE_A >> double_pawn_push_file;
-                    if pawns_bb & double_pawn_push_file_mask & RANK_5 != 0 {
-                        let move_src = unsafe { Square::from((src_offset + double_pawn_push_file) as u8) };
-                        let move_dst = unsafe { Square::from((dst_offset + self.context.double_pawn_push) as u8) };
-                        moves.push(Move::new(move_src, move_dst, MoveFlag::EnPassant));
-                    }
-                }
-            }
-        }
-        
-        // pawn pushes
-        let single_push_rank = match self.turn {
-            Color::White => RANK_3,
-            Color::Black => RANK_6
-        };
-        for src_bb in pawn_srcs.iter() {
-            let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            
-            // single moves
-            let single_move_dst = pawn_moves(*src_bb, self.turn) & !all_occupancy_bb;
-            if single_move_dst == 0 { // if no single moves
-                continue;
-            }
-            
-            let single_move_dst_square = unsafe { Square::from(single_move_dst.leading_zeros() as u8) };
-            
-            // double push
-            if single_move_dst & single_push_rank != 0 {
-                let double_move_dst = pawn_moves(single_move_dst, self.turn) & !all_occupancy_bb;
-                if double_move_dst != 0 {
-                    unsafe {
-                        let double_move_dst_square = Square::from(double_move_dst.leading_zeros() as u8);
-                        moves.push(Move::new(src_square, double_move_dst_square, MoveFlag::PawnDoubleMove));
-                    }
-                }
-            }
-            else if single_move_dst & promotion_rank != 0 { // promotion
-                moves.push(Move::new(src_square, single_move_dst_square, MoveFlag::PromoteToQueen));
-                moves.push(Move::new(src_square, single_move_dst_square, MoveFlag::PromoteToKnight));
-                moves.push(Move::new(src_square, single_move_dst_square, MoveFlag::PromoteToRook));
-                moves.push(Move::new(src_square, single_move_dst_square, MoveFlag::PromoteToBishop));
-                continue;
-            }
-
-            // single push
-            moves.push(Move::new(src_square, single_move_dst_square, MoveFlag::PawnMove));
-        }
-        
-        // knight moves
-        let knights_bb = self.board.bb_by_piece_type[PieceType::Knight as usize] & same_color_bb;
-        for src_bb in unpack_bb(knights_bb).iter() {
-            let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let knight_moves = knight_attacks(*src_bb) & !same_color_bb;
-            for dst_bb in unpack_bb(knight_moves).iter() {
-                let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new(src_square, dst_square, MoveFlag::KnightMove));
-            }
-        }
-        
-        // bishop moves
-        let bishops_bb = self.board.bb_by_piece_type[PieceType::Bishop as usize] & same_color_bb;
-        for src_bb in unpack_bb(bishops_bb).iter() {
-            let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let bishop_moves = bishop_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
-            for dst_bb in unpack_bb(bishop_moves).iter() {
-                let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new(src_square, dst_square, MoveFlag::BishopMove));
-            }
-        }
-        
-        // rook moves
-        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize] & same_color_bb;
-        for src_bb in unpack_bb(rooks_bb).iter() {
-            let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let rook_moves = rook_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
-            for dst_bb in unpack_bb(rook_moves).iter() {
-                let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new(src_square, dst_square, MoveFlag::RookMove));
-            }
-        }
-        
-        // queen moves
-        let queens_bb = self.board.bb_by_piece_type[PieceType::Queen as usize] & same_color_bb;
-        for src_bb in unpack_bb(queens_bb).iter() {
-            let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let queen_moves = (rook_attacks(*src_bb, all_occupancy_bb) | bishop_attacks(*src_bb, all_occupancy_bb)) & !same_color_bb;
-            for dst_bb in unpack_bb(queen_moves).iter() {
-                let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new(src_square, dst_square, MoveFlag::QueenMove));
-            }
-        }
-        
-        // king moves
-        let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & same_color_bb;
-        let king_src_square = unsafe { Square::from(king_src_bb.leading_zeros() as u8) };
-        let king_moves = king_attacks(king_src_bb) & !all_occupancy_bb;
-        for dst_bb in unpack_bb(king_moves).iter() {
-            let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-            moves.push(Move::new(king_src_square, dst_square, MoveFlag::KingMove));
-        }
-        
-        moves
     }
     
     pub fn get_moves(&self) -> Vec<Move> {
@@ -403,17 +117,16 @@ impl State {
         let dst = 1 << (63 - dst_square as u8);
         let src_dst = src | dst;
         let mut new_context = StateContext::new(self.context.halfmove_clock + 1, -1, self.context.castling_info.clone(), PieceType::NoPieceType, Some(self.context.clone()));
-        let color_adjustment = self.turn as usize * ColoredPiece::COLOR_DIFFERENCE as usize;
-        let castling_color_adjustment = self.turn as usize * 2;
-        let opposite_color = self.turn.flip();
+        let castling_color_adjustment = self.side_to_move as usize * 2;
+        let opposite_color = self.side_to_move.flip();
         if flag != MoveFlag::EnPassant && self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] & dst != 0 {
-            let captured_piece = self.board.piece_type_at(dst);
+            let captured_piece = self.board.get_piece_type_at(dst);
             new_context.captured_piece = captured_piece;
             new_context.halfmove_clock = 0;
             self.board.bb_by_color[opposite_color as usize] &= !dst;
         }
         let previous_castling_rights = self.context.castling_info.clone();
-        self.board.bb_by_color[self.turn as usize] ^= src_dst; // works for all moves except the rook in castling
+        self.board.bb_by_color[self.side_to_move as usize] ^= src_dst; // works for all moves except the rook in castling
         self.board.bb_by_color[opposite_color as usize] &= !dst; // clear opponent's piece if any
         match flag {
             MoveFlag::PawnMove => { // can be a single pawn push or capture (non-promotion)
@@ -427,7 +140,7 @@ impl State {
                 new_context.halfmove_clock = 0;
             }
             MoveFlag::EnPassant => { // en passant capture
-                let en_passant_capture = ((dst << 8) * self.turn as u64) | ((dst >> 8) * opposite_color as u64);
+                let en_passant_capture = ((dst << 8) * self.side_to_move as u64) | ((dst >> 8) * opposite_color as u64);
                 self.board.bb_by_piece_type[PieceType::Pawn as usize] ^= src_dst | en_passant_capture;
                 new_context.captured_piece = PieceType::Pawn;
                 new_context.halfmove_clock = 0;
@@ -443,8 +156,8 @@ impl State {
             MoveFlag::RookMove => {
                 self.board.bb_by_piece_type[PieceType::Rook as usize] &= !src;
                 self.board.bb_by_piece_type[PieceType::Rook as usize] |= dst;
-                let is_king_side = src & (1u64 << (self.turn as u64 * 7 * 8));
-                let is_queen_side = src & (0b10000000u64 << (self.turn as u64 * 7 * 8));
+                let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8));
+                let is_queen_side = src & (0b10000000u64 << (self.side_to_move as u64 * 7 * 8));
                 let king_side_mask = (is_king_side != 0) as u8 * (0b00001000 >> castling_color_adjustment);
                 let queen_side_mask = (is_queen_side != 0) as u8 * (0b00000100 >> castling_color_adjustment);
                 new_context.castling_info &= !(king_side_mask | queen_side_mask);
@@ -460,13 +173,13 @@ impl State {
             MoveFlag::Castle => { // src is king's origin square, dst is king's destination square
                 new_context.castling_info &= !0b00001100 >> castling_color_adjustment;
                 
-                let is_king_side = src & (1u64 << (self.turn as u64 * 7 * 8)) != 0;
+                let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8)) != 0;
                 let is_queen_side = !is_king_side;
                 
-                let rook_src = 1u64 << (self.turn as u64 * (((7 * 8 + 7) * is_king_side as u64) | ((7 * 8) * is_queen_side as u64)));
-                let rook_dst = 1u64 << (self.turn as u64 * (((7 * 8 + 5) * is_king_side as u64) | ((7 * 8 + 3) * is_queen_side as u64)));
+                let rook_src = 1u64 << (self.side_to_move as u64 * (((7 * 8 + 7) * is_king_side as u64) | ((7 * 8) * is_queen_side as u64)));
+                let rook_dst = 1u64 << (self.side_to_move as u64 * (((7 * 8 + 5) * is_king_side as u64) | ((7 * 8 + 3) * is_queen_side as u64)));
                 let rook_src_dst = rook_src | rook_dst;
-                self.board.bb_by_color[self.turn as usize] ^= rook_src_dst;
+                self.board.bb_by_color[self.side_to_move as usize] ^= rook_src_dst;
                 self.board.bb_by_piece_type[PieceType::Rook as usize] ^= rook_src_dst;
             }
             MoveFlag::PromoteToQueen => {
@@ -491,9 +204,9 @@ impl State {
         }
         // update data members
         self.halfmove += 1;
-        self.turn = opposite_color;
+        self.side_to_move = opposite_color;
         self.context = Box::new(new_context);
-        self.in_check = self.board.is_in_check(self.turn);
+        self.in_check = self.board.is_in_check(self.side_to_move);
         self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] = self.board.bb_by_color[Color::White as usize] | self.board.bb_by_color[Color::Black as usize];
         
         if self.board.are_both_sides_insufficient_material() {
@@ -514,66 +227,140 @@ impl State {
             }
         }
     }
-
-    // pub fn to_fen(&self) -> String {
-    //     let mut fen_board = String::new();
-    //     for row_from_top in 0..8 {
-    //         let mut empty_count: u8 = 0;
-    //         for file in 0..8 {
-    //             let square_mask = 1 << (63 - (row_from_top * 8 + file));
-    //             let piece_type = self.board.piece_type_at(square_mask);
-    //             let piece_color
-    //             if piece_type == PieceType::NoPieceType {
-    //                 empty_count += 1;
-    //             }
-    //             else {
-    //                 if empty_count > 0 {
-    //                     fen_board.push_str(&empty_count.to_string());
-    //                     empty_count = 0;
-    //                 }
-    //                 let colored_piece = unsafe { ColoredPiece::from(piece_type) };
-    //                 fen_board.push(colored_piece.to_char());
-    //             }
-    //         }
-    //         if empty_count > 0 {
-    //             fen_board.push_str(&empty_count.to_string());
-    //         }
-    //         fen_board.push('/');
-    //     }
-    //     fen_board.pop();
-    //     let turn = match self.turn {
-    //         Color::White => 'w',
-    //         Color::Black => 'b'
-    //     };
-    //     let mut castle = String::new();
-    //     if self.wk_castle {
-    //         castle.push('K');
-    //     }
-    //     if self.wq_castle {
-    //         castle.push('Q');
-    //     }
-    //     if self.bk_castle {
-    //         castle.push('k');
-    //     }
-    //     if self.bq_castle {
-    //         castle.push('q');
-    //     }
-    //     if castle.is_empty() {
-    //         castle.push('-');
-    //     }
-    //     let mut double_pawn_push = String::new();
-    //     if self.double_pawn_push == -1 {
-    //         double_pawn_push.push('-');
-    //     }
-    //     else {
-    //         double_pawn_push.push((self.double_pawn_push as u8 + 'a' as u8) as char);
-    //         double_pawn_push.push(if self.turn == Color::White {'6'} else {'3'});
-    //     }
-    //     format!("{} {} {} {} {} {}", fen_board, turn, castle, double_pawn_push, self.halfmove, self.halfmove_clock)
-    // }
     
     pub fn is_valid(&self) -> bool {
-        // todo
+        self.has_valid_side_to_move() &&
+        self.has_valid_castling_rights() &&
+        self.has_valid_double_pawn_push()
+    }
+    
+    pub fn has_valid_side_to_move(&self) -> bool {
+        self.halfmove % 2 == self.side_to_move as u16
+    }
+    
+    pub fn has_valid_castling_rights(&self) -> bool {
+        let kings_bb = self.board.bb_by_piece_type[PieceType::King as usize];
+        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize];
+        
+        let white_bb = self.board.bb_by_color[Color::White as usize];
+        let black_bb = self.board.bb_by_color[Color::Black as usize];
+        
+        let is_white_king_in_place = (kings_bb & white_bb & STARTING_WK) != 0;
+        let is_black_king_in_place = (kings_bb & black_bb & STARTING_BK) != 0;
+        
+        if !is_white_king_in_place && self.context.castling_info & 0b00001100 != 0 {
+            return false;
+        }
+        
+        if !is_black_king_in_place && self.context.castling_info & 0b00000011 != 0 {
+            return false;
+        }
+        
+        let is_white_king_side_rook_in_place = (rooks_bb & white_bb & STARTING_WR_SHORT) != 0;
+        if !is_white_king_side_rook_in_place && (self.context.castling_info & 0b00001000) != 0 {
+            return false;
+        }
+        
+        let is_white_queen_side_rook_in_place = (rooks_bb & white_bb & STARTING_WR_LONG) != 0;
+        if !is_white_queen_side_rook_in_place && (self.context.castling_info & 0b00000100) != 0 {
+            return false;
+        }
+        
+        let is_black_king_side_rook_in_place = (rooks_bb & black_bb & STARTING_BR_SHORT) != 0;
+        if !is_black_king_side_rook_in_place && (self.context.castling_info & 0b00000010) != 0 {
+            return false;
+        }
+        
+        let is_black_queen_side_rook_in_place = (rooks_bb & black_bb & STARTING_BR_LONG) != 0;
+        if !is_black_queen_side_rook_in_place && (self.context.castling_info & 0b00000001) != 0 {
+            return false;
+        }
+        
         true
+    }
+    
+    pub fn has_valid_double_pawn_push(&self) -> bool {
+        match self.context.double_pawn_push {
+            -1 => true,
+            file if file > 7 || file < -1 => false,
+            file => {
+                if self.halfmove < 1 {
+                    return false;
+                }
+                let color_just_moved = self.side_to_move.flip();
+                let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize];
+                let colored_pawns_bb = pawns_bb & self.board.bb_by_color[color_just_moved as usize];
+                let file_mask = FILES[file as usize];
+                let rank_mask = RANK_4 << (color_just_moved as u64 * 8); // 4 for white, 5 for black
+                colored_pawns_bb & file_mask & rank_mask != 0
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_state_has_valid_side_to_move() {
+        let state = State::blank();
+        assert!(state.has_valid_side_to_move());
+        
+        let mut state = State::initial();
+        assert!(state.has_valid_side_to_move());
+        state.side_to_move = Color::Black;
+        assert!(!state.has_valid_side_to_move());
+
+        state.halfmove = 99;
+        assert!(state.has_valid_side_to_move());
+        state.halfmove = 100;
+        assert!(!state.has_valid_side_to_move());
+    }
+    
+    #[test]
+    fn test_state_has_valid_castling_rights() {
+        let state = State::blank();
+        assert!(state.has_valid_castling_rights());
+        
+        let mut state = State::initial();
+        assert!(state.has_valid_castling_rights());
+        
+        state.context.castling_info = 0b00000000;
+        assert!(state.has_valid_castling_rights());
+        
+        state.context.castling_info = 0b00001111;
+        
+        state.board.bb_by_piece_type[PieceType::King as usize] &= !STARTING_WK;
+        assert!(!state.has_valid_castling_rights());
+        
+        state.board.bb_by_piece_type[PieceType::King as usize] |= STARTING_WK;
+        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_WR_SHORT;
+        assert!(!state.has_valid_castling_rights());
+        
+        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_WR_SHORT;
+        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_WR_LONG;
+        assert!(!state.has_valid_castling_rights());
+        
+        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_WR_LONG;
+        state.board.bb_by_piece_type[PieceType::King as usize] &= !STARTING_BK;
+        assert!(!state.has_valid_castling_rights());
+        
+        state.board.bb_by_piece_type[PieceType::King as usize] |= STARTING_BK;
+        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_BR_SHORT;
+        assert!(!state.has_valid_castling_rights());
+        
+        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_BR_SHORT;
+        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_BR_LONG;
+        assert!(!state.has_valid_castling_rights());
+        
+        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_BR_LONG;
+        assert!(state.has_valid_castling_rights());
+        
+        state.context.castling_info = 0b00000010;
+        assert!(state.has_valid_castling_rights());
+        
+        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_BR_SHORT;
+        
     }
 }

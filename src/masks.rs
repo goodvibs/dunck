@@ -1,3 +1,4 @@
+use lazy_static::lazy_static;
 use crate::bitboard::Bitboard;
 
 pub const FILE_A: Bitboard = 0x8080808080808080;
@@ -104,3 +105,8 @@ pub const STARTING_BK: Bitboard = 0x0800000000000000;
 pub const STARTING_WHITE: Bitboard = STARTING_WP | STARTING_WN | STARTING_WB | STARTING_WR | STARTING_WQ | STARTING_WK;
 pub const STARTING_BLACK: Bitboard = STARTING_BP | STARTING_BN | STARTING_BB | STARTING_BR | STARTING_BQ | STARTING_BK;
 pub const STARTING_ALL: Bitboard = STARTING_WHITE | STARTING_BLACK;
+
+pub const STARTING_WR_SHORT: Bitboard = 0x0000000000000001;
+pub const STARTING_WR_LONG: Bitboard = 0x0000000000000080;
+pub const STARTING_BR_SHORT: Bitboard = 0x0100000000000000;
+pub const STARTING_BR_LONG: Bitboard = 0x8000000000000000;

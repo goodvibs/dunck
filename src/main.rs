@@ -1,6 +1,5 @@
 #![allow(dead_code)]
-#![allow(unused_variables)]
-#![allow(unused_imports)]
+// #![allow(unused_variables)]
 #![allow(non_upper_case_globals)]
 
 mod board;
@@ -16,6 +15,8 @@ mod enums;
 mod zobrist;
 mod pgn;
 mod bitboard;
+mod movegen;
+mod fen;
 
 use crate::charboard::*;
 use crate::attacks::*;

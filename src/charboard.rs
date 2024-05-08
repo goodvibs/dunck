@@ -1,7 +1,30 @@
 use crate::bitboard::Bitboard;
-use crate::enums::{Color, PieceType};
 
 pub type Charboard = [[char; 8]; 8];
+
+pub const EMPTY_CHARBOARD: Charboard = [[' '; 8]; 8];
+
+pub const INITIAL_CHARBOARD: Charboard = [
+    ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],
+    ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
+    [' '; 8],
+    [' '; 8],
+    [' '; 8],
+    [' '; 8],
+    ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
+    ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+];
+
+pub const INITIAL_CHARBOARD_PRETTY: Charboard = [
+    ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
+    ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'],
+    [' '; 8],
+    [' '; 8],
+    [' '; 8],
+    [' '; 8],
+    ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'],
+    ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
+];
 
 pub const SQUARE_NAMES: [&str; 64] = [
     "a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",

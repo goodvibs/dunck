@@ -1,15 +1,15 @@
 use crate::enums::*;
 use crate::preload::ZOBRIST_TABLE;
-use crate::charboard::*;
 use crate::attacks::*;
-use crate::bitboard::{bb_to_square_indices, Bitboard, unpack_bb};
+use crate::bitboard::{get_squares_from_bb, Bitboard, unpack_bb};
+use crate::charboard::{cb_to_string, Charboard};
 use crate::masks::*;
 
 #[derive(Eq, PartialEq, Clone)]
 pub struct Board {
     pub bb_by_piece_type: [Bitboard; PieceType::LIMIT],
     pub bb_by_color: [Bitboard; 2],
-    pub colored_piece_count: [u8; ColoredPiece::LIMIT],
+    // pub colored_piece_count: [u8; ColoredPiece::LIMIT],
 }
 
 impl Board {
@@ -28,23 +28,23 @@ impl Board {
                 STARTING_WHITE,
                 STARTING_BLACK
             ],
-            colored_piece_count: [
-                30,
-                8,
-                2,
-                2,
-                2,
-                1,
-                0,
-                0,
-                1,
-                8,
-                2,
-                2,
-                2,
-                1,
-                1
-            ]
+            // colored_piece_count: [
+            //     30,
+            //     8,
+            //     2,
+            //     2,
+            //     2,
+            //     1,
+            //     0,
+            //     0,
+            //     1,
+            //     8,
+            //     2,
+            //     2,
+            //     2,
+            //     1,
+            //     1
+            // ]
         }
     }
 
@@ -52,7 +52,7 @@ impl Board {
         Board {
             bb_by_piece_type: [0; PieceType::LIMIT],
             bb_by_color: [0; 2],
-            colored_piece_count: [0; ColoredPiece::LIMIT]
+            // colored_piece_count: [0; ColoredPiece::LIMIT]
         }
     }
     
@@ -109,7 +109,34 @@ impl Board {
         attacks & self.bb_by_piece_type[PieceType::King as usize] & self.bb_by_color[color as usize] != 0
     }
     
-    pub fn piece_type_at(&self, square_mask: Bitboard) -> PieceType {
+    pub fn clear_and_put_piece_at(&mut self, colored_piece: ColoredPiece, square_mask: Bitboard) {
+        self.clear_piece_at(square_mask);
+        self.put_colored_piece_at(colored_piece, square_mask);
+    }
+    
+    pub fn clear_piece_at(&mut self, square_mask: Bitboard) {
+        for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
+            self.bb_by_piece_type[piece_type_int] &= !square_mask;
+        }
+        for color_int in Color::White as usize..Color::Black as usize + 1 {
+            self.bb_by_color[color_int] &= !square_mask;
+        }
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !square_mask;
+    }
+    
+    pub fn put_colored_piece_at(&mut self, colored_piece: ColoredPiece, square_mask: Bitboard) {
+        let piece_type = colored_piece.get_piece_type();
+        let color = colored_piece.get_color();
+        
+        let piece_type_int = piece_type as usize;
+        let color_int = color as usize;
+        
+        self.bb_by_piece_type[piece_type_int] |= square_mask;
+        self.bb_by_color[color_int] |= square_mask;
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] |= square_mask;
+    }
+    
+    pub fn get_piece_type_at(&self, square_mask: Bitboard) -> PieceType {
         for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
             if self.bb_by_piece_type[piece_type_int] & square_mask != 0 {
                 return unsafe { PieceType::from(piece_type_int as u8) };
@@ -118,8 +145,51 @@ impl Board {
         PieceType::NoPieceType
     }
     
-    pub fn get_colored_piece_bb(&self, colored_piece: ColoredPiece) -> Bitboard {
+    pub const fn get_colored_piece_bb(&self, colored_piece: ColoredPiece) -> Bitboard {
         self.bb_by_piece_type[colored_piece as usize & 0b0111] & self.bb_by_color[colored_piece.get_color() as usize]
+    }
+    
+    pub fn is_valid(&self) -> bool {
+        let white_bb = self.bb_by_color[Color::White as usize];
+        let black_bb = self.bb_by_color[Color::Black as usize];
+        if white_bb & black_bb != 0 {
+            return false;
+        }
+
+        let all_occupancy_bb = self.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        
+        if (white_bb | black_bb) != all_occupancy_bb {
+            return false;
+        }
+
+        let mut all_occupancy_bb_test: Bitboard = 0;
+        
+        for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
+            let piece_bb = self.bb_by_piece_type[piece_type_int];
+            
+            if piece_bb & all_occupancy_bb != piece_bb {
+                return false;
+            }
+            
+            if (piece_bb & white_bb) | (piece_bb & black_bb) != piece_bb {
+                return false;
+            }
+            
+            if piece_bb & all_occupancy_bb_test != 0 {
+                return false;
+            }
+            all_occupancy_bb_test |= piece_bb;
+        }
+        
+        if self.get_colored_piece_bb(ColoredPiece::WhiteKing).count_ones() != 1 {
+            return false;
+        }
+        
+        if self.get_colored_piece_bb(ColoredPiece::BlackKing).count_ones() != 1 {
+            return false;
+        }
+        
+        all_occupancy_bb_test == all_occupancy_bb
     }
 
     pub fn zobrist_hash(&self) -> u64 {
@@ -129,7 +199,7 @@ impl Board {
             for color_int in Color::White as u8..Color::Black as u8 + 1 {
                 let color_bb = self.bb_by_color[color_int as usize];
                 let combined_bb = piece_bb & color_bb;
-                for index in bb_to_square_indices(combined_bb) {
+                for index in get_squares_from_bb(combined_bb) {
                     hash ^= ZOBRIST_TABLE[index as usize][piece_type_int as usize - 1];
                 }
             }
@@ -142,27 +212,39 @@ impl Board {
         hash
     }
 
-    pub fn from_cb(cb: Charboard) -> Board {
-        let mut board = Board::blank();
-        for i in 0..8 {
-            for j in 0..8 {
-                let mask = 1 << (63 - (i * 8 + j));
-                let piece = ColoredPiece::from_char(cb[i][j]);
-                if piece != ColoredPiece::NoPiece {
-                    board.bb_by_piece_type[piece as usize] |= mask;
-                    board.bb_by_color[piece.get_color() as usize] |= mask;
-                    board.colored_piece_count[piece as usize] += 1;
-                }
-            }
-        }
-        board
-    }
+    // pub fn from_cb(cb: Charboard) -> Board {
+    //     let mut board = Board::blank();
+    //     for i in 0..8 {
+    //         for j in 0..8 {
+    //             let mask = 1 << (63 - (i * 8 + j));
+    //             let piece = ColoredPiece::from_char(cb[i][j]);
+    //             if piece != ColoredPiece::NoPiece {
+    //                 board.bb_by_piece_type[piece as usize] |= mask;
+    //                 board.bb_by_color[piece.get_color() as usize] |= mask;
+    //                 board.bb_by_piece_type[PieceType::AllPieceTypes as usize] |= mask;
+    //                 // board.colored_piece_count[piece as usize] += 1;
+    //             }
+    //         }
+    //     }
+    //     board
+    // }
 
     pub fn to_cb(&self) -> Charboard {
         let mut cb: Charboard = [[' '; 8]; 8];
         for i in 0..64 {
             let mask = 1 << (63 - i);
-            let piece_type = self.piece_type_at(mask);
+            let piece_type = self.get_piece_type_at(mask);
+            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
+            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char();
+        }
+        cb
+    }
+
+    pub fn to_cb_pretty(&self) -> Charboard {
+        let mut cb: Charboard = [[' '; 8]; 8];
+        for i in 0..64 {
+            let mask = 1 << (63 - i);
+            let piece_type = self.get_piece_type_at(mask);
             let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
             cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char_pretty();
         }
@@ -176,6 +258,76 @@ impl Board {
 
 impl std::fmt::Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", cb_to_string(&self.to_cb()).as_str())
+        write!(f, "{}", cb_to_string(&self.to_cb_pretty()).as_str())
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::charboard::{EMPTY_CHARBOARD, INITIAL_CHARBOARD};
+    
+    #[test]
+    fn test_board_is_valid() {
+        let mut board = Board::blank();
+        assert!(board.is_valid());
+        
+        let mut board = Board::initial();
+        assert!(board.is_valid());
+        
+        board.put_colored_piece_at(ColoredPiece::BlackBishop, Square::C5.to_mask());
+        assert!(board.is_valid());
+        
+        let mut board = Board::initial();
+        board.put_colored_piece_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
+        assert!(!board.is_valid());
+
+        let mut board = Board::initial();
+        board.put_colored_piece_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
+        assert!(!board.is_valid());
+        
+        let mut board = Board::initial();
+        board.clear_piece_at(Square::A1.to_mask());
+        assert!(board.is_valid());
+    }
+    
+    #[test]
+    fn test_blank_board() {
+        let board = Board::blank();
+        assert!(board.is_valid());
+        let cb = board.to_cb();
+        assert_eq!(cb, EMPTY_CHARBOARD);
+    }
+
+    #[test]
+    fn test_initial_board() {
+        let board = Board::initial();
+        assert!(board.is_valid());
+        let cb = board.to_cb();
+        assert_eq!(cb, INITIAL_CHARBOARD);
+    }
+    
+    #[test]
+    fn test_get_piece_type_at() {
+        let board = Board::initial();
+        for i in 0..64 {
+            let mask = 1 << (63 - i);
+            let colored_piece_expected = ColoredPiece::from_char(INITIAL_CHARBOARD[i / 8][i % 8]);
+            let piece_type_expected = colored_piece_expected.get_piece_type();
+            assert_eq!(board.get_piece_type_at(mask), piece_type_expected);
+        }
+        
+        let board = Board::blank();
+        for i in 0..64 {
+            let mask = 1 << (63 - i);
+            assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);
+        }
+    }
+    
+    // #[test]
+    // fn test_from_cb() {
+    //     let board = Board::from_cb(INITIAL_CHARBOARD);
+    //     let cb = board.to_cb();
+    //     assert_eq!(cb, INITIAL_CHARBOARD);
+    // }
 }

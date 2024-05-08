@@ -1,4 +1,4 @@
-use crate::enums::{Color, Square};
+use crate::enums::{Square};
 use crate::charboard::SQUARE_NAMES;
 use crate::state::{State, Termination};
 
@@ -117,13 +117,13 @@ impl Move {
             MoveFlag::PromoteToBishop => ("", "=B"),
             _ => ("", "")
         };
-        let is_capture = initial_state.board.bb_by_color[initial_state.turn.flip() as usize] != final_state.board.bb_by_color[initial_state.turn.flip() as usize];
+        let is_capture = initial_state.board.bb_by_color[initial_state.side_to_move.flip() as usize] != final_state.board.bb_by_color[initial_state.side_to_move.flip() as usize];
         let capture_str = if is_capture { "x" } else { "" };
         let annotation_str;
         if final_state.termination == Some(Termination::Checkmate) {
             annotation_str = "#";
         }
-        else if final_state.board.is_in_check(final_state.turn) {
+        else if final_state.board.is_in_check(final_state.side_to_move) {
             annotation_str = "+";
         }
         else {

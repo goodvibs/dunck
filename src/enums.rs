@@ -1,3 +1,5 @@
+use crate::bitboard::Bitboard;
+
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Square {
@@ -15,6 +17,10 @@ impl Square {
     pub const unsafe fn from(square_number: u8) -> Square {
         assert!(square_number < 64, "Square number out of bounds");
         std::mem::transmute::<u8, Square>(square_number)
+    }
+    
+    pub const fn to_mask(&self) -> Bitboard {
+        1 << (63 - *self as u8)
     }
 }
 
@@ -129,5 +135,72 @@ impl ColoredPiece {
             ColoredPiece::BlackQueen => '♛',
             ColoredPiece::BlackKing => '♚'
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_square() {
+        assert_eq!(Square::A8 as u8, 0);
+        assert_eq!(Square::H8 as u8, 7);
+        assert_eq!(Square::A1 as u8, 56);
+        assert_eq!(Square::H1 as u8, 63);
+    }
+    
+    #[test]
+    fn test_color() {
+        assert_eq!(Color::White as u8, 0);
+        assert_eq!(Color::Black as u8, 1);
+        assert_eq!(Color::White.flip(), Color::Black);
+        assert_eq!(Color::Black.flip(), Color::White);
+        assert_eq!(Color::from(false), Color::White);
+        assert_eq!(Color::from(true), Color::Black);
+    }
+    
+    #[test]
+    fn test_piece_type() {
+        assert_eq!(PieceType::NoPieceType as u8, 0);
+        assert_eq!(PieceType::Pawn as u8, 1);
+        assert_eq!(PieceType::AllPieceTypes as u8, 0);
+        assert_eq!(PieceType::LIMIT, 7);
+        unsafe {
+            assert_eq!(PieceType::from(0), PieceType::NoPieceType);
+            assert_eq!(PieceType::from(1), PieceType::Pawn);
+            assert_eq!(PieceType::from(6), PieceType::King);
+        }
+    }
+    
+    #[test]
+    fn test_colored_piece() {
+        assert_eq!(ColoredPiece::NoPiece as u8, 0);
+        assert_eq!(ColoredPiece::WhitePawn as u8, 1);
+        assert_eq!(ColoredPiece::BlackPawn as u8, 9);
+        
+        assert_eq!(ColoredPiece::LIMIT, 15);
+        assert_eq!(ColoredPiece::COLOR_DIFFERENCE, 8);
+        
+        assert_eq!(ColoredPiece::from(Color::White, PieceType::Pawn), ColoredPiece::WhitePawn);
+        assert_eq!(ColoredPiece::from(Color::Black, PieceType::Pawn), ColoredPiece::BlackPawn);
+        
+        assert_eq!(ColoredPiece::WhitePawn.get_color(), Color::White);
+        assert_eq!(ColoredPiece::BlackPawn.get_color(), Color::Black);
+        
+        assert_eq!(ColoredPiece::WhitePawn.get_piece_type(), PieceType::Pawn);
+        assert_eq!(ColoredPiece::BlackPawn.get_piece_type(), PieceType::Pawn);
+        
+        assert_eq!(ColoredPiece::from_char('P'), ColoredPiece::WhitePawn);
+        assert_eq!(ColoredPiece::from_char('p'), ColoredPiece::BlackPawn);
+        assert_eq!(ColoredPiece::from_char(' '), ColoredPiece::NoPiece);
+        
+        assert_eq!(ColoredPiece::WhitePawn.to_char(), 'P');
+        assert_eq!(ColoredPiece::BlackPawn.to_char(), 'p');
+        assert_eq!(ColoredPiece::NoPiece.to_char(), ' ');
+        
+        assert_eq!(ColoredPiece::WhitePawn.to_char_pretty(), '♙');
+        assert_eq!(ColoredPiece::BlackPawn.to_char_pretty(), '♟');
+        assert_eq!(ColoredPiece::NoPiece.to_char_pretty(), ' ');
     }
 }

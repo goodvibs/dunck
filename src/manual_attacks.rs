@@ -1,6 +1,5 @@
 use std::cmp;
 use crate::bitboard::Bitboard;
-use crate::charboard::*;
 use crate::enums::Color;
 use crate::masks::*;
 
@@ -37,28 +36,28 @@ pub fn rook_attacks(origin: Bitboard, occupied: Bitboard) -> Bitboard {
     let w_distance: u32 = leading_zeros % 8;
     let e_distance: u32 = 7 - w_distance;
     let (mut pos_n, mut pos_s, mut pos_w, mut pos_e): (Bitboard, Bitboard, Bitboard, Bitboard) = (origin, origin, origin, origin);
-    for i in 0..n_distance {
+    for _ in 0..n_distance {
         pos_n <<= 8;
         attacks |= pos_n;
         if occupied & pos_n != 0 {
             break;
         }
     }
-    for i in 0..s_distance {
+    for _ in 0..s_distance {
         pos_s >>= 8;
         attacks |= pos_s;
         if occupied & pos_s != 0 {
             break;
         }
     }
-    for i in 0..w_distance {
+    for _ in 0..w_distance {
         pos_w <<= 1;
         attacks |= pos_w;
         if occupied & pos_w != 0 {
             break;
         }
     }
-    for i in 0..e_distance {
+    for _ in 0..e_distance {
         pos_e >>= 1;
         attacks |= pos_e;
         if occupied & pos_e != 0 {
@@ -83,21 +82,21 @@ pub fn bishop_attacks(origin: Bitboard, occupied: Bitboard) -> Bitboard {
             break;
         }
     }
-    for i in 0..cmp::min(n_distance, e_distance) {
+    for _ in 0..cmp::min(n_distance, e_distance) {
         pos_ne <<= 7;
         attacks |= pos_ne;
         if occupied & pos_ne != 0 {
             break;
         }
     }
-    for i in 0..cmp::min(s_distance, w_distance) {
+    for _ in 0..cmp::min(s_distance, w_distance) {
         pos_sw >>= 7;
         attacks |= pos_sw;
         if occupied & pos_sw != 0 {
             break;
         }
     }
-    for i in 0..cmp::min(s_distance, e_distance) {
+    for _ in 0..cmp::min(s_distance, e_distance) {
         pos_se >>= 9;
         attacks |= pos_se;
         if occupied & pos_se != 0 {

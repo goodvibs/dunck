@@ -60,7 +60,7 @@ impl PgnMoveTreeNode {
             Some((_, s, _)) => (None, s, None)
         };
         if self.state_after_move.halfmove != 0 {
-            res += match self.state_after_move.turn {
+            res += match self.state_after_move.side_to_move {
                 Color::White => match should_remind_fullmove {
                     true => format!("{}...{}", self.state_after_move.get_fullmove() - 1, san),
                     false => format!(" {}", san),

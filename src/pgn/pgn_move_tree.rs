@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use indexmap::IndexMap;
 use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
-use crate::pgn::pgn_move_tree_traverser::PgnMoveTreeTraverseError;
 use crate::pgn::PgnMoveTreeTraverser;
 use crate::r#move::Move;
 use crate::state::State;
