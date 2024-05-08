@@ -295,7 +295,7 @@ mod tests {
     }
 
     #[test]
-    fn test_process_fen_castle() {
+    fn test_process_fen_castle() { // todo: finish
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "-"), true);
         assert_eq!(state.context.castling_info, 0b00000000);
