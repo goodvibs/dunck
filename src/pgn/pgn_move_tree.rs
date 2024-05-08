@@ -1,10 +1,8 @@
-use std::collections::HashMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use indexmap::IndexMap;
 use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
-use crate::pgn::pgn_move_tree_traverser::PgnMoveTreeTraverseError;
 use crate::pgn::PgnMoveTreeTraverser;
 use crate::r#move::Move;
 use crate::state::State;
@@ -176,6 +174,10 @@ impl PgnMoveTree {
                                 continue;
                             }
                             let possible_moves = current_state.get_moves();
+                            if move_san_builder == "Bxb7" {
+                                println!("{:?}", possible_moves);
+                                current_state.board.print();
+                            }
                             let mut matched_move: Option<Move> = None;
                             for mv in possible_moves {
                                 if mv.matches(&move_san_builder) {
