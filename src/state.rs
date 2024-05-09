@@ -5,7 +5,7 @@ use crate::enums::*;
 use crate::masks::{FILES, RANK_4, RANK_5, STARTING_BK, STARTING_BR_LONG, STARTING_BR_SHORT, STARTING_WK, STARTING_WR_LONG, STARTING_WR_SHORT};
 use crate::pgn::pgn_move_tree::PgnParseError;
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Termination {
     Checkmate,
     Stalemate,
@@ -68,7 +68,7 @@ impl StateContext {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct State {
     pub board: Board,
     pub in_check: bool,

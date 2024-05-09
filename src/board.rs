@@ -5,7 +5,7 @@ use crate::bitboard::{get_squares_from_bb, Bitboard, unpack_bb};
 use crate::charboard::{cb_to_string, Charboard};
 use crate::masks::*;
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Board {
     pub bb_by_piece_type: [Bitboard; PieceType::LIMIT],
     pub bb_by_color: [Bitboard; 2],
