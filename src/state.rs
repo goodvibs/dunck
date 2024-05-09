@@ -56,6 +56,16 @@ impl StateContext {
             previous: None
         }
     }
+    
+    pub fn initial_no_castling() -> StateContext {
+        StateContext {
+            halfmove_clock: 0,
+            double_pawn_push: -1,
+            castling_info: 0b00000000,
+            captured_piece: PieceType::NoPieceType,
+            previous: None
+        }
+    }
 }
 
 #[derive(Eq, PartialEq, Clone)]
@@ -79,7 +89,7 @@ impl State {
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Box::new(StateContext::initial())
+            context: Box::new(StateContext::initial_no_castling())
         }
     }
 
@@ -229,6 +239,7 @@ impl State {
     }
     
     pub fn is_valid(&self) -> bool {
+        self.board.is_valid() &&
         self.has_valid_side_to_move() &&
         self.has_valid_castling_rights() &&
         self.has_valid_double_pawn_push()
@@ -331,12 +342,14 @@ mod tests {
         
         state.context.castling_info = 0b00001111;
         
-        state.board.bb_by_piece_type[PieceType::King as usize] &= !STARTING_WK;
+        state.board.clear_piece_at(STARTING_WK);
         assert!(!state.has_valid_castling_rights());
         
-        state.board.bb_by_piece_type[PieceType::King as usize] |= STARTING_WK;
-        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_WR_SHORT;
+        state.board.put_colored_piece_at(ColoredPiece::WhiteKing, STARTING_WK);
+        state.board.clear_piece_at(STARTING_BR_SHORT);
         assert!(!state.has_valid_castling_rights());
+        state.context.castling_info = 0b00001101;
+        assert!(state.has_valid_castling_rights());
         
         state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_WR_SHORT;
         state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_WR_LONG;
