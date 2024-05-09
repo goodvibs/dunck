@@ -293,7 +293,7 @@ mod tests {
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], 0);
         assert_eq!(board.bb_by_color[Color::White as usize], 0);
         assert_eq!(board.bb_by_piece_type[PieceType::AllPieceTypes as usize], 0);
-        
+
         let mut board = Board::initial();
         board.clear_piece_at(mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);

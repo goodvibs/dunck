@@ -347,33 +347,58 @@ mod tests {
         
         state.board.put_colored_piece_at(ColoredPiece::WhiteKing, STARTING_WK);
         state.board.clear_piece_at(STARTING_BR_SHORT);
+        assert!(state.board.is_valid());
         assert!(!state.has_valid_castling_rights());
         state.context.castling_info = 0b00001101;
         assert!(state.has_valid_castling_rights());
         
-        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_WR_SHORT;
-        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_WR_LONG;
+        state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_WR_SHORT);
+        state.board.clear_piece_at(STARTING_WR_LONG);
+        assert!(state.board.is_valid());
         assert!(!state.has_valid_castling_rights());
-        
-        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_WR_LONG;
-        state.board.bb_by_piece_type[PieceType::King as usize] &= !STARTING_BK;
+
+        state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_WR_LONG);
+        state.board.clear_piece_at(STARTING_BK);
         assert!(!state.has_valid_castling_rights());
-        
-        state.board.bb_by_piece_type[PieceType::King as usize] |= STARTING_BK;
-        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_BR_SHORT;
+        state.board.put_colored_piece_at(ColoredPiece::BlackKing, Square::E4.to_mask());
+        assert!(state.board.is_valid());
         assert!(!state.has_valid_castling_rights());
+        let castling_info = state.context.castling_info;
+        state.context.castling_info &= !0b00000011;
+        assert!(state.has_valid_castling_rights());
         
-        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_BR_SHORT;
-        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_BR_LONG;
+        state.context.castling_info = castling_info;
+        state.board.clear_piece_at(Square::E4.to_mask());
+        state.board.put_colored_piece_at(ColoredPiece::BlackKing, STARTING_BK);
+        state.board.clear_piece_at(STARTING_BR_SHORT);
+        assert!(state.board.is_valid());
+        assert!(state.has_valid_castling_rights());
+
+        state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_BR_SHORT);
+        state.board.clear_piece_at(STARTING_BR_LONG);
         assert!(!state.has_valid_castling_rights());
-        
-        state.board.bb_by_piece_type[PieceType::Rook as usize] |= STARTING_BR_LONG;
+
+        state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_BR_LONG);
         assert!(state.has_valid_castling_rights());
         
         state.context.castling_info = 0b00000010;
         assert!(state.has_valid_castling_rights());
+    }
+    
+    #[test]
+    fn test_state_has_valid_double_pawn_push() {
+        let state = State::blank();
+        assert!(state.has_valid_double_pawn_push());
         
-        state.board.bb_by_piece_type[PieceType::Rook as usize] &= !STARTING_BR_SHORT;
+        let mut state = State::initial();
+        assert_eq!(state.context.double_pawn_push, -1);
+        assert!(state.has_valid_double_pawn_push());
         
+        // todo
+    }
+    
+    #[test]
+    fn test_state_play_move() {
+        // todo
     }
 }
