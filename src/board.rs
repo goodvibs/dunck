@@ -109,31 +109,31 @@ impl Board {
         attacks & self.bb_by_piece_type[PieceType::King as usize] & self.bb_by_color[color as usize] != 0
     }
 
-    pub fn clear_and_put_piece_at(&mut self, colored_piece: ColoredPiece, square_mask: Bitboard) {
-        self.clear_piece_at(square_mask);
-        self.put_colored_piece_at(colored_piece, square_mask);
+    pub fn clear_and_put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
+        self.clear_piece_at(mask);
+        self.put_colored_piece_at(colored_piece, mask);
     }
 
-    pub fn clear_piece_at(&mut self, square_mask: Bitboard) {
+    pub fn clear_piece_at(&mut self, mask: Bitboard) {
         for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
-            self.bb_by_piece_type[piece_type_int] &= !square_mask;
+            self.bb_by_piece_type[piece_type_int] &= !mask;
         }
         for color_int in Color::White as usize..Color::Black as usize + 1 {
-            self.bb_by_color[color_int] &= !square_mask;
+            self.bb_by_color[color_int] &= !mask;
         }
-        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !square_mask;
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
     }
 
-    pub fn put_colored_piece_at(&mut self, colored_piece: ColoredPiece, square_mask: Bitboard) {
+    pub fn put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
         let piece_type = colored_piece.get_piece_type();
         let color = colored_piece.get_color();
 
         let piece_type_int = piece_type as usize;
         let color_int = color as usize;
 
-        self.bb_by_piece_type[piece_type_int] |= square_mask;
-        self.bb_by_color[color_int] |= square_mask;
-        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] |= square_mask;
+        self.bb_by_piece_type[piece_type_int] |= mask;
+        self.bb_by_color[color_int] |= mask;
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] |= mask;
     }
     
     pub fn get_piece_type_at(&self, square_mask: Bitboard) -> PieceType {
@@ -286,13 +286,27 @@ mod tests {
     #[test]
     fn test_clear_piece_at() {
         let mut board = Board::blank();
-        let mask = Square::A1.to_mask();
+        let mask = Square::A1.to_mask() | Square::B1.to_mask();
         board.put_colored_piece_at(ColoredPiece::WhitePawn, mask);
         board.clear_piece_at(mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], 0);
         assert_eq!(board.bb_by_color[Color::White as usize], 0);
         assert_eq!(board.bb_by_piece_type[PieceType::AllPieceTypes as usize], 0);
+        
+        let mut board = Board::initial();
+        board.clear_piece_at(mask);
+        assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);
+        assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], STARTING_WP | STARTING_BP);
+        assert_eq!(board.bb_by_color[Color::White as usize], STARTING_WHITE & !mask);
+        assert_eq!(board.bb_by_color[Color::Black as usize], STARTING_BLACK);
+        assert_eq!(board.bb_by_piece_type[PieceType::Rook as usize], (STARTING_WR & !mask) | STARTING_BR);
+        assert_eq!(board.bb_by_piece_type[PieceType::Knight as usize], (STARTING_WN & !mask) | STARTING_BN);
+        assert_eq!(board.bb_by_piece_type[PieceType::Bishop as usize], STARTING_WB | STARTING_BB);
+        assert_eq!(board.bb_by_piece_type[PieceType::Queen as usize], STARTING_WQ | STARTING_BQ);
+        assert_eq!(board.bb_by_piece_type[PieceType::King as usize], STARTING_WK | STARTING_BK);
+        assert_eq!(board.bb_by_piece_type[PieceType::AllPieceTypes as usize], STARTING_ALL & !mask);
+        assert!(board.is_valid());
     }
 
     #[test]
