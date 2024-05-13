@@ -1,4 +1,6 @@
 use crate::bitboard::Bitboard;
+use crate::board::Board;
+use crate::enums::{Color, ColoredPiece};
 
 pub type Charboard = [[char; 8]; 8];
 
@@ -103,4 +105,34 @@ pub fn cb_to_string(cb: &Charboard) -> String {
 
 pub fn print_cb(cb: &Charboard) {
     println!("{}", cb_to_string(cb));
+}
+
+impl Board {
+    pub fn to_cb(&self) -> Charboard {
+        let mut cb: Charboard = [[' '; 8]; 8];
+        for i in 0..64 {
+            let mask = 1 << (63 - i);
+            let piece_type = self.get_piece_type_at(mask);
+            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
+            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char();
+        }
+        cb
+    }
+
+    pub fn to_cb_pretty(&self) -> Charboard {
+        let mut cb: Charboard = [[' '; 8]; 8];
+        for i in 0..64 {
+            let mask = 1 << (63 - i);
+            let piece_type = self.get_piece_type_at(mask);
+            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
+            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char_pretty();
+        }
+        cb
+    }
+}
+
+impl std::fmt::Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", cb_to_string(&self.to_cb_pretty()).as_str())
+    }
 }

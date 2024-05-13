@@ -1,5 +1,7 @@
-use crate::enums::{Color, ColoredPiece};
+use crate::enums::{Color, ColoredPiece, PieceType, Square};
 use crate::state::State;
+
+pub const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum FenParseError {
@@ -50,81 +52,96 @@ fn process_fen_castle(state: &mut State, fen_castle: &str) -> bool {
     return true;
 }
 
-fn process_fen_double_pawn_push(state: &mut State, fen_double_pawn_push: &str) -> bool {
-    if fen_double_pawn_push != "-" {
-        if fen_double_pawn_push.len() > 2 {
-            return false;
-        }
-        let file = fen_double_pawn_push.chars().next().unwrap();
-        if !file.is_ascii_alphabetic() {
-            return false;
-        }
-        let file = file.to_ascii_lowercase();
-        let file = file as u8 - 'a' as u8;
-        if file > 7 {
-            return false;
-        }
-        let rank = fen_double_pawn_push.chars().last().unwrap();
-        if !rank.is_ascii_digit() {
-            return false;
-        }
-        let rank = rank.to_digit(10).unwrap();
-        if rank != 3 && rank != 6 {
-            return false;
-        }
-        state.context.double_pawn_push = file as i8;
+fn process_en_passant_target_square(state: &mut State, fen_en_passant_target_square: &str) -> bool {
+    if fen_en_passant_target_square == "-" { 
+        return true; // no need to set state.context.double_pawn_push since it's already -1
     }
-    true
+
+    let mut chars = fen_en_passant_target_square.chars();
+    return match (chars.next(), chars.next(), chars.next()) {
+        (Some(file), Some(rank), None) => {
+            if !file.is_ascii_alphabetic() {
+                return false;
+            }
+
+            let file = file.to_ascii_lowercase();
+            let file_int = file as u8 - 'a' as u8;
+            if file_int > 7 {
+                return false;
+            }
+            
+            if !rank.is_ascii_digit() {
+                return false;
+            }
+            
+            let rank = rank.to_digit(10).unwrap();
+            if match state.side_to_move { // expect side_to_move to be set first
+                Color::White => rank != 6,
+                Color::Black => rank != 3
+            } {
+                return false;
+            }
+            
+            state.context.double_pawn_push = file_int as i8;
+            
+            true
+        }
+        _ => false,
+    };
 }
 
-fn process_fn_halfmove_clock(state: &mut State, fen_halfmove_clock: &str) -> bool {
-    if fen_halfmove_clock != "-" {
-        let halfmove_clock_parsed = fen_halfmove_clock.parse::<u16>();
-        if halfmove_clock_parsed.is_err() {
-            return false;
-        }
-        state.halfmove = halfmove_clock_parsed.unwrap();
-    }
-    true
+fn process_fen_halfmove_clock(state: &mut State, fen_halfmove_clock: &str) -> bool {
+    let halfmove_clock_parsed = fen_halfmove_clock.parse::<u8>();
+    return match halfmove_clock_parsed {
+        Ok(halfmove_clock) => {
+            if halfmove_clock > 100 {
+                return false;
+            }
+            state.context.halfmove_clock = halfmove_clock;
+            true
+        },
+        Err(_) => false
+    };
 }
 
 fn process_fen_fullmove(state: &mut State, fen_fullmove: &str) -> bool {
-    if fen_fullmove != "-" {
-        let fullmove_parsed = fen_fullmove.parse::<u16>();
-        if fullmove_parsed.is_err() {
-            return false;
-        }
-        state.halfmove = fullmove_parsed.unwrap() + (state.side_to_move == Color::Black) as u16;
-    }
-    true
+    let fullmove_parsed = fen_fullmove.parse::<u16>();
+    return match fullmove_parsed {
+        Ok(fullmove) => {
+            if fullmove < 1 {
+                return false;
+            }
+            state.halfmove = (fullmove - 1) * 2 + state.side_to_move as u16;
+            true
+        },
+        Err(_) => false
+    };
 }
 
-fn process_fen_board_row(state: &mut State, row_from_top: usize, row: &str) -> bool {
+fn process_fen_board_row(state: &mut State, row_from_top: u8, row: &str) -> bool {
+    if row_from_top > 7 {
+        return false;
+    }
     if row.len() > 8 || row.is_empty() {
         return false;
     }
     let mut file = 0;
     for c in row.chars() {
-        let dst =  1 << (63 - (row_from_top * 8 + file));
         match c {
-            c if c.is_ascii_whitespace() => {
-                continue;
-            },
             _ if c.is_ascii_digit() => {
-                file += c.to_digit(10).unwrap() as usize - 1;
+                file += c.to_digit(10).unwrap() as u8;
                 if file > 8 {
                     return false;
                 }
+                continue;
             },
             _ if c.is_ascii_alphabetic() => {
                 let colored_piece = ColoredPiece::from_char(c);
                 if colored_piece == ColoredPiece::NoPiece {
                     return false;
                 }
-                let piece_type = colored_piece.get_piece_type();
-                let color = colored_piece.get_color();
-                state.board.bb_by_piece_type[piece_type as usize] |= dst;
-                state.board.bb_by_color[color as usize] |= dst;
+                let dst =  unsafe { Square::from(row_from_top * 8 + file).to_mask() };
+                state.board.put_colored_pieces_at(colored_piece, dst);
             },
             _ => {
                 return false;
@@ -132,7 +149,7 @@ fn process_fen_board_row(state: &mut State, row_from_top: usize, row: &str) -> b
         }
         file += 1;
     }
-    true
+    file == 8
 }
 
 fn process_fen_board(state: &mut State, fen_board: &str) -> Result<State, FenParseError> {
@@ -153,14 +170,14 @@ fn process_fen_board(state: &mut State, fen_board: &str) -> Result<State, FenPar
 }
 
 impl State {
-    pub fn from_fen(fen: &str) -> Result<State, FenParseError> {
+    pub fn from_fen(fen: &str) -> Result<State, FenParseError> { // todo: clean up
         let mut state = State::blank();
         
         let fen_parts: Vec<&str> = fen.split_ascii_whitespace().collect();
-
         if fen_parts.len() != 6 {
             return Err(FenParseError::InvalidFieldCount(fen_parts.len()));
         }
+        
         let [
             fen_board, 
             fen_side_to_move, 
@@ -180,7 +197,6 @@ impl State {
             _ => return Err(FenParseError::InvalidFieldCount(fen_parts.len())),
         };
         
-        
         let is_fen_side_to_move_valid = process_fen_side_to_move(&mut state, fen_side_to_move);
         if !is_fen_side_to_move_valid {
             return Err(FenParseError::InvalidSideToMove(fen_side_to_move.to_string()));
@@ -191,12 +207,12 @@ impl State {
             return Err(FenParseError::InvalidCastle(fen_castle.to_string()));
         }
         
-        let is_fen_double_pawn_push_valid = process_fen_double_pawn_push(&mut state, fen_double_pawn_push);
+        let is_fen_double_pawn_push_valid = process_en_passant_target_square(&mut state, fen_double_pawn_push);
         if !is_fen_double_pawn_push_valid {
             return Err(FenParseError::InvalidEnPassantTarget(fen_double_pawn_push.to_string()));
         }
         
-        let is_fen_halfmove_clock_valid = process_fn_halfmove_clock(&mut state, fen_halfmove_clock);
+        let is_fen_halfmove_clock_valid = process_fen_halfmove_clock(&mut state, fen_halfmove_clock);
         if !is_fen_halfmove_clock_valid {
             return Err(FenParseError::InvalidHalfmoveClock(fen_halfmove_clock.to_string()));
         }
@@ -212,72 +228,100 @@ impl State {
         }
         
         return if state.is_valid() {
+            state.increment_position_count();
             Ok(state)
         } else {
             Err(FenParseError::InvalidState(fen.to_string()))
         }
     }
 
-    // pub fn to_fen(&self) -> String {
-    //     let mut fen_board = String::new();
-    //     for row_from_top in 0..8 {
-    //         let mut empty_count: u8 = 0;
-    //         for file in 0..8 {
-    //             let square_mask = 1 << (63 - (row_from_top * 8 + file));
-    //             let piece_type = self.board.piece_type_at(square_mask);
-    //             let piece_color
-    //             if piece_type == PieceType::NoPieceType {
-    //                 empty_count += 1;
-    //             }
-    //             else {
-    //                 if empty_count > 0 {
-    //                     fen_board.push_str(&empty_count.to_string());
-    //                     empty_count = 0;
-    //                 }
-    //                 let colored_piece = unsafe { ColoredPiece::from(piece_type) };
-    //                 fen_board.push(colored_piece.to_char());
-    //             }
-    //         }
-    //         if empty_count > 0 {
-    //             fen_board.push_str(&empty_count.to_string());
-    //         }
-    //         fen_board.push('/');
-    //     }
-    //     fen_board.pop();
-    //     let turn = match self.turn {
-    //         Color::White => 'w',
-    //         Color::Black => 'b'
-    //     };
-    //     let mut castle = String::new();
-    //     if self.wk_castle {
-    //         castle.push('K');
-    //     }
-    //     if self.wq_castle {
-    //         castle.push('Q');
-    //     }
-    //     if self.bk_castle {
-    //         castle.push('k');
-    //     }
-    //     if self.bq_castle {
-    //         castle.push('q');
-    //     }
-    //     if castle.is_empty() {
-    //         castle.push('-');
-    //     }
-    //     let mut double_pawn_push = String::new();
-    //     if self.double_pawn_push == -1 {
-    //         double_pawn_push.push('-');
-    //     }
-    //     else {
-    //         double_pawn_push.push((self.double_pawn_push as u8 + 'a' as u8) as char);
-    //         double_pawn_push.push(if self.turn == Color::White {'6'} else {'3'});
-    //     }
-    //     format!("{} {} {} {} {} {}", fen_board, turn, castle, double_pawn_push, self.halfmove, self.halfmove_clock)
-    // }
+    fn get_fen_board(&self) -> String {
+        let mut fen_board = String::new();
+        for row_from_top in 0..8 {
+            let mut empty_count: u8 = 0;
+            for file in 0..8 {
+                let square_mask = 1 << (63 - (row_from_top * 8 + file));
+                let piece_type = self.board.get_piece_type_at(square_mask);
+                if piece_type == PieceType::NoPieceType {
+                    empty_count += 1;
+                }
+                else {
+                    if empty_count > 0 {
+                        fen_board.push_str(&empty_count.to_string());
+                        empty_count = 0;
+                    }
+                    let is_black = self.board.bb_by_color[Color::Black as usize] & square_mask != 0;
+                    let colored_piece = ColoredPiece::from(Color::from(is_black), piece_type);
+                    fen_board.push(colored_piece.to_char());
+                }
+            }
+            if empty_count > 0 {
+                fen_board.push_str(&empty_count.to_string());
+            }
+            fen_board.push('/');
+        }
+        fen_board.pop();
+        fen_board
+    }
+
+    fn get_fen_side_to_move(&self) -> char {
+        match self.side_to_move {
+            Color::White => 'w',
+            Color::Black => 'b'
+        }
+    }
+
+    fn get_fen_castling_info(&self) -> String {
+        if self.context.castling_info == 0 {
+            return "-".to_string();
+        }
+        let mut castling_info = String::with_capacity(4);
+        let castling_chars = ['K', 'Q', 'k', 'q'];
+        let mask = 0b1000;
+        for i in 0..4 {
+            if self.context.castling_info & mask >> i != 0 {
+                castling_info.push(castling_chars[i]);
+            }
+        }
+        castling_info
+    }
+
+    fn get_fen_en_passant_target(&self) -> String {
+        if self.context.double_pawn_push == -1 {
+            return "-".to_string();
+        }
+        let file = (self.context.double_pawn_push + 'a' as i8) as u8;
+        let rank = match self.side_to_move {
+            Color::White => 6,
+            Color::Black => 3
+        };
+        format!("{}{}", file as char, rank)
+    }
+
+    fn get_fen_halfmove_clock(&self) -> String {
+        self.context.halfmove_clock.to_string()
+    }
+
+    fn get_fen_fullmove(&self) -> String {
+        ((self.halfmove - self.side_to_move as u16) / 2 + 1).to_string()
+    }
+
+    pub fn to_fen(&self) -> String {
+        let fen_board = self.get_fen_board();
+        let side_to_move = self.get_fen_side_to_move();
+        let castling_info = self.get_fen_castling_info();
+        let en_passant_target = self.get_fen_en_passant_target();
+        let halfmove_clock = self.get_fen_halfmove_clock();
+        let fullmove = self.get_fen_fullmove();
+        [fen_board, side_to_move.to_string(), castling_info, en_passant_target, halfmove_clock, fullmove].join(" ")
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+    use crate::board::Board;
+    use crate::masks::{RANK_2, RANK_3, RANK_6, RANK_7};
     use super::*;
 
     #[test]
@@ -295,7 +339,7 @@ mod tests {
     }
 
     #[test]
-    fn test_process_fen_castle() { // todo: finish
+    fn test_process_fen_castle() {
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "-"), true);
         assert_eq!(state.context.castling_info, 0b00000000);
@@ -319,85 +363,262 @@ mod tests {
         assert_eq!(state.context.castling_info, 0b00001011);
 
         let mut state = State::blank();
-        assert_eq!(process_fen_castle(&mut state, ""), false);
+        assert_eq!(process_fen_castle(&mut state, " "), false);
     }
 
+    #[test]
     fn test_process_fen_double_pawn_push() {
         let mut state = State::blank();
-        assert_eq!(process_fen_double_pawn_push(&mut state, "-"), true);
+        assert!(process_en_passant_target_square(&mut state, "-"));
         assert_eq!(state.context.double_pawn_push, -1);
         
+        let mut state = State::initial();
+
+        assert!(process_en_passant_target_square(&mut state, "a6"));
+        assert_eq!(state.context.double_pawn_push, 0);
+
+        assert!(process_en_passant_target_square(&mut state, "f6"));
+        assert_eq!(state.context.double_pawn_push, 5);
+        
+        assert!(!process_en_passant_target_square(&mut state, "f4"));
+        assert!(!process_en_passant_target_square(&mut state, "f 3"));
+
+        assert!(!process_en_passant_target_square(&mut state, "h3"));
+
+        state.halfmove += 1;
+        state.context.halfmove_clock += 1;
+        state.side_to_move = Color::Black;
+        
+        assert!(process_en_passant_target_square(&mut state, "a3"));
+        assert!(!process_en_passant_target_square(&mut state, " 3"));
+        assert!(!process_en_passant_target_square(&mut state, "i3"));
+        assert!(process_en_passant_target_square(&mut state, "a3"));
+        assert_eq!(state.context.double_pawn_push, 0);
+
+        assert!(!process_en_passant_target_square(&mut state, "d6"));
+        assert!(process_en_passant_target_square(&mut state, "d3"));
+        assert_eq!(state.context.double_pawn_push, 3);
+
+        assert!(process_en_passant_target_square(&mut state, "h3"));
+        assert_eq!(state.context.double_pawn_push, 7);
+    }
+
+    #[test]
+    fn test_process_fen_halfmove_clock() {
+        let mut state = State::initial();
+        let is_valid = process_fen_halfmove_clock(&mut state, "0");
+        assert!(is_valid);
+        assert_eq!(state.context.halfmove_clock, 0);
+        let is_valid = process_fen_halfmove_clock(&mut state, "100");
+        assert!(is_valid);
+        assert_eq!(state.context.halfmove_clock, 100);
+        let is_valid = process_fen_halfmove_clock(&mut state, "101");
+        assert!(!is_valid);
+        let is_valid = process_fen_halfmove_clock(&mut state, "101a");
+        assert!(!is_valid);
+    }
+
+    #[test]
+    fn test_process_fen_fullmove() {
+        let mut state = State::initial();
+        
+        let is_valid = process_fen_fullmove(&mut state, "0");
+        assert!(!is_valid);
+
+        let is_valid = process_fen_fullmove(&mut state, "1");
+        assert!(is_valid);
+        assert_eq!(state.halfmove, 0);
+
+        state.side_to_move = Color::Black;
+        let is_valid = process_fen_fullmove(&mut state, "1");
+        assert!(is_valid);
+        assert_eq!(state.halfmove, 1);
+        
+        let is_valid = process_fen_fullmove(&mut state, "100");
+        assert!(is_valid);
+        assert_eq!(state.halfmove, 199);
+
+        state.side_to_move = Color::White;
+        let is_valid = process_fen_fullmove(&mut state, "100");
+        assert!(is_valid);
+        assert_eq!(state.halfmove, 198);
+        
+        let is_valid = process_fen_fullmove(&mut state, "101a");
+        assert!(!is_valid);
+    }
+
+    #[test]
+    fn test_process_fen_board_row() {
         let mut state = State::blank();
-        for c in 'a'..'i' {
-            let white_double_pawn_push = format!("{}3", c);
-            let black_double_pawn_push = format!("{}6", c);
-        }
+        
+        let is_valid = process_fen_board_row(&mut state, 0, "rnbqkbnr");
+        assert!(is_valid);
+        let is_valid = process_fen_board_row(&mut state, 1, "4K3");
+        assert!(is_valid);
+        assert!(state.board.is_valid());
+        let is_valid = process_fen_board_row(&mut state, 2, "8");
+        assert!(is_valid);
+        assert!(state.board.is_valid());
+        let is_valid = process_fen_board_row(&mut state, 3, "9");
+        assert!(!is_valid);
+        assert!(state.board.is_valid());
+        let is_valid = process_fen_board_row(&mut state, 3, "12R4");
+        assert!(is_valid);
+        assert!(state.board.is_valid());
+        let is_valid = process_fen_board_row(&mut state, 4, "1Qrrrrrr");
+        assert!(is_valid);
+        assert!(state.board.is_valid());
+        let is_valid = process_fen_board_row(&mut state, 5, "bnbNbNb");
+        assert!(!is_valid);
+        assert!(state.board.is_valid());
+        let is_valid = process_fen_board_row(&mut state, 8, "8");
+        assert!(!is_valid);
+        assert!(state.board.is_valid());
+        let is_valid = process_fen_board_row(&mut state, 7, "7 ");
+        assert!(!is_valid);
+        assert!(state.board.is_valid());
+        
+        let mut state = State::blank();
+        
+        assert_eq!(state, State::blank());
+        let is_valid = process_fen_board_row(&mut state, 0, "rnbqkbnr");
+        assert!(is_valid);
+        let is_valid = process_fen_board_row(&mut state, 1, "pppppppp");
+        assert!(is_valid);
+        let is_valid = process_fen_board_row(&mut state, 6, "PPPPPPPP");
+        assert!(is_valid);
+        let is_valid = process_fen_board_row(&mut state, 7, "RNBQKBNR");
+        assert!(is_valid);
+        assert!(state.board.is_valid());
+        state.context.castling_info = 0b00001111;
+        state.increment_position_count();
+        assert_eq!(state, State::initial());
+    }
+    
+    #[test]
+    fn test_process_fen_board() {
+        let mut state = State::blank();
+        let fen_board = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+        let result = process_fen_board(&mut state, fen_board);
+        assert!(result.is_ok());
+        assert!(state.board.is_valid());
+        state.increment_position_count();
+        state.context.castling_info = 0b00001111;
+        assert_eq!(state, State::initial());
+        
+        let mut state = State::blank();
+        let fen_board = "8/8/8/8/8/8/k7/7K";
+        let result = process_fen_board(&mut state, fen_board);
+        assert!(result.is_ok());
+        assert!(state.board.is_valid());
+        let mut expected_board = Board::blank();
+        expected_board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::A2.to_mask());
+        expected_board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::H1.to_mask());
+        assert_eq!(state.board, expected_board);
+
+        let mut state = State::blank();
+        let fen_board = "8/8/8/8/8/8/k7/7K/8";
+        let result = process_fen_board(&mut state, fen_board);
+        assert!(result.is_err());
+
+        let mut state = State::blank();
+        let fen_board = "8/8/8/8/8/k7/7K";
+        let result = process_fen_board(&mut state, fen_board);
+        assert!(result.is_err());
+
+        let mut state = State::blank();
+        let fen_board = "8/8/8//8/8/8/k7/7K";
+        let result = process_fen_board(&mut state, fen_board);
+        assert!(result.is_err());
+
+        let mut state = State::blank();
+        let fen_board = "8/8/8//8/8/k7/7K";
+        let result = process_fen_board(&mut state, fen_board);
+        assert!(result.is_err());
     }
 
-    fn process_fn_halfmove_clock(state: &mut State, fen_halfmove_clock: &str) -> bool {
-        if fen_halfmove_clock != "-" {
-            let halfmove_clock_parsed = fen_halfmove_clock.parse::<u16>();
-            if halfmove_clock_parsed.is_err() {
-                return false;
-            }
-            state.halfmove = halfmove_clock_parsed.unwrap();
-        }
-        true
+    #[test]
+    fn test_from_fen() {
+        let fen = INITIAL_FEN;
+        let state = State::from_fen(fen);
+        assert!(state.is_ok());
+        let state = state.unwrap();
+        assert!(state.board.is_valid());
+        assert_eq!(state, State::initial());
+        
+        let fen = "8/8/8/8/8/8/k7/7K b - - 99 88";
+        let state = State::from_fen(fen);
+        assert!(state.is_ok());
+        let state = state.unwrap();
+        assert!(state.board.is_valid());
+        let mut expected_state = State::blank();
+        expected_state.board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::A2.to_mask());
+        expected_state.board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::H1.to_mask());
+        expected_state.halfmove = 175;
+        expected_state.side_to_move = Color::Black;
+        expected_state.context.halfmove_clock = 99;
+        expected_state.increment_position_count();
+        assert_eq!(state, expected_state);
+        
+        let fen = "r2qk2r/8/8/7p/8/8/8/R2QK2R w KQkq h6 0 6";
+        let mut state = State::from_fen(fen);
+        assert!(state.is_ok());
+        let state = state.unwrap();
+        assert!(state.board.is_valid());
+        let mut expected_state = State::initial();
+        let clear_mask = Square::B8.to_mask() | Square::B1.to_mask() |
+            Square::C8.to_mask() | Square::C1.to_mask() |
+            Square::F8.to_mask() | Square::F1.to_mask() |
+            Square::G8.to_mask() | Square::G1.to_mask() |
+            RANK_7 | RANK_6 |
+            RANK_3 | RANK_2;
+        expected_state.board.clear_pieces_at(clear_mask);
+        expected_state.board.put_colored_pieces_at(ColoredPiece::BlackPawn, Square::H5.to_mask());
+        expected_state.halfmove = 10;
+        expected_state.context.double_pawn_push = 7;
+        expected_state.position_counts.clear();
+        expected_state.increment_position_count();
+        assert_eq!(state, expected_state);
     }
-
-    fn process_fen_fullmove(state: &mut State, fen_fullmove: &str) -> bool {
-        if fen_fullmove != "-" {
-            let fullmove_parsed = fen_fullmove.parse::<u16>();
-            if fullmove_parsed.is_err() {
-                return false;
-            }
-            state.halfmove = fullmove_parsed.unwrap() + (state.side_to_move == Color::Black) as u16;
-        }
-        true
+    
+    #[test]
+    fn test_to_fen() {
+        let mut state = State::initial();
+        
+        let fen = state.to_fen();
+        let expected_fen = INITIAL_FEN;
+        assert_eq!(fen, expected_fen);
+        
+        state.halfmove += 1;
+        state.context.halfmove_clock += 1;
+        state.side_to_move = Color::Black;
+        state.board.put_colored_pieces_at(ColoredPiece::BlackQueen, Square::D4.to_mask());
+        state.board.clear_pieces_at(Square::H1.to_mask());
+        state.context.castling_info &= !0b1000;
+        let fen = state.to_fen();
+        let expected_fen = "rnbqkbnr/pppppppp/8/8/3q4/8/PPPPPPPP/RNBQKBN1 b Qkq - 1 1";
     }
+    
+    #[test]
+    fn test_fen() {
+        let fen = "8/1P1n1B2/5P2/4pkNp/1PQ4K/p2p2P1/8/3R1N2 w - - 0 1";
+        let state_result = State::from_fen(fen);
+        assert!(state_result.is_ok());
+        assert_eq!(state_result.unwrap().to_fen(), fen);
 
-    fn process_fen_board(state: &mut State, fen_board: &str) -> Result<State, FenParseError> {
-        let mut row_from_top = 0;
-        let rows = fen_board.split('/');
-        let row_count = rows.clone().count();
-        if row_count != 8 {
-            return Err(FenParseError::InvalidRankCount(row_count));
-        }
-        for row in rows {
-            if row.len() > 8 || row.is_empty() {
-                return Err(FenParseError::InvalidRow(row.to_string()));
-            }
-            let mut file = 0;
-            for c in row.chars() {
-                let dst =  1 << (63 - (row_from_top * 8 + file));
-                match c {
-                    c if c.is_ascii_whitespace() => {
-                        continue;
-                    },
-                    _ if c.is_ascii_digit() => {
-                        file += c.to_digit(10).unwrap() as usize - 1;
-                        if file > 8 {
-                            return Err(FenParseError::InvalidRow(row.to_string()));
-                        }
-                    },
-                    _ if c.is_ascii_alphabetic() => {
-                        let colored_piece = ColoredPiece::from_char(c);
-                        if colored_piece == ColoredPiece::NoPiece {
-                            return Err(FenParseError::InvalidRow(row.to_string()));
-                        }
-                        let piece_type = colored_piece.get_piece_type();
-                        let color = colored_piece.get_color();
-                        state.board.bb_by_piece_type[piece_type as usize] |= dst;
-                        state.board.bb_by_color[color as usize] |= dst;
-                    },
-                    _ => {
-                        return Err(FenParseError::InvalidRow(row.to_string()));
-                    }
-                }
-                file += 1;
-            }
-            row_from_top += 1;
-        }
-        Ok(State::blank())
+        let fen = "1k2N1K1/4Q3/6p1/2B2B2/p1PPb3/2P2Nb1/2r5/n7 b - - 36 18";
+        let state_result = State::from_fen(fen);
+        assert!(state_result.is_ok());
+        assert_eq!(state_result.unwrap().to_fen(), fen);
+        
+        let fen = "r3k3/P3P3/1B3q2/N3P2P/R6N/8/np2b2p/1K3n2 w q - 100 96";
+        let state_result = State::from_fen(fen);
+        assert!(state_result.is_ok());
+        assert_eq!(state_result.unwrap().to_fen(), fen);
+
+        let fen = "nb4K1/2N4p/8/3P1rk1/1r2P3/5p2/3P1Q2/B2R1b2 b - - 0 1";
+        let state_result = State::from_fen(fen);
+        assert!(state_result.is_ok());
+        assert_eq!(state_result.unwrap().to_fen(), fen);
     }
 }

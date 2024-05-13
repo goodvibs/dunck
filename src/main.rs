@@ -1,11 +1,11 @@
 #![allow(dead_code)]
-// #![allow(unused_variables)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
 #![allow(non_upper_case_globals)]
 
 mod board;
 mod attacks;
 mod charboard;
-mod preload;
 mod masks;
 mod magic;
 mod state;
