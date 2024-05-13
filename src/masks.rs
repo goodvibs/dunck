@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use crate::bitboard::Bitboard;
 
 pub const FILE_A: Bitboard = 0x8080808080808080;

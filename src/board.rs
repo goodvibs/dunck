@@ -1,8 +1,6 @@
 use crate::enums::*;
-use crate::preload::ZOBRIST_TABLE;
 use crate::attacks::*;
-use crate::bitboard::{get_squares_from_bb, Bitboard, unpack_bb};
-use crate::charboard::{cb_to_string, Charboard};
+use crate::bitboard::{Bitboard, unpack_bb};
 use crate::masks::*;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -110,11 +108,11 @@ impl Board {
     }
 
     pub fn clear_and_put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
-        self.clear_piece_at(mask);
-        self.put_colored_piece_at(colored_piece, mask);
+        self.clear_pieces_at(mask);
+        self.put_colored_pieces_at(colored_piece, mask);
     }
 
-    pub fn clear_piece_at(&mut self, mask: Bitboard) {
+    pub fn clear_pieces_at(&mut self, mask: Bitboard) {
         for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
             self.bb_by_piece_type[piece_type_int] &= !mask;
         }
@@ -124,7 +122,7 @@ impl Board {
         self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
     }
 
-    pub fn put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
+    pub fn put_colored_pieces_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
         let piece_type = colored_piece.get_piece_type();
         let color = colored_piece.get_color();
 
@@ -192,26 +190,6 @@ impl Board {
         all_occupancy_bb_test == all_occupancy_bb
     }
 
-    pub fn zobrist_hash(&self) -> u64 {
-        let mut hash: u64 = 0;
-        for piece_type_int in PieceType::Pawn as u8..PieceType::King as u8 { // skip PieceType::NoPieceType, PieceType::King
-            let piece_bb = self.bb_by_piece_type[piece_type_int as usize];
-            for color_int in Color::White as u8..Color::Black as u8 + 1 {
-                let color_bb = self.bb_by_color[color_int as usize];
-                let combined_bb = piece_bb & color_bb;
-                for index in get_squares_from_bb(combined_bb) {
-                    hash ^= ZOBRIST_TABLE[index as usize][piece_type_int as usize - 1];
-                }
-            }
-        }
-        let kings_bb = self.bb_by_piece_type[PieceType::King as usize];
-        for color_int in Color::White as u8..Color::Black as u8 + 1 {
-            let colored_king_bb = kings_bb & self.bb_by_color[color_int as usize];
-            hash ^= ZOBRIST_TABLE[colored_king_bb.leading_zeros() as usize][PieceType::King as usize - 1];
-        }
-        hash
-    }
-
     // pub fn from_cb(cb: Charboard) -> Board {
     //     let mut board = Board::blank();
     //     for i in 0..8 {
@@ -229,36 +207,8 @@ impl Board {
     //     board
     // }
 
-    pub fn to_cb(&self) -> Charboard {
-        let mut cb: Charboard = [[' '; 8]; 8];
-        for i in 0..64 {
-            let mask = 1 << (63 - i);
-            let piece_type = self.get_piece_type_at(mask);
-            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
-            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char();
-        }
-        cb
-    }
-
-    pub fn to_cb_pretty(&self) -> Charboard {
-        let mut cb: Charboard = [[' '; 8]; 8];
-        for i in 0..64 {
-            let mask = 1 << (63 - i);
-            let piece_type = self.get_piece_type_at(mask);
-            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
-            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char_pretty();
-        }
-        cb
-    }
-
     pub fn print(&self) {
         println!("{}", self);
-    }
-}
-
-impl std::fmt::Display for Board {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", cb_to_string(&self.to_cb_pretty()).as_str())
     }
 }
 
@@ -271,12 +221,12 @@ mod tests {
     fn test_put_colored_piece_at() {
         let mut board = Board::blank();
         let mask = Square::A1.to_mask();
-        board.put_colored_piece_at(ColoredPiece::WhitePawn, mask);
+        board.put_colored_pieces_at(ColoredPiece::WhitePawn, mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::Pawn);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], mask);
         assert_eq!(board.bb_by_color[Color::White as usize], mask);
         assert_eq!(board.bb_by_piece_type[PieceType::AllPieceTypes as usize], mask);
-        board.put_colored_piece_at(ColoredPiece::BlackPawn, mask);
+        board.put_colored_pieces_at(ColoredPiece::BlackPawn, mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::Pawn);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], mask);
         assert_eq!(board.bb_by_color[Color::Black as usize], mask);
@@ -287,15 +237,15 @@ mod tests {
     fn test_clear_piece_at() {
         let mut board = Board::blank();
         let mask = Square::A1.to_mask() | Square::B1.to_mask();
-        board.put_colored_piece_at(ColoredPiece::WhitePawn, mask);
-        board.clear_piece_at(mask);
+        board.put_colored_pieces_at(ColoredPiece::WhitePawn, mask);
+        board.clear_pieces_at(mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], 0);
         assert_eq!(board.bb_by_color[Color::White as usize], 0);
         assert_eq!(board.bb_by_piece_type[PieceType::AllPieceTypes as usize], 0);
 
         let mut board = Board::initial();
-        board.clear_piece_at(mask);
+        board.clear_pieces_at(mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], STARTING_WP | STARTING_BP);
         assert_eq!(board.bb_by_color[Color::White as usize], STARTING_WHITE & !mask);
@@ -313,33 +263,33 @@ mod tests {
     fn test_board_is_valid() {
         let mut board = Board::blank();
         assert!(!board.is_valid());
-        board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
         assert!(!board.is_valid());
-        board.put_colored_piece_at(ColoredPiece::BlackKing, Square::F6.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::F6.to_mask());
         assert!(board.is_valid());
-        board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::E8.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::E8.to_mask());
         assert!(!board.is_valid());
-        board.put_colored_piece_at(ColoredPiece::BlackKing, Square::E8.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::E8.to_mask());
         assert!(!board.is_valid());
 
         let mut board = Board::initial();
         assert!(board.is_valid());
 
-        board.put_colored_piece_at(ColoredPiece::BlackBishop, Square::C5.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::BlackBishop, Square::C5.to_mask());
         assert!(board.is_valid());
 
         let mut board = Board::initial();
-        board.put_colored_piece_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
         assert!(!board.is_valid());
 
         let mut board = Board::initial();
-        board.put_colored_piece_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
         assert!(!board.is_valid());
 
         let mut board = Board::initial();
-        board.clear_piece_at(Square::A1.to_mask());
+        board.clear_pieces_at(Square::A1.to_mask());
         assert!(board.is_valid());
-        board.clear_piece_at(Square::E1.to_mask());
+        board.clear_pieces_at(Square::E1.to_mask());
         assert!(!board.is_valid());
     }
 
@@ -347,9 +297,9 @@ mod tests {
     fn test_blank_board() {
         let mut board = Board::blank();
         assert!(!board.is_valid());
-        board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
         assert!(!board.is_valid());
-        board.put_colored_piece_at(ColoredPiece::BlackKing, Square::F6.to_mask());
+        board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::F6.to_mask());
         assert!(board.is_valid());
         
         let cb = Board::blank().to_cb();
