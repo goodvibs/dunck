@@ -34,15 +34,40 @@ fn main() {
             let initial_state = state.clone();
             let mut final_state = state.clone();
             final_state.play_move(*mv);
+            assert!(final_state.is_valid());
             print!("{} ", mv.san(&initial_state, &final_state));
         }
         println!();
-        println!("Enter move (q to quit): ");
+        println!("Enter move (q to quit, n for new position from fen, f for fen representation): ");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
         let input = input.trim();
         if input == "q" {
             break;
+        }
+        if input == "n" {
+            loop {
+                println!("Enter fen: ");
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+                let input = input.trim();
+                let state_result = State::from_fen(input);
+                match state_result {
+                    Ok(s) => {
+                        state = s;
+                        assert!(state.is_valid());
+                        break;
+                    }
+                    Err(e) => {
+                        println!("{:?}", e);
+                    }
+                }
+            }
+            continue;
+        }
+        if input == "f" {
+            println!("{}", state.to_fen());
+            continue;
         }
         let mut found = false;
         for mv in moves.iter() {

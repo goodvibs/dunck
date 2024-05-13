@@ -126,9 +126,17 @@ impl State {
         let src = 1 << (63 - src_square as u8);
         let dst = 1 << (63 - dst_square as u8);
         let src_dst = src | dst;
-        let mut new_context = StateContext::new(self.context.halfmove_clock + 1, -1, self.context.castling_info.clone(), PieceType::NoPieceType, Some(self.context.clone()));
+        
+        let mut new_context = StateContext::new(
+            self.context.halfmove_clock + 1, 
+            -1, 
+            self.context.castling_info.clone(), 
+            PieceType::NoPieceType, 
+            Some(self.context.clone())
+        );
         let castling_color_adjustment = self.side_to_move as usize * 2;
         let opposite_color = self.side_to_move.flip();
+        
         if flag != MoveFlag::EnPassant && self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] & dst != 0 {
             let captured_piece = self.board.get_piece_type_at(dst);
             new_context.captured_piece = captured_piece;
@@ -244,7 +252,12 @@ impl State {
         self.board.is_valid() &&
         self.has_valid_side_to_move() &&
         self.has_valid_castling_rights() &&
-        self.has_valid_double_pawn_push()
+        self.has_valid_double_pawn_push() &&
+        self.has_valid_halfmove_clock()
+    }
+    
+    pub fn has_valid_halfmove_clock(&self) -> bool {
+        self.context.halfmove_clock <= 100 && self.context.halfmove_clock as u16 <= self.halfmove
     }
     
     pub fn has_valid_side_to_move(&self) -> bool {

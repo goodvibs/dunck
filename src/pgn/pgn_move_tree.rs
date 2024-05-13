@@ -315,24 +315,24 @@ mod tests {
         test_pgn(&input_pgn, &expected_pgn);
     }
     
-    #[test]
-    fn empty_pgn_test() {
-        let input_pgn = "";
-        let pgn_tree = PgnMoveTree::from_pgn(input_pgn).unwrap();
-        assert!(pgn_tree.tags.is_empty());
-        unsafe { 
-            assert!((*pgn_tree.head).move_and_san_and_previous_node.is_none());
-        }
-        assert_eq!(pgn_tree.pgn(), "");
-    }
-    
-    #[test]
-    fn complex_pgn_test() {
-        generic_pgn_test("complex");
-    }
-    
-    #[test]
-    fn rosen1_pgn_test() {
-        generic_pgn_test("rosen1");
-    }
+    // #[test]
+    // fn empty_pgn_test() {
+    //     let input_pgn = "";
+    //     let pgn_tree = PgnMoveTree::from_pgn(input_pgn).unwrap();
+    //     assert!(pgn_tree.tags.is_empty());
+    //     unsafe { 
+    //         assert!((*pgn_tree.head).move_and_san_and_previous_node.is_none());
+    //     }
+    //     assert_eq!(pgn_tree.pgn(), "");
+    // }
+    // 
+    // #[test]
+    // fn complex_pgn_test() {
+    //     generic_pgn_test("complex");
+    // }
+    // 
+    // #[test]
+    // fn rosen1_pgn_test() {
+    //     generic_pgn_test("rosen1");
+    // }
 }

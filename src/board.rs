@@ -92,18 +92,16 @@ impl Board {
     pub fn is_in_check(&self, color: Color) -> bool {
         let opposite_color_pieces = self.bb_by_color[color.flip() as usize];
         let all_occ = self.bb_by_color[Color::White as usize] | self.bb_by_color[Color::Black as usize];
+        let queen_occ = self.bb_by_piece_type[PieceType::Queen as usize];
         let mut attacks = pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & opposite_color_pieces, color.flip());
         attacks |= knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & opposite_color_pieces);
-        for bb in unpack_bb(self.bb_by_piece_type[PieceType::Bishop as usize] & opposite_color_pieces) {
+        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Bishop as usize] | queen_occ) & opposite_color_pieces) {
             attacks |= bishop_attacks(bb, all_occ);
         }
-        for bb in unpack_bb(self.bb_by_piece_type[PieceType::Rook as usize] & opposite_color_pieces) {
+        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Rook as usize] | queen_occ) & opposite_color_pieces) {
             attacks |= rook_attacks(bb, all_occ);
         }
-        for bb in unpack_bb(self.bb_by_piece_type[PieceType::Queen as usize] & opposite_color_pieces) {
-            attacks |= bishop_attacks(bb, all_occ) | rook_attacks(bb, all_occ);
-        }
-        attacks |= king_attacks(self.bb_by_piece_type[PieceType::King as usize] & opposite_color_pieces);
+        // attacks |= king_attacks(self.bb_by_piece_type[PieceType::King as usize] & opposite_color_pieces);
         attacks & self.bb_by_piece_type[PieceType::King as usize] & self.bb_by_color[color as usize] != 0
     }
 
