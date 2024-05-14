@@ -182,7 +182,7 @@ impl State {
         }
     }
     
-    fn add_castle_pseudolegal(&self, moves: &mut Vec<Move>) {
+    fn add_castling_pseudolegal(&self, moves: &mut Vec<Move>) { // todo: fix
         let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
         let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
 
