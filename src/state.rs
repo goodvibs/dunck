@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use crate::board::Board;
 use crate::r#move::*;
-use crate::enums::*;
+use crate::miscellaneous::*;
 use crate::masks::{FILES, RANK_4, STARTING_BK, STARTING_BR_LONG, STARTING_BR_SHORT, STARTING_WK, STARTING_WR_LONG, STARTING_WR_SHORT};
 use crate::pgn::pgn_move_tree::PgnParseError;
 
@@ -122,7 +122,7 @@ impl State {
     }
     
     pub fn play_move(&mut self, mv: Move) { // todo
-        let (src_square, dst_square, flag) = mv.unpack();
+        let (src_square, dst_square, promotion, flag) = mv.unpack();
         let src = 1 << (63 - src_square as u8);
         let dst = 1 << (63 - dst_square as u8);
         let src_dst = src | dst;
@@ -134,61 +134,54 @@ impl State {
             PieceType::NoPieceType, 
             Some(self.context.clone())
         );
+        
         let castling_color_adjustment = self.side_to_move as usize * 2;
         let opposite_color = self.side_to_move.flip();
-        
-        if flag != MoveFlag::EnPassant && self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] & dst != 0 {
-            let captured_piece = self.board.get_piece_type_at(dst);
-            new_context.captured_piece = captured_piece;
-            new_context.halfmove_clock = 0;
-            self.board.bb_by_color[opposite_color as usize] &= !dst;
-        }
         let previous_castling_rights = self.context.castling_info.clone();
-        self.board.bb_by_color[self.side_to_move as usize] ^= src_dst; // works for all moves except the rook in castling
-        self.board.bb_by_color[opposite_color as usize] &= !dst; // clear opponent's piece if any
+        
+        self.board.bb_by_color[self.side_to_move as usize] ^= src_dst; // sufficient for all moves except the rook in castling
+        
         match flag {
-            MoveFlag::PawnMove => { // can be a single pawn push or capture (non-promotion)
-                self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Pawn as usize] |= dst; // since dst could contain a piece, xor is not safe
-                new_context.halfmove_clock = 0;
-            }
-            MoveFlag::PawnDoubleMove => { // pawn double push, not a capture or promotion
-                self.board.bb_by_piece_type[PieceType::Pawn as usize] ^= src_dst; // since dst is empty, xor is safe
-                new_context.double_pawn_push = (src_square as u8 % 8) as i8;
-                new_context.halfmove_clock = 0;
-            }
+            MoveFlag::NormalMove => {
+                self.board.bb_by_color[opposite_color as usize] &= !dst; // clear opponent's piece if any
+                let captured_piece = self.board.process_uncolored_capture_and_get_captured_piece_type_at(dst);
+                if captured_piece != PieceType::NoPieceType {
+                    new_context.captured_piece = captured_piece;
+                    new_context.halfmove_clock = 0;
+                }
+                
+                let moved_piece = self.board.get_piece_type_at(src);
+                
+                self.board.bb_by_piece_type[moved_piece as usize] &= !src;
+                self.board.bb_by_piece_type[moved_piece as usize] |= dst;
+                
+                match moved_piece {
+                    PieceType::Pawn => {
+                        new_context.halfmove_clock = 0;
+                        if dst & (src << 16) != 0 || dst & (src >> 16) != 0 { // double pawn push
+                            new_context.double_pawn_push = (src_square as u8 % 8) as i8;
+                        }
+                    },
+                    PieceType::King => {
+                        new_context.castling_info &= !0b00001100 >> castling_color_adjustment;
+                    },
+                    PieceType::Rook => {
+                        let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8));
+                        let is_queen_side = src & (0b10000000u64 << (self.side_to_move as u64 * 7 * 8));
+                        let king_side_mask = (is_king_side != 0) as u8 * (0b00001000 >> castling_color_adjustment);
+                        let queen_side_mask = (is_queen_side != 0) as u8 * (0b00000100 >> castling_color_adjustment);
+                        new_context.castling_info &= !(king_side_mask | queen_side_mask);
+                    },
+                    _ => {}
+                }
+            },
             MoveFlag::EnPassant => { // en passant capture
                 let en_passant_capture = ((dst << 8) * self.side_to_move as u64) | ((dst >> 8) * opposite_color as u64);
                 self.board.bb_by_piece_type[PieceType::Pawn as usize] ^= src_dst | en_passant_capture;
                 new_context.captured_piece = PieceType::Pawn;
                 new_context.halfmove_clock = 0;
-            }
-            MoveFlag::KnightMove => {
-                self.board.bb_by_piece_type[PieceType::Knight as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Knight as usize] |= dst;
-            }
-            MoveFlag::BishopMove => {
-                self.board.bb_by_piece_type[PieceType::Bishop as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Bishop as usize] |= dst;
-            }
-            MoveFlag::RookMove => {
-                self.board.bb_by_piece_type[PieceType::Rook as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Rook as usize] |= dst;
-                let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8));
-                let is_queen_side = src & (0b10000000u64 << (self.side_to_move as u64 * 7 * 8));
-                let king_side_mask = (is_king_side != 0) as u8 * (0b00001000 >> castling_color_adjustment);
-                let queen_side_mask = (is_queen_side != 0) as u8 * (0b00000100 >> castling_color_adjustment);
-                new_context.castling_info &= !(king_side_mask | queen_side_mask);
-            }
-            MoveFlag::QueenMove => {
-                self.board.bb_by_piece_type[PieceType::Queen as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Queen as usize] |= dst;
-            }
-            MoveFlag::KingMove => {
-                self.board.bb_by_piece_type[PieceType::King as usize] ^= src_dst; // since dst is empty, xor is safe
-                new_context.castling_info &= !0b00001100 >> castling_color_adjustment;
-            }
-            MoveFlag::Castle => { // src is king's origin square, dst is king's destination square
+            },
+            MoveFlag::Castling => { // src is king's origin square, dst is king's destination square
                 new_context.castling_info &= !0b00001100 >> castling_color_adjustment;
                 
                 let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8)) != 0;
@@ -197,29 +190,16 @@ impl State {
                 let rook_src = 1u64 << (self.side_to_move as u64 * (((7 * 8 + 7) * is_king_side as u64) | ((7 * 8) * is_queen_side as u64)));
                 let rook_dst = 1u64 << (self.side_to_move as u64 * (((7 * 8 + 5) * is_king_side as u64) | ((7 * 8 + 3) * is_queen_side as u64)));
                 let rook_src_dst = rook_src | rook_dst;
+                
                 self.board.bb_by_color[self.side_to_move as usize] ^= rook_src_dst;
                 self.board.bb_by_piece_type[PieceType::Rook as usize] ^= rook_src_dst;
-            }
-            MoveFlag::PromoteToQueen => {
+            },
+            MoveFlag::Promotion => {
                 self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Queen as usize] |= dst;
-            }
-            MoveFlag::PromoteToKnight => {
-                self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Knight as usize] |= dst;
-            }
-            MoveFlag::PromoteToRook => {
-                self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Rook as usize] |= dst;
-            }
-            MoveFlag::PromoteToBishop => {
-                self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
-                self.board.bb_by_piece_type[PieceType::Bishop as usize] |= dst;
-            }
-            _ => {
-                panic!("invalid move flag");
+                self.board.bb_by_piece_type[promotion as usize] |= dst;
             }
         }
+        
         // update data members
         self.halfmove += 1;
         self.side_to_move = opposite_color;

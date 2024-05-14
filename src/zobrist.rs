@@ -2,7 +2,7 @@ use lazy_static::lazy_static;
 use rand::Rng;
 use crate::bitboard::get_squares_from_bb;
 use crate::board::Board;
-use crate::enums::{Color, PieceType};
+use crate::miscellaneous::{Color, PieceType};
 use crate::state::State;
 
 lazy_static! {

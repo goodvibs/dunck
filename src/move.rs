@@ -1,124 +1,132 @@
-use crate::enums::{Square};
+use crate::miscellaneous::{PieceType, Square};
 use crate::charboard::SQUARE_NAMES;
 use crate::state::{State, Termination};
 
+#[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum MoveFlag {
-    NoFlag = 0,
-    KnightMove = 1,
-    BishopMove = 2,
-    RookMove = 3,
-    QueenMove = 4,
-    KingMove = 5,
-    Castle = 6,
-    PawnMove = 8,
-    EnPassant = 10,
-    PawnDoubleMove = 11,
-    PromoteToQueen = 12,
-    PromoteToKnight = 13,
-    PromoteToRook = 14,
-    PromoteToBishop = 15
+    NormalMove = 0,
+    Promotion = 1,
+    EnPassant = 2,
+    Castling = 3
 }
 
 impl MoveFlag {
     pub const unsafe fn from(value: u8) -> MoveFlag {
-        // assert!(value < 16, "Invalid MoveFlag value: {}", value);
+        assert!(value < 4, "Invalid MoveFlag value");
         std::mem::transmute::<u8, MoveFlag>(value)
+    }
+    
+    pub const fn to_readable(&self) -> &str {
+        match self {
+            MoveFlag::NormalMove => "",
+            MoveFlag::Promotion => "[P to ?]",
+            MoveFlag::EnPassant => "[e.p.]",
+            MoveFlag::Castling => "[castling]"
+        }
     }
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Move {
-    // format: FFFFTTTTTTSSSSSS
-    // F = flag, T = target square, S = source square
+    // format: DDDDDDSSSSSSPPMM (D: destination, S: source, P: promotion PieceType value minus 2, M: MoveFlag value)
     pub value: u16,
 }
 
 impl Move {
-    pub fn new(src: Square, dst: Square, flag: MoveFlag) -> Move {
+    pub const DEFAULT_PROMOTION_VALUE: PieceType = PieceType::Rook;
+    
+    pub fn new(dst: Square, src: Square, promotion: PieceType, flag: MoveFlag) -> Move {
+        assert!(promotion != PieceType::King && promotion != PieceType::Pawn, "Invalid promotion piece type");
         Move {
-            value: ((flag as u16) << 12) | ((dst as u16) << 6) | (src as u16)
+            value: ((dst as u16) << 10) | ((src as u16) << 4) | ((promotion as u16 - 2) << 2) | flag as u16
         }
     }
-
-    pub fn unpack(&self) -> (Square, Square, MoveFlag) {
-        let src_int: u8 = (self.value & 0b0000000000111111) as u8;
-        let dst_int: u8 = ((self.value & 0b0000111111000000) >> 6) as u8;
-        let flag_int: u8 = ((self.value & 0b1111000000000000) >> 12) as u8;
-        let src = unsafe { Square::from(src_int) };
-        let dst = unsafe { Square::from(dst_int) };
-        let flag = unsafe { MoveFlag::from(flag_int) };
-        (src, dst, flag)
+    
+    pub fn new_non_promotion(dst: Square, src: Square, flag: MoveFlag) -> Move {
+        Move::new(dst, src, Move::DEFAULT_PROMOTION_VALUE, flag)
+    }
+    
+    pub const fn get_destination(&self) -> Square {
+        let dst_int = (self.value >> 10) as u8;
+        unsafe { Square::from(dst_int) }
+    }
+    
+    pub const fn get_source(&self) -> Square {
+        let src_int = ((self.value & 0b0000001111110000) >> 4) as u8;
+        unsafe { Square::from(src_int) }
+    }
+    
+    pub const fn get_promotion(&self) -> PieceType {
+        let promotion_int = ((self.value & 0b0000000000001100) >> 2) as u8;
+        unsafe { PieceType::from(promotion_int + 2) }
+    }
+    
+    pub const fn get_flag(&self) -> MoveFlag {
+        let flag_int = (self.value & 0b0000000000000011) as u8;
+        unsafe { MoveFlag::from(flag_int) }
+    }
+    
+    pub const fn unpack(&self) -> (Square, Square, PieceType, MoveFlag) {
+        (self.get_destination(), self.get_source(), self.get_promotion(), self.get_flag())
     }
 
-    pub fn to_readable(&self) -> (&str, &str, &str) {
-        let (src, dst, flag) = self.unpack();
-        let src_str = SQUARE_NAMES[src as usize];
-        let dst_str = SQUARE_NAMES[dst as usize];
-        let flag_str = match flag {
-            MoveFlag::PawnMove => "P",
-            MoveFlag::PawnDoubleMove => "P2",
-            MoveFlag::EnPassant => "Px",
-            MoveFlag::KnightMove => "N",
-            MoveFlag::BishopMove => "B",
-            MoveFlag::RookMove => "R",
-            MoveFlag::QueenMove => "Q",
-            MoveFlag::KingMove => "K",
-            MoveFlag::Castle => "castling",
-            MoveFlag::PromoteToQueen => "P to Q",
-            MoveFlag::PromoteToKnight => "P to N",
-            MoveFlag::PromoteToRook => "P to R",
-            MoveFlag::PromoteToBishop => "P to B",
-            _ => ""
-        };
-        (src_str, dst_str, flag_str)
+    pub fn to_readable(&self) -> String {
+        let (src, dst, promotion, flag) = self.unpack();
+        let (src_str, dst_str, promotion_char, flag_str) = (src.to_readable(), dst.to_readable(), promotion.to_char(), flag.to_readable());
+        format!("{}{}{}", src_str, dst_str, flag_str.replace('?', &promotion_char.to_string()))
     }
 
-    pub fn is_pawn_move(&self) -> bool {
-        let (_, _, flag) = self.unpack();
-        flag == MoveFlag::PawnMove ||
-            flag == MoveFlag::PawnDoubleMove ||
-            flag == MoveFlag::EnPassant ||
-            flag as u8 >= MoveFlag::PromoteToQueen as u8
-    }
-
-    pub fn is_piece_move(&self) -> bool {
-        !self.is_pawn_move()
-    }
-
-    pub fn san(&self, initial_state: &State, final_state: &State) -> String {
-        let (src, dst, flag) = self.unpack();
-        let src_str = SQUARE_NAMES[src as usize];
-        let dst_str = SQUARE_NAMES[dst as usize];
-        let (src_file, src_rank) = (src_str.chars().nth(0).unwrap(), src_str.chars().nth(1).unwrap());
-        let (piece_str, promotion_str) = match flag {
-            MoveFlag::PawnMove => ("", ""),
-            MoveFlag::PawnDoubleMove => {
-                return dst_str.to_string();
-            },
-            MoveFlag::EnPassant => {
-                return format!("{}x{}", src_file, dst_str);
-            },
-            MoveFlag::KnightMove => ("N", ""),
-            MoveFlag::BishopMove => ("B", ""),
-            MoveFlag::RookMove => ("R", ""),
-            MoveFlag::QueenMove => ("Q", ""),
-            MoveFlag::KingMove => ("K", ""),
-            MoveFlag::Castle => {
+    pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
+        let (src, dst, promotion, flag) = self.unpack();
+        
+        let src_str = src.to_readable();
+        let dst_str = dst.to_readable();
+        let (src_file, src_rank) = (src.get_file_char(), src.get_rank_char());
+        
+        let mut promotion_str = String::new();
+        let is_capture;
+        let moved_piece;
+        
+        match flag {
+            MoveFlag::Castling => {
                 return if dst_str.contains('g') {
                     "O-O".to_string()
                 } else {
                     "O-O-O".to_string()
                 }
             },
-            MoveFlag::PromoteToQueen => ("", "=Q"),
-            MoveFlag::PromoteToKnight => ("", "=N"),
-            MoveFlag::PromoteToRook => ("", "=R"),
-            MoveFlag::PromoteToBishop => ("", "=B"),
-            _ => ("", "")
-        };
-        let is_capture = initial_state.board.bb_by_color[initial_state.side_to_move.flip() as usize] != final_state.board.bb_by_color[initial_state.side_to_move.flip() as usize];
+            MoveFlag::EnPassant => {
+                is_capture = true;
+                moved_piece = PieceType::Pawn;
+            },
+            MoveFlag::NormalMove | MoveFlag::Promotion => {
+                is_capture = initial_state.board.bb_by_color[final_state.side_to_move as usize] != final_state.board.bb_by_color[final_state.side_to_move as usize];
+                
+                if flag == MoveFlag::Promotion {
+                    promotion_str = format!("={}", promotion.to_char());
+                    moved_piece = PieceType::Pawn;
+                }
+                else {
+                    moved_piece = initial_state.board.get_piece_type_at(src.to_mask());
+                }
+            }
+        }
+        
         let capture_str = if is_capture { "x" } else { "" };
+        
+        let piece_str = match moved_piece {
+            PieceType::Pawn => {
+                if is_capture {
+                    src_file.to_string()
+                }
+                else {
+                    "".to_string()
+                }
+            },
+            _ => moved_piece.to_char().to_string()
+        };
+        
         let annotation_str;
         if final_state.termination == Some(Termination::Checkmate) {
             annotation_str = "#";
@@ -129,95 +137,135 @@ impl Move {
         else {
             annotation_str = "";
         }
-        let disambiguation_str;
-        return match piece_str.is_empty() {
-            true => {
-                disambiguation_str = if is_capture {
-                    src_file.to_string()
-                } else {
-                    "".to_string()
-                };
-                format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
-            }
-            false => {
-                let disambiguation_str_options = ["".to_string(), src_file.to_string(), src_rank.to_string()];
-                let mut possible_sans = ["".to_string(), "".to_string(), "".to_string()];
-                for (i, disambiguation_str) in disambiguation_str_options.iter().enumerate() {
-                    possible_sans[i] = format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
-                }
-                let possible_moves = initial_state.get_moves();
-                for possible_san in possible_sans {
-                    let mut is_ambiguous = false;
-                    let mut has_match = false;
-                    for mv in possible_moves.iter() {
-                        if mv.matches(possible_san.as_str()) {
-                            if has_match {
-                                is_ambiguous = true;
-                                break;
-                            }
-                            has_match = true;
-                        }
+        
+        let mut disambiguation_str = "".to_string();
+        
+        if moved_piece != PieceType::Pawn {
+            let mut is_ambiguous = false;
+            let mut is_file_ambiguous = false;
+            let mut is_rank_ambiguous = false;
+            
+            for other_move in initial_state_moves.iter() {
+                if other_move.get_destination() == dst &&
+                    other_move.get_promotion() == promotion &&
+                    other_move.get_flag() == flag &&
+                    initial_state.board.get_piece_type_at(other_move.get_source().to_mask()) == moved_piece {
+                    is_ambiguous = true;
+                    if other_move.get_source().get_file() == src.get_file() {
+                        is_file_ambiguous = true;
                     }
-                    if !is_ambiguous {
-                        return possible_san;
+                    if other_move.get_source().get_rank() == src.get_rank() {
+                        is_rank_ambiguous = true;
                     }
                 }
-                format!("{}{}{}{}{}{}", piece_str, src_str, capture_str, dst_str, promotion_str, annotation_str)
             }
-        };
+            
+            if is_ambiguous {
+                if !is_file_ambiguous {
+                    disambiguation_str = src_file.to_string();
+                }
+                else if !is_rank_ambiguous {
+                    disambiguation_str = src_rank.to_string();
+                }
+                else {
+                    disambiguation_str = src_str.to_string();
+                }
+            }
+        }
+
+        format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
+    }
+    
+    pub fn matches(&self, move_str: &str) -> bool { // todo: this function is temporary, eventually remove
+        true
     }
 
-    pub fn matches(&self, move_str: &str) -> bool {
-        if move_str.len() < 2 {
-            return false;
-        }
-        let (src_str, dst_str, flag_str) = self.to_readable();
-        if move_str == "0-0" || move_str == "O-O" {
-            return flag_str == "castling" && dst_str.starts_with('g');
-        }
-        if move_str == "0-0-0" || move_str == "O-O-O" {
-            return flag_str == "castling" && dst_str.starts_with('c');
-        }
-        let bytes = move_str.as_bytes();
-        let mut end = move_str.len() - move_str.ends_with('+') as usize - move_str.ends_with('#') as usize;
-        if bytes[end - 1].is_ascii_uppercase() {
-            if flag_str != "P to ?".replace('?', &move_str[end - 1..end]) {
-                return false;
-            }
-            end -= (bytes[end - 2] == b'=') as usize;
-        }
-        let is_capture = move_str.contains('x');
-        if &move_str[end - 2..end] != dst_str {
-            return false;
-        }
-        let is_piece_move = bytes[0].is_ascii_uppercase();
-        if is_piece_move {
-            if flag_str != &move_str[0..1] {
-                return false;
-            }
-        }
-        else {
-            if !flag_str.contains('P') {
-                return false;
-            }
-        }
-        return match end - is_piece_move as usize - is_capture as usize {
-            2 => true,
-            3 => src_str.contains(bytes[is_piece_move as usize] as char),
-            _ => false
-        }
-    }
+    // pub fn matches(&self, move_str: &str) -> bool {
+    //     if move_str.len() < 2 {
+    //         return false;
+    //     }
+    //     let (src_str, dst_str, flag_str) = self.to_readable();
+    //     if move_str == "0-0" || move_str == "O-O" {
+    //         return flag_str == "castling" && dst_str.starts_with('g');
+    //     }
+    //     if move_str == "0-0-0" || move_str == "O-O-O" {
+    //         return flag_str == "castling" && dst_str.starts_with('c');
+    //     }
+    //     let bytes = move_str.as_bytes();
+    //     let mut end = move_str.len() - move_str.ends_with('+') as usize - move_str.ends_with('#') as usize;
+    //     if bytes[end - 1].is_ascii_uppercase() {
+    //         if flag_str != "P to ?".replace('?', &move_str[end - 1..end]) {
+    //             return false;
+    //         }
+    //         end -= (bytes[end - 2] == b'=') as usize;
+    //     }
+    //     let is_capture = move_str.contains('x');
+    //     if &move_str[end - 2..end] != dst_str {
+    //         return false;
+    //     }
+    //     let is_piece_move = bytes[0].is_ascii_uppercase();
+    //     if is_piece_move {
+    //         if flag_str != &move_str[0..1] {
+    //             return false;
+    //         }
+    //     }
+    //     else {
+    //         if !flag_str.contains('P') {
+    //             return false;
+    //         }
+    //     }
+    //     return match end - is_piece_move as usize - is_capture as usize {
+    //         2 => true,
+    //         3 => src_str.contains(bytes[is_piece_move as usize] as char),
+    //         _ => false
+    //     }
+    // }
 }
 
 impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let (src_str, dst_str, flag_str) = self.to_readable();
-        write!(f, "{}{}{}", src_str, dst_str, flag_str)
+        write!(f, "{}", self.to_readable())
     }
 }
 
 impl std::fmt::Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Move, MoveFlag};
+    use crate::miscellaneous::{PieceType, Square};
+    
+    #[test]
+    fn test_move() {
+        for dst_square_int in Square::A8 as u8..Square::H1 as u8 {
+            let dst_square = unsafe { Square::from(dst_square_int) };
+            
+            for src_square_int in Square::A8 as u8..Square::H1 as u8 {
+                let src_square = unsafe { Square::from(src_square_int) };
+                
+                for promotion_piece_int in PieceType::Knight as u8..PieceType::Queen as u8 + 1 {
+                    let promotion_piece = unsafe { PieceType::from(promotion_piece_int) };
+                    
+                    for flag_int in 0..4 {
+                        let flag = unsafe { MoveFlag::from(flag_int) };
+                        
+                        let mv = Move::new(dst_square, src_square, promotion_piece, flag);
+                        assert_eq!(mv.get_destination(), dst_square);
+                        assert_eq!(mv.get_source(), src_square);
+                        assert_eq!(mv.get_promotion(), promotion_piece);
+                        assert_eq!(mv.get_flag(), flag);
+                    }
+                }
+            }
+        }
+    }
+    
+    #[test]
+    fn test_san() {
+        // todo: implement
     }
 }

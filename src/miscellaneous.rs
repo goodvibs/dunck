@@ -1,4 +1,6 @@
+use std::fmt::Display;
 use crate::bitboard::Bitboard;
+use crate::charboard::SQUARE_NAMES;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -21,6 +23,32 @@ impl Square {
     
     pub const fn to_mask(&self) -> Bitboard {
         1 << (63 - *self as u8)
+    }
+
+    pub const fn get_file(&self) -> u8 {
+        *self as u8 % 8
+    }
+
+    pub const fn get_rank(&self) -> u8 {
+        *self as u8 / 8
+    }
+    
+    pub const fn get_file_char(&self) -> char {
+        (b'a' + self.get_file()) as char
+    }
+    
+    pub const fn get_rank_char(&self) -> char {
+        (b'1' + self.get_rank()) as char
+    }
+
+    pub const fn to_readable(&self) -> &str {
+        SQUARE_NAMES[*self as usize]
+    }
+}
+
+impl Display for Square {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_readable())
     }
 }
 
@@ -53,6 +81,10 @@ impl PieceType {
     pub const unsafe fn from(piece_type_number: u8) -> PieceType {
         assert!(piece_type_number < PieceType::LIMIT as u8, "Piece type number out of bounds");
         std::mem::transmute::<u8, PieceType>(piece_type_number)
+    }
+    
+    pub const fn to_char(&self) -> char {
+        ColoredPiece::from(Color::White, *self).to_char()
     }
 }
 

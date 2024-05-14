@@ -1,4 +1,4 @@
-use crate::enums::{Color, ColoredPiece, PieceType, Square};
+use crate::miscellaneous::{Color, ColoredPiece, PieceType, Square};
 use crate::state::State;
 
 pub const INITIAL_FEN: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -608,7 +608,12 @@ mod tests {
 
         let fen = "1k2N1K1/4Q3/6p1/2B2B2/p1PPb3/2P2Nb1/2r5/n7 b - - 36 18";
         let state_result = State::from_fen(fen);
-        assert!(state_result.is_ok());
+        assert!(state_result.is_err());
+        assert_eq!(state_result.err().unwrap(), FenParseError::InvalidState(fen.to_string()));
+
+        let fen = "1k2N1K1/4Q3/6p1/2B2B2/p1PPb3/2P2Nb1/2r5/n7 b - - 35 18";
+        let state_result = State::from_fen(fen);
+        assert!(state_result.is_ok(), "{:?}", state_result);
         assert_eq!(state_result.unwrap().to_fen(), fen);
         
         let fen = "r3k3/P3P3/1B3q2/N3P2P/R6N/8/np2b2p/1K3n2 w q - 100 96";

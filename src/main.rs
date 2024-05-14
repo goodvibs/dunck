@@ -11,7 +11,7 @@ mod magic;
 mod state;
 mod manual_attacks;
 mod r#move;
-mod enums;
+mod miscellaneous;
 mod zobrist;
 mod pgn;
 mod bitboard;
@@ -29,13 +29,16 @@ fn main() {
     loop {
         state.board.print();
         let moves = state.get_pseudolegal_moves();
+        let mut move_sans = Vec::with_capacity(moves.len());
         println!("Moves: ");
         for mv in moves.iter() {
             let initial_state = state.clone();
             let mut final_state = state.clone();
             final_state.play_move(*mv);
             assert!(final_state.is_valid());
-            print!("{} ", mv.san(&initial_state, &final_state));
+            let san = mv.san(&initial_state, &final_state, &moves);
+            move_sans.push(san.clone());
+            print!("{}, ", san);
         }
         println!();
         println!("Enter move (q to quit, n for new position from fen, f for fen representation): ");
@@ -70,9 +73,9 @@ fn main() {
             continue;
         }
         let mut found = false;
-        for mv in moves.iter() {
-            if mv.matches(input) {
-                state.play_move(*mv);
+        for i in 0..moves.len() {
+            if move_sans[i] == input {
+                state.play_move(moves[i]);
                 found = true;
                 break;
             }
