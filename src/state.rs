@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use crate::board::Board;
+use crate::charboard::print_bb_pretty;
 use crate::r#move::*;
 use crate::miscellaneous::*;
 use crate::masks::{FILES, RANK_4, STARTING_BK, STARTING_BR_LONG, STARTING_BR_SHORT, STARTING_WK, STARTING_WR_LONG, STARTING_WR_SHORT};
@@ -178,8 +179,10 @@ impl State {
             MoveFlag::EnPassant => { // en passant capture
                 let en_passant_capture = ((dst << 8) * self.side_to_move as u64) | ((dst >> 8) * opposite_color as u64);
                 self.board.bb_by_piece_type[PieceType::Pawn as usize] ^= src_dst | en_passant_capture;
+                self.board.bb_by_color[opposite_color as usize] &= !en_passant_capture;
                 new_context.captured_piece = PieceType::Pawn;
                 new_context.halfmove_clock = 0;
+                new_context.double_pawn_push = -1;
             },
             MoveFlag::Castling => { // src is king's origin square, dst is king's destination square
                 new_context.castling_info &= !0b00001100 >> castling_color_adjustment;

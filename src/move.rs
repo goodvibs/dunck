@@ -243,16 +243,16 @@ mod tests {
     fn test_move() {
         for dst_square_int in Square::A8 as u8..Square::H1 as u8 {
             let dst_square = unsafe { Square::from(dst_square_int) };
-            
+
             for src_square_int in Square::A8 as u8..Square::H1 as u8 {
                 let src_square = unsafe { Square::from(src_square_int) };
-                
+
                 for promotion_piece_int in PieceType::Knight as u8..PieceType::Queen as u8 + 1 {
                     let promotion_piece = unsafe { PieceType::from(promotion_piece_int) };
-                    
+
                     for flag_int in 0..4 {
                         let flag = unsafe { MoveFlag::from(flag_int) };
-                        
+
                         let mv = Move::new(dst_square, src_square, promotion_piece, flag);
                         assert_eq!(mv.get_destination(), dst_square);
                         assert_eq!(mv.get_source(), src_square);
@@ -263,7 +263,7 @@ mod tests {
             }
         }
     }
-    
+
     #[test]
     fn test_san() {
         // todo: implement
