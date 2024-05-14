@@ -175,7 +175,7 @@ impl State {
         // king moves
         let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & same_color_bb;
         let king_src_square = unsafe { Square::from(king_src_bb.leading_zeros() as u8) };
-        let king_moves = king_attacks(king_src_bb) & !all_occupancy_bb;
+        let king_moves = king_attacks(king_src_bb) & !same_color_bb;
         for dst_bb in unpack_bb(king_moves).iter() {
             let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
             moves.push(Move::new_non_promotion(king_src_square, dst_square, MoveFlag::NormalMove));
