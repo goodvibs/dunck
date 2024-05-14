@@ -1,6 +1,6 @@
 use std::cmp;
 use crate::bitboard::Bitboard;
-use crate::enums::Color;
+use crate::miscellaneous::Color;
 use crate::masks::*;
 
 pub fn knight_attacks(knights: Bitboard) -> Bitboard {

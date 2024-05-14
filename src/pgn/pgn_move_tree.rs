@@ -175,23 +175,23 @@ impl PgnMoveTree {
                             }
                             let possible_moves = current_state.get_moves();
                             if move_san_builder == "Bxb7" {
-                                println!("{:?}", possible_moves);
+                                println!("{:?}", &possible_moves);
                                 current_state.board.print();
                             }
                             let mut matched_move: Option<Move> = None;
-                            for mv in possible_moves {
+                            for mv in &possible_moves {
                                 if mv.matches(&move_san_builder) {
                                     if matched_move.is_some() {
                                         return Err(PgnParseError::AmbiguousMove(PgnParseState::ParsingMove, pgn[..i+1].to_string()));
                                     }
-                                    matched_move = Some(mv);
+                                    matched_move = Some(*mv);
                                 }
                             }
                             match matched_move {
                                 Some(mv) => {
                                     previous_state = current_state.clone();
-                                    current_state.play_move(mv);
-                                    let san = mv.san(&previous_state, &current_state);
+                                    current_state.make_move(mv);
+                                    let san = mv.san(&previous_state, &current_state, &possible_moves);
                                     let new_node = PgnMoveTreeNode::new_raw_linked_to_previous(Some(mv), san, Some(tail_node), current_state.clone());
                                     tail_node = new_node;
                                 },

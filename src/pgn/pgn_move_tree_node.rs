@@ -1,4 +1,4 @@
-use crate::enums::Color;
+use crate::miscellaneous::Color;
 use crate::r#move::Move;
 use crate::state::State;
 

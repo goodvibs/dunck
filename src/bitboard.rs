@@ -1,4 +1,4 @@
-use crate::enums::Square;
+use crate::miscellaneous::Square;
 
 pub type Bitboard = u64;
 

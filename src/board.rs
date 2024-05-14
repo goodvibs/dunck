@@ -1,4 +1,4 @@
-use crate::enums::*;
+use crate::miscellaneous::*;
 use crate::attacks::*;
 use crate::bitboard::{Bitboard, unpack_bb};
 use crate::masks::*;
@@ -118,6 +118,18 @@ impl Board {
             self.bb_by_color[color_int] &= !mask;
         }
         self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
+    }
+    
+    pub fn process_uncolored_capture_and_get_captured_piece_type_at(&mut self, mask: Bitboard) -> PieceType {
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
+        for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
+            if self.bb_by_piece_type[piece_type_int] & mask != 0 {
+                let piece_type = unsafe { PieceType::from(piece_type_int as u8) };
+                self.bb_by_piece_type[piece_type_int] &= !mask;
+                return piece_type;
+            }
+        }
+        PieceType::NoPieceType
     }
 
     pub fn put_colored_pieces_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
