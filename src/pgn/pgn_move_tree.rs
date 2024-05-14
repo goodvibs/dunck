@@ -190,7 +190,7 @@ impl PgnMoveTree {
                             match matched_move {
                                 Some(mv) => {
                                     previous_state = current_state.clone();
-                                    current_state.play_move(mv);
+                                    current_state.make_move(mv);
                                     let san = mv.san(&previous_state, &current_state, &possible_moves);
                                     let new_node = PgnMoveTreeNode::new_raw_linked_to_previous(Some(mv), san, Some(tail_node), current_state.clone());
                                     tail_node = new_node;

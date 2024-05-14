@@ -122,7 +122,7 @@ impl State {
         self.get_pseudolegal_moves()
     }
     
-    pub fn play_move(&mut self, mv: Move) { // todo
+    pub fn make_move(&mut self, mv: Move) { // todo
         let (src_square, dst_square, promotion, flag) = mv.unpack();
         let src = 1 << (63 - src_square as u8);
         let dst = 1 << (63 - dst_square as u8);
@@ -227,7 +227,7 @@ impl State {
         }
     }
     
-    pub fn undo_move(&mut self, mv: Move) {
+    pub fn unmake_move(&mut self, mv: Move) {
         // todo
     }
     

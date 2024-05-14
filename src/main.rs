@@ -34,7 +34,7 @@ fn main() {
         for mv in moves.iter() {
             let initial_state = state.clone();
             let mut final_state = state.clone();
-            final_state.play_move(*mv);
+            final_state.make_move(*mv);
             assert!(final_state.is_valid());
             let san = mv.san(&initial_state, &final_state, &moves);
             move_sans.push(san.clone());
@@ -75,7 +75,7 @@ fn main() {
         let mut found = false;
         for i in 0..moves.len() {
             if move_sans[i] == input {
-                state.play_move(moves[i]);
+                state.make_move(moves[i]);
                 found = true;
                 break;
             }
