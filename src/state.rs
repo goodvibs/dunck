@@ -3,7 +3,7 @@ use crate::board::Board;
 use crate::charboard::print_bb_pretty;
 use crate::r#move::*;
 use crate::miscellaneous::*;
-use crate::masks::{FILES, RANK_4, STARTING_BK, STARTING_BR_LONG, STARTING_BR_SHORT, STARTING_WK, STARTING_WR_LONG, STARTING_WR_SHORT};
+use crate::masks::{CASTLING_SPACE_LONG, CASTLING_SPACE_SHORT, FILES, RANK_4, STARTING_BK, STARTING_BR_LONG, STARTING_BR_SHORT, STARTING_WK, STARTING_WR_LONG, STARTING_WR_SHORT};
 use crate::pgn::pgn_move_tree::PgnParseError;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -113,8 +113,24 @@ impl State {
         todo!()
     }
 
-    pub fn get_fullmove(&self) -> u16 {
+    pub const fn get_fullmove(&self) -> u16 {
         self.halfmove / 2 + 1
+    }
+    
+    pub const fn has_castling_short(&self, color: Color) -> bool {
+        self.context.castling_info & (0b00001000 >> (color as u8 * 2)) != 0
+    }
+    
+    pub const fn has_castling_long(&self, color: Color) -> bool {
+        self.context.castling_info & (0b00000100 >> (color as u8 * 2)) != 0
+    }
+    
+    pub const fn has_castling_space_short(&self, color: Color) -> bool {
+        CASTLING_SPACE_SHORT[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
+    }
+    
+    pub const fn has_castling_space_long(&self, color: Color) -> bool {
+        CASTLING_SPACE_LONG[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
     }
     
     pub fn get_moves(&self) -> Vec<Move> {
@@ -187,12 +203,19 @@ impl State {
             MoveFlag::Castling => { // src is king's origin square, dst is king's destination square
                 new_context.castling_info &= !0b00001100 >> castling_color_adjustment;
                 
-                let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8)) != 0;
-                let is_queen_side = !is_king_side;
+                self.board.bb_by_piece_type[PieceType::King as usize] ^= src_dst;
                 
-                let rook_src = 1u64 << (self.side_to_move as u64 * (((7 * 8 + 7) * is_king_side as u64) | ((7 * 8) * is_queen_side as u64)));
-                let rook_dst = 1u64 << (self.side_to_move as u64 * (((7 * 8 + 5) * is_king_side as u64) | ((7 * 8 + 3) * is_queen_side as u64)));
-                let rook_src_dst = rook_src | rook_dst;
+                let is_king_side = dst & CASTLING_SPACE_SHORT[self.side_to_move as usize] != 0;
+                
+                let rook_src_square = match is_king_side {
+                    true => unsafe { Square::from(src_square as u8 + 3) },
+                    false => unsafe { Square::from(src_square as u8 - 4) }
+                };
+                let rook_dst_square = match is_king_side {
+                    true => unsafe { Square::from(src_square as u8 + 1) },
+                    false => unsafe { Square::from(src_square as u8 - 1) }
+                };
+                let rook_src_dst = rook_src_square.to_mask() | rook_dst_square.to_mask();
                 
                 self.board.bb_by_color[self.side_to_move as usize] ^= rook_src_dst;
                 self.board.bb_by_piece_type[PieceType::Rook as usize] ^= rook_src_dst;

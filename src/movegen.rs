@@ -1,7 +1,7 @@
 use crate::attacks::{bishop_attacks, king_attacks, knight_attacks, pawn_attacks, pawn_moves, rook_attacks};
 use crate::bitboard::unpack_bb;
 use crate::miscellaneous::{Color, PieceType, Square};
-use crate::masks::{FILE_A, RANK_3, RANK_5, RANK_6, RANK_8};
+use crate::masks::{BLACK_CASTLING_SPACE_LONG, BLACK_CASTLING_SPACE_SHORT, FILE_A, RANK_3, RANK_5, RANK_6, RANK_8, WHITE_CASTLING_SPACE_LONG, WHITE_CASTLING_SPACE_SHORT};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 
@@ -182,29 +182,22 @@ impl State {
         }
     }
     
-    fn add_castling_pseudolegal(&self, moves: &mut Vec<Move>) { // todo: fix
+    fn add_castling_pseudolegal(&self, moves: &mut Vec<Move>) {
         let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
         let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
 
-        let (king_src_square, king_dst_square, rook_src_square, rook_dst_square) = match self.side_to_move {
-            Color::White => (Square::E1, Square::G1, Square::H1, Square::F1),
-            Color::Black => (Square::E8, Square::G8, Square::H8, Square::F8)
+        let king_src_square = match self.side_to_move {
+            Color::White => Square::E1,
+            Color::Black => Square::E8
         };
 
-        let king_src_bb = 1 << (63 - king_src_square as u8);
-        let rook_src_bb = 1 << (63 - rook_src_square as u8);
-
-        if self.context.castling_info & (0b00001000 >> (self.side_to_move as usize * 2)) != 0 { // king side
-            let king_side_empty = king_src_bb | (1 << (63 - Square::F1 as u8)) | (1 << (63 - Square::G1 as u8)) & !all_occupancy_bb == 0;
-            if king_side_empty {
-                moves.push(Move::new_non_promotion(king_src_square, king_dst_square, MoveFlag::Castling));
-            }
+        if self.has_castling_short(self.side_to_move) && self.has_castling_space_short(self.side_to_move) { // king side
+            let king_dst_square = unsafe { Square::from(king_src_square as u8 + 2) };
+            moves.push(Move::new_non_promotion(king_src_square, king_dst_square, MoveFlag::Castling));
         }
-        if self.context.castling_info & (0b00000100 >> (self.side_to_move as usize * 2)) != 0 { // queen side
-            let queen_side_empty = king_src_bb | (1 << (63 - Square::D1 as u8)) | (1 << (63 - Square::C1 as u8)) | (1 << (63 - Square::B1 as u8)) & !all_occupancy_bb == 0;
-            if queen_side_empty {
-                moves.push(Move::new_non_promotion(king_src_square, king_dst_square, MoveFlag::Castling));
-            }
+        if self.has_castling_long(self.side_to_move) && self.has_castling_space_long(self.side_to_move) { // queen side
+            let king_dst_square = unsafe { Square::from(king_src_square as u8 - 2) };
+            moves.push(Move::new_non_promotion(king_src_square, king_dst_square, MoveFlag::Castling));
         }
     }
 
@@ -216,6 +209,7 @@ impl State {
         self.add_rook_pseudolegal(&mut moves);
         self.add_queen_pseudolegal(&mut moves);
         self.add_king_pseudolegal(&mut moves);
+        self.add_castling_pseudolegal(&mut moves);
 
         moves
     }
