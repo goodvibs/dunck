@@ -116,29 +116,28 @@ impl State {
     pub const fn get_fullmove(&self) -> u16 {
         self.halfmove / 2 + 1
     }
-    
+
     pub const fn has_castling_short(&self, color: Color) -> bool {
         self.context.castling_info & (0b00001000 >> (color as u8 * 2)) != 0
     }
-    
+
     pub const fn has_castling_long(&self, color: Color) -> bool {
         self.context.castling_info & (0b00000100 >> (color as u8 * 2)) != 0
     }
-    
+
     pub const fn has_castling_space_short(&self, color: Color) -> bool {
         CASTLING_SPACE_SHORT[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
     }
-    
+
     pub const fn has_castling_space_long(&self, color: Color) -> bool {
         CASTLING_SPACE_LONG[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
     }
     
-    pub fn get_moves(&self) -> Vec<Move> {
-        // todo
-        self.get_pseudolegal_moves()
+    pub fn get_moves(&self) -> Vec<Move> { // todo: filter out illegal moves
+        self.get_pseudolegal_moves().iter().filter(p -> ).
     }
     
-    pub fn make_move(&mut self, mv: Move) { // todo
+    pub fn make_move(&mut self, mv: Move) { // todo: split into smaller functions for unit testing
         let (src_square, dst_square, promotion, flag) = mv.unpack();
         let src = 1 << (63 - src_square as u8);
         let dst = 1 << (63 - dst_square as u8);
@@ -198,15 +197,14 @@ impl State {
                 self.board.bb_by_color[opposite_color as usize] &= !en_passant_capture;
                 new_context.captured_piece = PieceType::Pawn;
                 new_context.halfmove_clock = 0;
-                new_context.double_pawn_push = -1;
             },
             MoveFlag::Castling => { // src is king's origin square, dst is king's destination square
                 new_context.castling_info &= !0b00001100 >> castling_color_adjustment;
-                
+
                 self.board.bb_by_piece_type[PieceType::King as usize] ^= src_dst;
                 
                 let is_king_side = dst & CASTLING_SPACE_SHORT[self.side_to_move as usize] != 0;
-                
+
                 let rook_src_square = match is_king_side {
                     true => unsafe { Square::from(src_square as u8 + 3) },
                     false => unsafe { Square::from(src_square as u8 - 4) }
