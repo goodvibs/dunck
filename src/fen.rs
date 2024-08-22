@@ -47,7 +47,7 @@ fn process_fen_castle(state: &mut State, fen_castle: &str) -> bool {
             return false;
         }
         already_seen[index] = true;
-        state.context.castling_info |= 1 << (3 - index);
+        state.context.castling_rights |= 1 << (3 - index);
     }
     return true;
 }
@@ -272,14 +272,14 @@ impl State {
     }
 
     fn get_fen_castling_info(&self) -> String {
-        if self.context.castling_info == 0 {
+        if self.context.castling_rights == 0 {
             return "-".to_string();
         }
         let mut castling_info = String::with_capacity(4);
         let castling_chars = ['K', 'Q', 'k', 'q'];
         let mask = 0b1000;
         for i in 0..4 {
-            if self.context.castling_info & mask >> i != 0 {
+            if self.context.castling_rights & mask >> i != 0 {
                 castling_info.push(castling_chars[i]);
             }
         }
@@ -342,7 +342,7 @@ mod tests {
     fn test_process_fen_castle() {
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "-"), true);
-        assert_eq!(state.context.castling_info, 0b00000000);
+        assert_eq!(state.context.castling_rights, 0b00000000);
         
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "KQkqq"), false);
@@ -352,15 +352,15 @@ mod tests {
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "KQkq"), true);
-        assert_eq!(state.context.castling_info, 0b00001111);
+        assert_eq!(state.context.castling_rights, 0b00001111);
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "Qkq"), true);
-        assert_eq!(state.context.castling_info, 0b00000111);
+        assert_eq!(state.context.castling_rights, 0b00000111);
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "qkK"), true);
-        assert_eq!(state.context.castling_info, 0b00001011);
+        assert_eq!(state.context.castling_rights, 0b00001011);
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, " "), false);
@@ -490,7 +490,7 @@ mod tests {
         let is_valid = process_fen_board_row(&mut state, 7, "RNBQKBNR");
         assert!(is_valid);
         assert!(state.board.is_valid());
-        state.context.castling_info = 0b00001111;
+        state.context.castling_rights = 0b00001111;
         state.increment_position_count();
         assert_eq!(state, State::initial());
     }
@@ -503,7 +503,7 @@ mod tests {
         assert!(result.is_ok());
         assert!(state.board.is_valid());
         state.increment_position_count();
-        state.context.castling_info = 0b00001111;
+        state.context.castling_rights = 0b00001111;
         assert_eq!(state, State::initial());
         
         let mut state = State::blank();
@@ -594,7 +594,7 @@ mod tests {
         state.side_to_move = Color::Black;
         state.board.put_colored_pieces_at(ColoredPiece::BlackQueen, Square::D4.to_mask());
         state.board.clear_pieces_at(Square::H1.to_mask());
-        state.context.castling_info &= !0b1000;
+        state.context.castling_rights &= !0b1000;
         let fen = state.to_fen();
         let expected_fen = "rnbqkbnr/pppppppp/8/8/3q4/8/PPPPPPPP/RNBQKBN1 b Qkq - 1 1";
     }

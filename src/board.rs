@@ -88,22 +88,29 @@ impl Board {
         
         true
     }
-
-    pub fn is_in_check(&self, color: Color) -> bool { // including by king
-        let opposite_color_pieces = self.bb_by_color[color.flip() as usize];
+    
+    pub fn is_mask_in_check(&self, mask: Bitboard, by_color: Color) -> bool {
+        let attacking_color_pieces = self.bb_by_color[by_color as usize];
         let all_occ = self.bb_by_piece_type[PieceType::AllPieceTypes as usize];
         let queens_bb = self.bb_by_piece_type[PieceType::Queen as usize];
-        
-        let mut attacks = pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & opposite_color_pieces, color.flip());
-        attacks |= knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & opposite_color_pieces);
-        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Bishop as usize] | queens_bb) & opposite_color_pieces) {
+
+        let mut attacks = pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & attacking_color_pieces, by_color);
+        attacks |= knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & attacking_color_pieces);
+        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
             attacks |= bishop_attacks(bb, all_occ);
         }
-        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Rook as usize] | queens_bb) & opposite_color_pieces) {
+        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
             attacks |= rook_attacks(bb, all_occ);
         }
-        attacks |= king_attacks(self.bb_by_piece_type[PieceType::King as usize] & opposite_color_pieces);
-        attacks & self.bb_by_piece_type[PieceType::King as usize] & self.bb_by_color[color as usize] != 0
+        attacks |= king_attacks(self.bb_by_piece_type[PieceType::King as usize] & attacking_color_pieces);
+        attacks & mask != 0
+    }
+
+    pub fn is_color_in_check(&self, color: Color) -> bool { // including by king
+        self.is_mask_in_check(
+            self.bb_by_piece_type[PieceType::King as usize] & self.bb_by_color[color as usize],
+            color.flip()
+        )
     }
 
     pub fn clear_and_put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {

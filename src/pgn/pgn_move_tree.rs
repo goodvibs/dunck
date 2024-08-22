@@ -173,7 +173,7 @@ impl PgnMoveTree {
                             if move_san_builder.is_empty() {
                                 continue;
                             }
-                            let possible_moves = current_state.get_moves();
+                            let possible_moves = current_state.get_legal_moves();
                             if move_san_builder == "Bxb7" {
                                 println!("{:?}", &possible_moves);
                                 current_state.board.print();

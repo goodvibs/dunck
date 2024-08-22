@@ -131,7 +131,7 @@ impl Move {
         if final_state.termination == Some(Termination::Checkmate) {
             annotation_str = "#";
         }
-        else if final_state.board.is_in_check(final_state.side_to_move) {
+        else if final_state.board.is_color_in_check(final_state.side_to_move) {
             annotation_str = "+";
         }
         else {
