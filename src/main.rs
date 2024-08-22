@@ -28,7 +28,7 @@ fn main() {
     let mut state = State::initial();
     loop {
         state.board.print();
-        let moves = state.get_pseudolegal_moves();
+        let moves = state.get_legal_moves();
         let mut move_sans = Vec::with_capacity(moves.len());
         println!("Moves: ");
         for mv in moves.iter() {

@@ -88,21 +88,29 @@ impl Board {
         
         true
     }
+    
+    pub fn is_mask_in_check(&self, mask: Bitboard, by_color: Color) -> bool {
+        let attacking_color_pieces = self.bb_by_color[by_color as usize];
+        let all_occ = self.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        let queens_bb = self.bb_by_piece_type[PieceType::Queen as usize];
 
-    pub fn is_in_check(&self, color: Color) -> bool {
-        let opposite_color_pieces = self.bb_by_color[color.flip() as usize];
-        let all_occ = self.bb_by_color[Color::White as usize] | self.bb_by_color[Color::Black as usize];
-        let queen_occ = self.bb_by_piece_type[PieceType::Queen as usize];
-        let mut attacks = pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & opposite_color_pieces, color.flip());
-        attacks |= knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & opposite_color_pieces);
-        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Bishop as usize] | queen_occ) & opposite_color_pieces) {
+        let mut attacks = pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & attacking_color_pieces, by_color);
+        attacks |= knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & attacking_color_pieces);
+        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
             attacks |= bishop_attacks(bb, all_occ);
         }
-        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Rook as usize] | queen_occ) & opposite_color_pieces) {
+        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
             attacks |= rook_attacks(bb, all_occ);
         }
-        // attacks |= king_attacks(self.bb_by_piece_type[PieceType::King as usize] & opposite_color_pieces);
-        attacks & self.bb_by_piece_type[PieceType::King as usize] & self.bb_by_color[color as usize] != 0
+        attacks |= king_attacks(self.bb_by_piece_type[PieceType::King as usize] & attacking_color_pieces);
+        attacks & mask != 0
+    }
+
+    pub fn is_color_in_check(&self, color: Color) -> bool { // including by king
+        self.is_mask_in_check(
+            self.bb_by_piece_type[PieceType::King as usize] & self.bb_by_color[color as usize],
+            color.flip()
+        )
     }
 
     pub fn clear_and_put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
@@ -156,8 +164,8 @@ impl Board {
     pub const fn get_colored_piece_bb(&self, colored_piece: ColoredPiece) -> Bitboard {
         self.bb_by_piece_type[colored_piece as usize & 0b0111] & self.bb_by_color[colored_piece.get_color() as usize]
     }
-
-    pub fn is_valid(&self) -> bool {
+    
+    pub fn is_consistent(&self) -> bool {
         let white_bb = self.bb_by_color[Color::White as usize];
         let black_bb = self.bb_by_color[Color::Black as usize];
         if white_bb & black_bb != 0 {
@@ -170,7 +178,7 @@ impl Board {
             return false;
         }
 
-        let mut all_occupancy_bb_test: Bitboard = 0;
+        let mut all_occupancy_bb_reconstructed: Bitboard = 0;
 
         for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
             let piece_bb = self.bb_by_piece_type[piece_type_int];
@@ -183,21 +191,24 @@ impl Board {
                 return false;
             }
 
-            if piece_bb & all_occupancy_bb_test != 0 {
+            if piece_bb & all_occupancy_bb_reconstructed != 0 {
                 return false;
             }
-            all_occupancy_bb_test |= piece_bb;
+            all_occupancy_bb_reconstructed |= piece_bb;
         }
 
-        if self.get_colored_piece_bb(ColoredPiece::WhiteKing).count_ones() != 1 {
-            return false;
-        }
+        all_occupancy_bb_reconstructed == all_occupancy_bb
+    }
+    
+    pub const fn has_valid_kings(&self) -> bool {
+        let white_bb = self.bb_by_color[Color::White as usize];
+        let kings_bb = self.bb_by_piece_type[PieceType::King as usize];
 
-        if self.get_colored_piece_bb(ColoredPiece::BlackKing).count_ones() != 1 {
-            return false;
-        }
+        kings_bb.count_ones() == 2 && (white_bb & kings_bb).count_ones() == 1
+    }
 
-        all_occupancy_bb_test == all_occupancy_bb
+    pub fn is_valid(&self) -> bool {
+        self.is_consistent() && self.has_valid_kings()
     }
 
     // pub fn from_cb(cb: Charboard) -> Board {
