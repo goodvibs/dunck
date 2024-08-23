@@ -163,9 +163,9 @@ impl State {
     }
     
     pub fn make_move(&mut self, mv: Move) { // todo: split into smaller functions for unit testing
-        let (src_square, dst_square, promotion, flag) = mv.unpack();
-        let src = 1 << (63 - src_square as u8);
+        let (dst_square, src_square, promotion, flag) = mv.unpack();
         let dst = 1 << (63 - dst_square as u8);
+        let src = 1 << (63 - src_square as u8);
         let src_dst = src | dst;
         
         let mut new_context = StateContext::new(

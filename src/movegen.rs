@@ -8,7 +8,7 @@ use crate::state::State;
 fn add_pawn_promotion_moves(moves: &mut Vec<Move>, src: Square, dst: Square) {
     for promotion_int in PieceType::Knight as u8.. PieceType::Queen as u8 + 1 {
         unsafe {
-            moves.push(Move::new(src, dst, PieceType::from(promotion_int), MoveFlag::Promotion));
+            moves.push(Move::new(dst, src, PieceType::from(promotion_int), MoveFlag::Promotion));
         }
     }
 }
@@ -29,7 +29,7 @@ impl State {
                     add_pawn_promotion_moves(moves, move_src, move_dst);
                 }
                 else {
-                    moves.push(Move::new_non_promotion(move_src, move_dst, MoveFlag::NormalMove));
+                    moves.push(Move::new_non_promotion(move_dst, move_src, MoveFlag::NormalMove));
                 }
             }
         }
@@ -51,7 +51,7 @@ impl State {
                     if pawns_bb & double_pawn_push_file_mask & RANK_5 != 0 {
                         let move_src = unsafe { Square::from((src_offset + double_pawn_push_file) as u8) };
                         let move_dst = unsafe { Square::from((dst_offset + self.context.double_pawn_push) as u8) };
-                        moves.push(Move::new_non_promotion(move_src, move_dst, MoveFlag::EnPassant));
+                        moves.push(Move::new_non_promotion(move_dst, move_src, MoveFlag::EnPassant));
                     }
                 }
             }
@@ -85,7 +85,7 @@ impl State {
                 if double_move_dst != 0 {
                     unsafe {
                         let double_move_dst_square = Square::from(double_move_dst.leading_zeros() as u8);
-                        moves.push(Move::new_non_promotion(src_square, double_move_dst_square, MoveFlag::NormalMove));
+                        moves.push(Move::new_non_promotion(double_move_dst_square, src_square, MoveFlag::NormalMove));
                     }
                 }
             }
@@ -95,7 +95,7 @@ impl State {
             }
 
             // single push (non-promotion)
-            moves.push(Move::new_non_promotion(src_square, single_move_dst_square, MoveFlag::NormalMove));
+            moves.push(Move::new_non_promotion(single_move_dst_square, src_square, MoveFlag::NormalMove));
         }
     }
     
@@ -118,7 +118,7 @@ impl State {
             let knight_moves = knight_attacks(*src_bb) & !same_color_bb;
             for dst_bb in unpack_bb(knight_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new_non_promotion(src_square, dst_square, MoveFlag::NormalMove));
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -133,7 +133,7 @@ impl State {
             let bishop_moves = bishop_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
             for dst_bb in unpack_bb(bishop_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new_non_promotion(src_square, dst_square, MoveFlag::NormalMove));
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -148,7 +148,7 @@ impl State {
             let rook_moves = rook_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
             for dst_bb in unpack_bb(rook_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new_non_promotion(src_square, dst_square, MoveFlag::NormalMove));
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -163,7 +163,7 @@ impl State {
             let queen_moves = (rook_attacks(*src_bb, all_occupancy_bb) | bishop_attacks(*src_bb, all_occupancy_bb)) & !same_color_bb;
             for dst_bb in unpack_bb(queen_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-                moves.push(Move::new_non_promotion(src_square, dst_square, MoveFlag::NormalMove));
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -178,7 +178,7 @@ impl State {
         let king_moves = king_attacks(king_src_bb) & !same_color_bb;
         for dst_bb in unpack_bb(king_moves).iter() {
             let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
-            moves.push(Move::new_non_promotion(king_src_square, dst_square, MoveFlag::NormalMove));
+            moves.push(Move::new_non_promotion(dst_square, king_src_square, MoveFlag::NormalMove));
         }
     }
     
@@ -193,11 +193,11 @@ impl State {
 
         if self.can_castle_short(self.side_to_move) {
             let king_dst_square = unsafe { Square::from(king_src_square as u8 + 2) };
-            moves.push(Move::new_non_promotion(king_src_square, king_dst_square, MoveFlag::Castling));
+            moves.push(Move::new_non_promotion(king_dst_square, king_src_square, MoveFlag::Castling));
         }
         if self.can_castle_long(self.side_to_move) {
             let king_dst_square = unsafe { Square::from(king_src_square as u8 - 2) };
-            moves.push(Move::new_non_promotion(king_src_square, king_dst_square, MoveFlag::Castling));
+            moves.push(Move::new_non_promotion(king_dst_square, king_src_square, MoveFlag::Castling));
         }
     }
 

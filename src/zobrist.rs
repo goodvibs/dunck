@@ -36,7 +36,9 @@ impl Board {
         let kings_bb = self.bb_by_piece_type[PieceType::King as usize];
         for color_int in Color::White as u8..Color::Black as u8 + 1 {
             let colored_king_bb = kings_bb & self.bb_by_color[color_int as usize];
-            hash ^= ZOBRIST_TABLE[colored_king_bb.leading_zeros() as usize][PieceType::King as usize - 1];
+            if colored_king_bb != 0 {
+                hash ^= ZOBRIST_TABLE[colored_king_bb.leading_zeros() as usize][PieceType::King as usize - 1];
+            }
         }
         hash
     }

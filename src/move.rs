@@ -72,16 +72,16 @@ impl Move {
     }
 
     pub fn to_readable(&self) -> String {
-        let (src, dst, promotion, flag) = self.unpack();
-        let (src_str, dst_str, promotion_char, flag_str) = (src.to_readable(), dst.to_readable(), promotion.to_char(), flag.to_readable());
-        format!("{}{}{}", src_str, dst_str, flag_str.replace('?', &promotion_char.to_string()))
+        let (dst, src, promotion, flag) = self.unpack();
+        let (dst_str, src_str, promotion_char, flag_str) = (src.to_readable(), dst.to_readable(), promotion.to_char(), flag.to_readable());
+        format!("{}{}{}", dst_str, src_str, flag_str.replace('?', &promotion_char.to_string()))
     }
 
     pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
-        let (src, dst, promotion, flag) = self.unpack();
+        let (dst, src, promotion, flag) = self.unpack();
         
-        let src_str = src.to_readable();
         let dst_str = dst.to_readable();
+        let src_str = src.to_readable();
         let (src_file, src_rank) = (src.get_file_char(), src.get_rank_char());
         
         let mut promotion_str = String::new();
@@ -140,31 +140,37 @@ impl Move {
         
         let mut disambiguation_str = "".to_string();
         
-        if moved_piece != PieceType::Pawn {
-            let mut is_ambiguous = false;
-            let mut is_file_ambiguous = false;
-            let mut is_rank_ambiguous = false;
+        if moved_piece != PieceType::Pawn && moved_piece != PieceType::King {
+            let mut clashes = Vec::new();
             
             for other_move in initial_state_moves.iter() {
-                if other_move.get_destination() == dst &&
-                    other_move.get_promotion() == promotion &&
-                    other_move.get_flag() == flag &&
-                    initial_state.board.get_piece_type_at(other_move.get_source().to_mask()) == moved_piece {
-                    is_ambiguous = true;
-                    if other_move.get_source().get_file() == src.get_file() {
-                        is_file_ambiguous = true;
-                    }
-                    if other_move.get_source().get_rank() == src.get_rank() {
-                        is_rank_ambiguous = true;
-                    }
+                let other_src = other_move.get_source();
+                let other_dst = other_move.get_destination();
+                if src == other_src { // same move
+                    continue;
+                }
+                if dst == other_move.get_destination() && moved_piece == initial_state.board.get_piece_type_at(other_src.to_mask()) {
+                    clashes.push(other_move);
                 }
             }
             
-            if is_ambiguous {
-                if !is_file_ambiguous {
+            if !clashes.is_empty() {
+                let mut is_file_unique = true;
+                let mut is_rank_unique = true;
+                
+                for other_move in clashes {
+                    if other_move.get_source().get_file() == src.get_file() {
+                        is_file_unique = false;
+                    }
+                    if other_move.get_source().get_rank() == src.get_rank() {
+                        is_rank_unique = false;
+                    }
+                }
+                
+                if is_file_unique {
                     disambiguation_str = src_file.to_string();
                 }
-                else if !is_rank_ambiguous {
+                else if is_rank_unique {
                     disambiguation_str = src_rank.to_string();
                 }
                 else {

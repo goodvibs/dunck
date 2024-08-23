@@ -27,6 +27,7 @@ use crate::state::State;
 fn main() {
     let mut state = State::initial();
     loop {
+        println!("{}", state.to_fen());
         state.board.print();
         let moves = state.get_legal_moves();
         let mut move_sans = Vec::with_capacity(moves.len());
@@ -41,7 +42,7 @@ fn main() {
             print!("{}, ", san);
         }
         println!();
-        println!("Enter move (q to quit, n for new position from fen, f for fen representation): ");
+        println!("Enter move (q to quit, n for new position from fen): ");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
         let input = input.trim();
@@ -50,10 +51,13 @@ fn main() {
         }
         if input == "n" {
             loop {
-                println!("Enter fen: ");
+                println!("Enter fen (q to cancel): ");
                 let mut input = String::new();
                 std::io::stdin().read_line(&mut input).unwrap();
                 let input = input.trim();
+                if input == "q" {
+                    break;
+                }
                 let state_result = State::from_fen(input);
                 match state_result {
                     Ok(s) => {
@@ -66,10 +70,6 @@ fn main() {
                     }
                 }
             }
-            continue;
-        }
-        if input == "f" {
-            println!("{}", state.to_fen());
             continue;
         }
         let mut found = false;
