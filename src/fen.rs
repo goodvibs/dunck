@@ -561,7 +561,7 @@ mod tests {
         assert_eq!(state, expected_state);
         
         let fen = "r2qk2r/8/8/7p/8/8/8/R2QK2R w KQkq h6 0 6";
-        let mut state = State::from_fen(fen);
+        let state = State::from_fen(fen);
         assert!(state.is_ok());
         let state = state.unwrap();
         assert!(state.board.is_valid());

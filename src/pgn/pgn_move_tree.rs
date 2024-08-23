@@ -27,7 +27,6 @@ pub enum PgnParseState {
 pub enum PgnParseError {
     UnexpectedValue(PgnParseState, String),
     WrongMoveNumber(PgnParseState, String),
-    AmbiguousMove(PgnParseState, String),
     IllegalMove(PgnParseState, String),
     IllegalVariationStart(PgnParseState, String),
     UnfinishedVariation(PgnParseState, String),
@@ -39,7 +38,6 @@ impl Display for PgnParseError {
         match self {
             PgnParseError::UnexpectedValue(state, parsed) => write!(f, "PGN Parse Error: 'Unexpected value' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::WrongMoveNumber(state, parsed) => write!(f, "PGN Parse Error: 'Wrong move number' at state '{:?}'\nParsed:\n'{}'", state, parsed),
-            PgnParseError::AmbiguousMove(state, parsed) => write!(f, "PGN Parse Error: 'Ambiguous move' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::IllegalMove(state, parsed) => write!(f, "PGN Parse Error: 'Illegal move' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::IllegalVariationStart(state, parsed) => write!(f, "PGN Parse Error: 'Illegal variation start' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::UnfinishedVariation(state, parsed) => write!(f, "PGN Parse Error: 'Unfinished variation' at state '{:?}'\nParsed:\n'{}'", state, parsed),
@@ -174,17 +172,18 @@ impl PgnMoveTree {
                                 continue;
                             }
                             let possible_moves = current_state.get_legal_moves();
-                            if move_san_builder == "Bxb7" {
-                                println!("{:?}", &possible_moves);
-                                current_state.board.print();
-                            }
-                            let mut matched_move: Option<Move> = None;
+                            let mut move_sans = Vec::with_capacity(possible_moves.len());
                             for mv in &possible_moves {
-                                if mv.matches(&move_san_builder) {
-                                    if matched_move.is_some() {
-                                        return Err(PgnParseError::AmbiguousMove(PgnParseState::ParsingMove, pgn[..i+1].to_string()));
-                                    }
-                                    matched_move = Some(*mv);
+                                let mut new_state = current_state.clone();
+                                new_state.make_move(*mv);
+                                let mv_san = mv.san(&current_state, &new_state, &possible_moves);
+                                move_sans.push(mv_san);
+                            }
+                            let mut matched_move = None;
+                            for i in 0..possible_moves.len() {
+                                if move_sans[i] == move_san_builder {
+                                    matched_move = Some(possible_moves[i]);
+                                    break;
                                 }
                             }
                             match matched_move {
@@ -315,24 +314,24 @@ mod tests {
         test_pgn(&input_pgn, &expected_pgn);
     }
     
-    // #[test]
-    // fn empty_pgn_test() {
-    //     let input_pgn = "";
-    //     let pgn_tree = PgnMoveTree::from_pgn(input_pgn).unwrap();
-    //     assert!(pgn_tree.tags.is_empty());
-    //     unsafe { 
-    //         assert!((*pgn_tree.head).move_and_san_and_previous_node.is_none());
-    //     }
-    //     assert_eq!(pgn_tree.pgn(), "");
-    // }
-    // 
-    // #[test]
-    // fn complex_pgn_test() {
-    //     generic_pgn_test("complex");
-    // }
-    // 
-    // #[test]
-    // fn rosen1_pgn_test() {
-    //     generic_pgn_test("rosen1");
-    // }
+    #[test]
+    fn empty_pgn_test() {
+        let input_pgn = "";
+        let pgn_tree = PgnMoveTree::from_pgn(input_pgn).unwrap();
+        assert!(pgn_tree.tags.is_empty());
+        unsafe { 
+            assert!((*pgn_tree.head).move_and_san_and_previous_node.is_none());
+        }
+        assert_eq!(pgn_tree.pgn(), "");
+    }
+    
+    #[test]
+    fn complex_pgn_test() {
+        generic_pgn_test("complex");
+    }
+    
+    #[test]
+    fn rosen1_pgn_test() {
+        generic_pgn_test("rosen1");
+    }
 }

@@ -75,7 +75,7 @@ pub fn bishop_attacks(origin: Bitboard, occupied: Bitboard) -> Bitboard {
     let w_distance: u32 = leading_zeros % 8;
     let e_distance: u32 = 7 - w_distance;
     let (mut pos_nw, mut pos_ne, mut pos_sw, mut pos_se): (Bitboard, Bitboard, Bitboard, Bitboard) = (origin, origin, origin, origin);
-    for i in 0..cmp::min(n_distance, w_distance) {
+    for _ in 0..cmp::min(n_distance, w_distance) {
         pos_nw <<= 9;
         attacks |= pos_nw;
         if occupied & pos_nw != 0 {
