@@ -30,7 +30,7 @@ impl Square {
     }
 
     pub const fn get_rank(&self) -> u8 {
-        *self as u8 / 8
+        7 - *self as u8 / 8
     }
     
     pub const fn get_file_char(&self) -> char {
@@ -84,7 +84,7 @@ impl PieceType {
     }
     
     pub const fn to_char(&self) -> char {
-        ColoredPiece::from(Color::White, *self).to_char()
+        ColoredPiece::from(Color::Black, *self).to_char()
     }
 }
 
