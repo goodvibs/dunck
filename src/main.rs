@@ -28,6 +28,7 @@ use crate::state::State;
 fn main() {
     let mut state = State::initial();
     loop {
+        println!();
         println!("{}", state.to_fen());
         state.board.print();
         let moves = state.get_legal_moves();
