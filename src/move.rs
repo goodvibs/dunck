@@ -76,6 +76,16 @@ impl Move {
         let (dst_str, src_str, promotion_char, flag_str) = (src.to_readable(), dst.to_readable(), promotion.to_char(), flag.to_readable());
         format!("{}{}{}", dst_str, src_str, flag_str.replace('?', &promotion_char.to_string()))
     }
+    
+    pub fn uci(&self) -> String {
+        let (dst, src, promotion, flag) = self.unpack();
+        let (dst_str, src_str) = (dst.to_readable(), src.to_readable());
+        let promotion_str = match flag {
+            MoveFlag::Promotion => promotion.to_char().to_string(),
+            _ => "".to_string()
+        };
+        format!("{}{}{}", src_str, dst_str, promotion_str)
+    }
 
     pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
         let (dst, src, promotion, flag) = self.unpack();
