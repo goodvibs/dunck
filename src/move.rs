@@ -27,7 +27,7 @@ impl MoveFlag {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Move {
     // format: DDDDDDSSSSSSPPMM (D: destination, S: source, P: promotion PieceType value minus 2, M: MoveFlag value)
     pub value: u16,
