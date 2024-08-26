@@ -1,7 +1,7 @@
 use crate::attacks::{bishop_attacks, king_attacks, knight_attacks, pawn_attacks, pawn_moves, rook_attacks};
 use crate::bitboard::unpack_bb;
 use crate::miscellaneous::{Color, PieceType, Square};
-use crate::masks::{BLACK_CASTLING_SPACE_LONG, BLACK_CASTLING_SPACE_SHORT, FILE_A, RANK_3, RANK_5, RANK_6, RANK_8, WHITE_CASTLING_SPACE_LONG, WHITE_CASTLING_SPACE_SHORT};
+use crate::masks::{BLACK_CASTLING_SPACE_LONG, BLACK_CASTLING_SPACE_SHORT, FILE_A, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8, WHITE_CASTLING_SPACE_LONG, WHITE_CASTLING_SPACE_SHORT};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 
@@ -34,23 +34,24 @@ impl State {
             }
         }
     }
-    
+
     fn add_en_passant_pseudolegal(&self, moves: &mut Vec<Move>) {
         let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
         let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize] & same_color_bb;
 
-        let (src_offset, dst_offset) = match self.side_to_move {
-            Color::White => (24, 16),
-            Color::Black => (32, 40)
+        let (src_rank_bb, dst_rank_bb) = match self.side_to_move {
+            Color::White => (RANK_5, RANK_6),
+            Color::Black => (RANK_4, RANK_3),
         };
-        if (*self.context).double_pawn_push != -1 { // if en passant is possible
-            for direction in [-1, 1].iter() { // left and right
+
+        if self.context.double_pawn_push != -1 { // if en passant is possible
+            for &direction in [-1, 1].iter() { // left and right
                 let double_pawn_push_file = self.context.double_pawn_push as i32 + direction;
                 if double_pawn_push_file >= 0 && double_pawn_push_file <= 7 { // if within bounds
                     let double_pawn_push_file_mask = FILE_A >> double_pawn_push_file;
-                    if pawns_bb & double_pawn_push_file_mask & RANK_5 != 0 {
-                        let move_src = unsafe { Square::from((src_offset + double_pawn_push_file) as u8) };
-                        let move_dst = unsafe { Square::from((dst_offset + self.context.double_pawn_push) as u8) };
+                    if pawns_bb & double_pawn_push_file_mask & src_rank_bb != 0 {
+                        let move_src = unsafe { Square::from(src_rank_bb.leading_zeros() as u8 + double_pawn_push_file as u8) };
+                        let move_dst = unsafe { Square::from(dst_rank_bb.leading_zeros() as u8 + self.context.double_pawn_push as u8) };
                         moves.push(Move::new_non_promotion(move_dst, move_src, MoveFlag::EnPassant));
                     }
                 }
