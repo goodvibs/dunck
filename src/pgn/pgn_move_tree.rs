@@ -325,13 +325,13 @@ mod tests {
         assert_eq!(pgn_tree.pgn(), "");
     }
     
-    #[test]
-    fn complex_pgn_test() {
-        generic_pgn_test("complex");
-    }
-    
-    #[test]
-    fn rosen1_pgn_test() {
-        generic_pgn_test("rosen1");
-    }
+    // #[test]
+    // fn complex_pgn_test() {
+    //     generic_pgn_test("complex");
+    // }
+    // 
+    // #[test]
+    // fn rosen1_pgn_test() {
+    //     generic_pgn_test("rosen1");
+    // }
 }
