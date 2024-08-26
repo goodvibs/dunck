@@ -1,5 +1,6 @@
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use std::iter::zip;
     use std::str::FromStr;
     use chess;
@@ -22,7 +23,7 @@ mod tests {
         let possible_moves = state.get_legal_moves();
         assert_eq!(movegen.len(), possible_moves.len());
     }
-    
+
     fn are_squares_equal(square: Square, chess_square: chess::Square) -> bool {
         let file = square.get_file();
         let rank = square.get_rank();
@@ -30,14 +31,14 @@ mod tests {
         let created_chess_square = unsafe { chess::Square::new(chess_square_number) };
         created_chess_square == chess_square
     }
-    
+
     fn are_moves_equal(mv: Move, chess_mv: chess::ChessMove) -> bool {
         let uci = mv.uci();
         let flag = mv.get_flag();
         let created_chess_mv = chess::ChessMove::from_str(uci.as_str()).unwrap();
         created_chess_mv == chess_mv
     }
-    
+
     #[test]
     fn test_are_moves_equal() {
         let mv = Move::new(Square::E4, Square::E2, Move::DEFAULT_PROMOTION_VALUE, MoveFlag::NormalMove);
@@ -47,7 +48,7 @@ mod tests {
         let mv = Move::new(Square::H8, Square::G7, PieceType::Knight, MoveFlag::Promotion);
         let chess_mv = chess::ChessMove::from_str("g7h8n").unwrap();
         assert!(are_moves_equal(mv, chess_mv));
-        
+
         let mv = Move::new(Square::F1, Square::F2, PieceType::Bishop, MoveFlag::Promotion);
         let chess_mv = chess::ChessMove::from_str("f2f1b").unwrap();
         assert!(are_moves_equal(mv, chess_mv));
@@ -60,7 +61,12 @@ mod tests {
 
         let found_fen = state.to_fen(); // for debugging
         let expected_fen = validation_board.to_string(); // for debugging
-        // assert_eq!(fen, validation_fen);
+        // assert_eq!(found_fen, expected_fen);
+        let found_fen_split = found_fen.split_ascii_whitespace().collect::<Vec<_>>();
+        let expected_fen_split = expected_fen.split_ascii_whitespace().collect::<Vec<_>>();
+        let (found_fen_board, found_fen_side_to_move, found_fen_castling_rights) = (found_fen_split[0], found_fen_split[1], found_fen_split[2]);
+        let (expected_fen_board, expected_fen_side_to_move, expected_fen_castling_rights) = (expected_fen_split[0], expected_fen_split[1], expected_fen_split[2]);
+        assert_eq!(found_fen_split[0..3], expected_fen_split[0..3]); // ensure board, side to move, and castling rights are the same
 
         let found_moves_unordered = state.get_legal_moves();
         let expected_moves = chess::MoveGen::new_legal(&validation_board);
@@ -70,6 +76,7 @@ mod tests {
 
         found_moves_ordered = Vec::with_capacity(found_count as usize);
         for expected_move in expected_moves {
+            let expected_move_uci = expected_move.to_string(); // for debugging
             let mut corresponding_move = None;
             for found_move in &found_moves_unordered {
                 if are_moves_equal(*found_move, expected_move) {
@@ -87,8 +94,8 @@ mod tests {
             }
         }
         if found_moves_ordered.len() != found_moves_unordered.len() {
-            let found_moves_set = found_moves_unordered.iter().collect::<std::collections::HashSet<_>>();
-            let expected_moves_set = found_moves_ordered.iter().collect::<std::collections::HashSet<_>>();
+            let found_moves_set = found_moves_unordered.iter().collect::<HashSet<_>>();
+            let expected_moves_set = found_moves_ordered.iter().collect::<HashSet<_>>();
             let missing_moves = found_moves_set.difference(&expected_moves_set).collect::<Vec<_>>();
             let missing_moves_uci = missing_moves.iter().map(|mv| mv.uci()).collect::<Vec<_>>(); // for debugging
             assert!(missing_moves.is_empty());
@@ -113,6 +120,16 @@ mod tests {
     fn test_initial_depth_4() {
         let state = State::initial();
         let validation_board = chess::Board::default();
+        let possible_moves = state.get_legal_moves();
+        let (found_count, known_count) = count_moves_and_test(&state, validation_board, 4);
+        assert_eq!(found_count, known_count);
+    }
+    
+    #[test]
+    fn test_depth_1() {
+        let fen = "rnbqkbnr/1ppppppp/8/p7/1P6/P7/2PPPPPP/RNBQKBNR b KQkq b3 0 2";
+        let state = State::from_fen(fen).unwrap();
+        let validation_board = chess::Board::from_str(fen).unwrap();
         let possible_moves = state.get_legal_moves();
         let (found_count, known_count) = count_moves_and_test(&state, validation_board, 4);
         assert_eq!(found_count, known_count);
