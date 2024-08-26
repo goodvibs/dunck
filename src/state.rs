@@ -3,7 +3,7 @@ use crate::board::Board;
 use crate::charboard::print_bb_pretty;
 use crate::r#move::*;
 use crate::miscellaneous::*;
-use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, CASTLING_SPACE_LONG, CASTLING_SPACE_SHORT, FILES, RANK_4, STARTING_BK, STARTING_QUEEN_SIDE_BR, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK, STARTING_WK, STARTING_QUEEN_SIDE_WR, STARTING_KING_SIDE_WR};
+use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, FILES, RANK_4, STARTING_BK, STARTING_QUEEN_SIDE_BR, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK, STARTING_WK, STARTING_QUEEN_SIDE_WR, STARTING_KING_SIDE_WR};
 use crate::pgn::pgn_move_tree::PgnParseError;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -126,11 +126,11 @@ impl State {
     }
 
     const fn has_castling_space_short(&self, color: Color) -> bool {
-        CASTLING_SPACE_SHORT[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
+        STARTING_KING_ROOK_GAP_SHORT[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
     }
 
     const fn has_castling_space_long(&self, color: Color) -> bool {
-        CASTLING_SPACE_LONG[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
+        STARTING_KING_ROOK_GAP_LONG[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
     }
     
     fn can_castle_short_without_check(&self, color: Color) -> bool {
@@ -141,11 +141,11 @@ impl State {
         !self.board.is_mask_in_check(CASTLING_CHECK_MASK_LONG[color.flip() as usize], color.flip())
     }
     
-    pub fn can_castle_short(&self, color: Color) -> bool {
+    pub fn can_legally_castle_short(&self, color: Color) -> bool {
         self.has_castling_rights_short(color) && self.has_castling_space_short(color) && self.can_castle_short_without_check(color)
     }
     
-    pub fn can_castle_long(&self, color: Color) -> bool {
+    pub fn can_legally_castle_long(&self, color: Color) -> bool {
         self.has_castling_rights_long(color) && self.has_castling_space_long(color) && self.can_castle_long_without_check(color)
     }
     
@@ -242,7 +242,7 @@ impl State {
 
                 self.board.bb_by_piece_type[PieceType::King as usize] ^= src_dst;
                 
-                let is_king_side = dst & CASTLING_SPACE_SHORT[self.side_to_move as usize] != 0;
+                let is_king_side = dst & STARTING_KING_ROOK_GAP_SHORT[self.side_to_move as usize] != 0;
 
                 let rook_src_square = match is_king_side {
                     true => unsafe { Square::from(src_square as u8 + 3) },

@@ -1,7 +1,8 @@
 use crate::attacks::{bishop_attacks, king_attacks, knight_attacks, pawn_attacks, pawn_moves, rook_attacks};
 use crate::bitboard::unpack_bb;
+use crate::charboard::print_bb;
 use crate::miscellaneous::{Color, PieceType, Square};
-use crate::masks::{BLACK_CASTLING_SPACE_LONG, BLACK_CASTLING_SPACE_SHORT, FILE_A, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8, WHITE_CASTLING_SPACE_LONG, WHITE_CASTLING_SPACE_SHORT};
+use crate::masks::{STARTING_BK_BR_GAP_LONG, STARTING_BK_BR_GAP_SHORT, FILE_A, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8, STARTING_WK_WR_GAP_LONG, STARTING_WK_WR_GAP_SHORT};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 
@@ -192,11 +193,11 @@ impl State {
             Color::Black => Square::E8
         };
 
-        if self.can_castle_short(self.side_to_move) {
+        if self.can_legally_castle_short(self.side_to_move) {
             let king_dst_square = unsafe { Square::from(king_src_square as u8 + 2) };
             moves.push(Move::new_non_promotion(king_dst_square, king_src_square, MoveFlag::Castling));
         }
-        if self.can_castle_long(self.side_to_move) {
+        if self.can_legally_castle_long(self.side_to_move) {
             let king_dst_square = unsafe { Square::from(king_src_square as u8 - 2) };
             moves.push(Move::new_non_promotion(king_dst_square, king_src_square, MoveFlag::Castling));
         }
