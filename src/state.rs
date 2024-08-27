@@ -138,7 +138,7 @@ impl State {
     }
     
     fn can_castle_long_without_check(&self, color: Color) -> bool {
-        !self.board.is_mask_in_check(CASTLING_CHECK_MASK_LONG[color.flip() as usize], color.flip())
+        !self.board.is_mask_in_check(CASTLING_CHECK_MASK_LONG[color as usize], color.flip())
     }
     
     pub fn can_legally_castle_short(&self, color: Color) -> bool {
