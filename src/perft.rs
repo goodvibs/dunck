@@ -115,23 +115,40 @@ mod tests {
         assert_eq!(found_count, known_count);
         (found_count, known_count)
     }
+    
+    fn generic_depth_test(fen: Option<&str>, depth: u32) {
+        let (state, validation_board) = match fen {
+            Some(fen) => {
+                let state = State::from_fen(fen).unwrap();
+                let validation_board = chess::Board::from_str(fen).unwrap();
+                (state, validation_board)
+            }
+            None => {
+                let state = State::initial();
+                let validation_board = chess::Board::default();
+                (state, validation_board)
+            }
+        };
+        let possible_moves = state.get_legal_moves();
+        let (found_count, known_count) = count_moves_and_test(&state, validation_board, depth);
+        assert_eq!(found_count, known_count);
+        println!("{} moves", found_count);
+    }
 
     #[test]
     fn test_initial_depth_4() {
-        let state = State::initial();
-        let validation_board = chess::Board::default();
-        let possible_moves = state.get_legal_moves();
-        let (found_count, known_count) = count_moves_and_test(&state, validation_board, 4);
-        assert_eq!(found_count, known_count);
+        generic_depth_test(None, 4);
     }
     
     #[test]
-    fn test_depth_1() {
-        let fen = "rnbqkbnr/1ppppppp/8/p7/1P6/P7/2PPPPPP/RNBQKBNR b KQkq b3 0 2";
-        let state = State::from_fen(fen).unwrap();
-        let validation_board = chess::Board::from_str(fen).unwrap();
-        let possible_moves = state.get_legal_moves();
-        let (found_count, known_count) = count_moves_and_test(&state, validation_board, 4);
-        assert_eq!(found_count, known_count);
+    fn test_arb_depth_5() {
+        let fen = "1k6/1P6/3P1N2/2K3R1/8/3p3B/8/8 w - - 0 1";
+        generic_depth_test(Some(fen), 5);
+    }
+    
+    #[test]
+    fn test_kiwipete_depth_4() {
+        let fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1";
+        generic_depth_test(Some(fen), 4);
     }
 }
