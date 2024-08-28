@@ -172,4 +172,10 @@ mod tests {
         let fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8";
         generic_depth_test(Some(fen), 4);
     }
+
+    #[test]
+    fn test_p6_depth_4() {
+        let fen = "r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10";
+        generic_depth_test(Some(fen), 4);
+    }
 }
