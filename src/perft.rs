@@ -86,7 +86,10 @@ mod tests {
                 }
             }
             match corresponding_move {
-                None => panic!(),
+                None => {
+                    let moves_uci = found_moves_unordered.iter().map(|mv| mv.uci()).collect::<Vec<_>>(); // for debugging
+                    panic!()
+                },
                 Some(found_move) => {
                     assert!(!found_moves_ordered.contains(&found_move));
                     found_moves_ordered.push(found_move);

@@ -183,7 +183,7 @@ impl State {
         self.board.bb_by_color[self.side_to_move as usize] ^= src_dst; // sufficient for all moves except the rook in castling
         
         match flag {
-            MoveFlag::NormalMove => {
+            MoveFlag::NormalMove | MoveFlag::Promotion => {
                 self.board.bb_by_color[opposite_color as usize] &= !dst; // clear opponent's piece if any
                 let captured_piece = self.board.process_uncolored_capture_and_get_captured_piece_type_at(dst);
                 if captured_piece != PieceType::NoPieceType {
@@ -205,29 +205,36 @@ impl State {
                     }
                 }
                 
-                let moved_piece = self.board.get_piece_type_at(src);
-                
-                self.board.bb_by_piece_type[moved_piece as usize] &= !src;
-                self.board.bb_by_piece_type[moved_piece as usize] |= dst;
-                
-                match moved_piece {
-                    PieceType::Pawn => {
-                        new_context.halfmove_clock = 0;
-                        if dst & (src << 16) != 0 || dst & (src >> 16) != 0 { // double pawn push
-                            new_context.double_pawn_push = (src_square as u8 % 8) as i8;
-                        }
-                    },
-                    PieceType::King => {
-                        new_context.castling_rights &= !0b00001100 >> castling_color_adjustment;
-                    },
-                    PieceType::Rook => {
-                        let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8));
-                        let is_queen_side = src & (0b10000000u64 << (self.side_to_move as u64 * 7 * 8));
-                        let king_side_mask = (is_king_side != 0) as u8 * (0b00001000 >> castling_color_adjustment);
-                        let queen_side_mask = (is_queen_side != 0) as u8 * (0b00000100 >> castling_color_adjustment);
-                        new_context.castling_rights &= !(king_side_mask | queen_side_mask);
-                    },
-                    _ => {}
+                if flag == MoveFlag::Promotion {
+                    new_context.halfmove_clock = 0;
+                    self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
+                    self.board.bb_by_piece_type[promotion as usize] |= dst;
+                }
+                else { // flag == MoveFlag::NormalMove
+                    let moved_piece = self.board.get_piece_type_at(src);
+
+                    self.board.bb_by_piece_type[moved_piece as usize] &= !src;
+                    self.board.bb_by_piece_type[moved_piece as usize] |= dst;
+
+                    match moved_piece {
+                        PieceType::Pawn => {
+                            new_context.halfmove_clock = 0;
+                            if dst & (src << 16) != 0 || dst & (src >> 16) != 0 { // double pawn push
+                                new_context.double_pawn_push = (src_square as u8 % 8) as i8;
+                            }
+                        },
+                        PieceType::King => {
+                            new_context.castling_rights &= !0b00001100 >> castling_color_adjustment;
+                        },
+                        PieceType::Rook => {
+                            let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8));
+                            let is_queen_side = src & (0b10000000u64 << (self.side_to_move as u64 * 7 * 8));
+                            let king_side_mask = (is_king_side != 0) as u8 * (0b00001000 >> castling_color_adjustment);
+                            let queen_side_mask = (is_queen_side != 0) as u8 * (0b00000100 >> castling_color_adjustment);
+                            new_context.castling_rights &= !(king_side_mask | queen_side_mask);
+                        },
+                        _ => {}
+                    }
                 }
             },
             MoveFlag::EnPassant => { // en passant capture
@@ -256,14 +263,6 @@ impl State {
                 
                 self.board.bb_by_color[self.side_to_move as usize] ^= rook_src_dst;
                 self.board.bb_by_piece_type[PieceType::Rook as usize] ^= rook_src_dst;
-            },
-            MoveFlag::Promotion => {
-                self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
-                for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
-                    self.board.bb_by_piece_type[piece_type_int] &= !dst;
-                }
-                self.board.bb_by_color[opposite_color as usize] &= !dst;
-                self.board.bb_by_piece_type[promotion as usize] |= dst;
             }
         }
         

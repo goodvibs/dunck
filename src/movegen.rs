@@ -2,7 +2,7 @@ use crate::attacks::{bishop_attacks, king_attacks, knight_attacks, pawn_attacks,
 use crate::bitboard::unpack_bb;
 use crate::charboard::print_bb;
 use crate::miscellaneous::{Color, PieceType, Square};
-use crate::masks::{STARTING_BK_BR_GAP_LONG, STARTING_BK_BR_GAP_SHORT, FILE_A, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8, STARTING_WK_WR_GAP_LONG, STARTING_WK_WR_GAP_SHORT};
+use crate::masks::{STARTING_BK_BR_GAP_LONG, STARTING_BK_BR_GAP_SHORT, FILE_A, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8, STARTING_WK_WR_GAP_LONG, STARTING_WK_WR_GAP_SHORT, RANK_1};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 
@@ -19,7 +19,10 @@ impl State {
         let opposite_color = self.side_to_move.flip();
         let opposite_color_bb = self.board.bb_by_color[opposite_color as usize];
 
-        let promotion_rank = RANK_8 >> (self.side_to_move as u8 * 7 * 8); // RANK_8 for white, RANK_1 for black
+        let promotion_rank = match self.side_to_move {
+            Color::White => RANK_8,
+            Color::Black => RANK_1
+        };
 
         for src in pawn_srcs.clone() {
             let captures = pawn_attacks(src, self.side_to_move) & opposite_color_bb;
