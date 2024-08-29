@@ -94,15 +94,15 @@ impl Board {
         let all_occ = self.bb_by_piece_type[PieceType::AllPieceTypes as usize];
         let queens_bb = self.bb_by_piece_type[PieceType::Queen as usize];
 
-        let mut attacks = pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & attacking_color_pieces, by_color);
-        attacks |= knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & attacking_color_pieces);
+        let mut attacks = multi_pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & attacking_color_pieces, by_color);
+        attacks |= multi_knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & attacking_color_pieces);
         for bb in unpack_bb((self.bb_by_piece_type[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
-            attacks |= bishop_attacks(bb, all_occ);
+            attacks |= single_bishop_attacks(bb, all_occ);
         }
         for bb in unpack_bb((self.bb_by_piece_type[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
-            attacks |= rook_attacks(bb, all_occ);
+            attacks |= single_rook_attacks(bb, all_occ);
         }
-        attacks |= king_attacks(self.bb_by_piece_type[PieceType::King as usize] & attacking_color_pieces);
+        attacks |= multi_king_attacks(self.bb_by_piece_type[PieceType::King as usize] & attacking_color_pieces);
         attacks & mask != 0
     }
 

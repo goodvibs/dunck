@@ -19,6 +19,7 @@ mod movegen;
 mod fen;
 mod perft;
 mod san;
+mod precompute;
 
 use crate::charboard::*;
 use crate::attacks::*;

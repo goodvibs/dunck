@@ -1,4 +1,4 @@
-use crate::attacks::{bishop_attacks, king_attacks, knight_attacks, pawn_attacks, pawn_moves, rook_attacks};
+use crate::attacks::{single_bishop_attacks, multi_king_attacks, multi_knight_attacks, multi_pawn_attacks, multi_pawn_moves, single_rook_attacks, single_knight_attacks, single_king_attacks};
 use crate::bitboard::unpack_bb;
 use crate::charboard::print_bb;
 use crate::miscellaneous::{Color, PieceType, Square};
@@ -23,7 +23,7 @@ impl State {
         };
 
         for src in pawn_srcs.clone() {
-            let captures = pawn_attacks(src, self.side_to_move) & opposite_color_bb;
+            let captures = multi_pawn_attacks(src, self.side_to_move) & opposite_color_bb;
             for dst in unpack_bb(captures) {
                 let move_src = unsafe { Square::from(src.leading_zeros() as u8) };
                 let move_dst = unsafe { Square::from(dst.leading_zeros() as u8) };
@@ -75,7 +75,7 @@ impl State {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
 
             // single moves
-            let single_move_dst = pawn_moves(*src_bb, self.side_to_move) & !all_occupancy_bb;
+            let single_move_dst = multi_pawn_moves(*src_bb, self.side_to_move) & !all_occupancy_bb;
             if single_move_dst == 0 { // if no single moves
                 continue;
             }
@@ -84,7 +84,7 @@ impl State {
 
             // double push
             if single_move_dst & single_push_rank != 0 {
-                let double_move_dst = pawn_moves(single_move_dst, self.side_to_move) & !all_occupancy_bb;
+                let double_move_dst = multi_pawn_moves(single_move_dst, self.side_to_move) & !all_occupancy_bb;
                 if double_move_dst != 0 {
                     unsafe {
                         let double_move_dst_square = Square::from(double_move_dst.leading_zeros() as u8);
@@ -118,7 +118,7 @@ impl State {
         let knights_bb = self.board.bb_by_piece_type[PieceType::Knight as usize] & same_color_bb;
         for src_bb in unpack_bb(knights_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let knight_moves = knight_attacks(*src_bb) & !same_color_bb;
+            let knight_moves = single_knight_attacks(*src_bb) & !same_color_bb;
             for dst_bb in unpack_bb(knight_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
@@ -133,7 +133,7 @@ impl State {
         let bishops_bb = self.board.bb_by_piece_type[PieceType::Bishop as usize] & same_color_bb;
         for src_bb in unpack_bb(bishops_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let bishop_moves = bishop_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
+            let bishop_moves = single_bishop_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
             for dst_bb in unpack_bb(bishop_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
@@ -148,7 +148,7 @@ impl State {
         let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize] & same_color_bb;
         for src_bb in unpack_bb(rooks_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let rook_moves = rook_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
+            let rook_moves = single_rook_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
             for dst_bb in unpack_bb(rook_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
@@ -163,7 +163,7 @@ impl State {
         let queens_bb = self.board.bb_by_piece_type[PieceType::Queen as usize] & same_color_bb;
         for src_bb in unpack_bb(queens_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
-            let queen_moves = (rook_attacks(*src_bb, all_occupancy_bb) | bishop_attacks(*src_bb, all_occupancy_bb)) & !same_color_bb;
+            let queen_moves = (single_rook_attacks(*src_bb, all_occupancy_bb) | single_bishop_attacks(*src_bb, all_occupancy_bb)) & !same_color_bb;
             for dst_bb in unpack_bb(queen_moves).iter() {
                 let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
                 moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
@@ -178,7 +178,7 @@ impl State {
         // king moves
         let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & same_color_bb;
         let king_src_square = unsafe { Square::from(king_src_bb.leading_zeros() as u8) };
-        let king_moves = king_attacks(king_src_bb) & !same_color_bb;
+        let king_moves = single_king_attacks(king_src_bb) & !same_color_bb;
         for dst_bb in unpack_bb(king_moves).iter() {
             let dst_square = unsafe { Square::from(dst_bb.leading_zeros() as u8) };
             moves.push(Move::new_non_promotion(dst_square, king_src_square, MoveFlag::NormalMove));
