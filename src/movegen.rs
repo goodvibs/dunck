@@ -7,10 +7,8 @@ use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 
 fn add_pawn_promotion_moves(moves: &mut Vec<Move>, src: Square, dst: Square) {
-    for promotion_int in PieceType::Knight as u8.. PieceType::Queen as u8 + 1 {
-        unsafe {
-            moves.push(Move::new(dst, src, PieceType::from(promotion_int), MoveFlag::Promotion));
-        }
+    for promotion_piece in PieceType::iter_between(PieceType::Knight, PieceType::Queen) {
+        moves.push(Move::new(dst, src, promotion_piece, MoveFlag::Promotion));
     }
 }
 

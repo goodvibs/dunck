@@ -41,14 +41,22 @@ impl Square {
         (b'1' + self.get_rank()) as char
     }
 
-    pub const fn to_readable(&self) -> &str {
+    pub const fn readable(&self) -> &str {
         SQUARE_NAMES[*self as usize]
+    }
+    
+    pub fn iter_all() -> impl Iterator<Item = Square> {
+        Square::iter_between(Square::A8, Square::H1)
+    }
+    
+    pub fn iter_between(first: Square, last: Square) -> impl Iterator<Item = Square> {
+        (first as u8..=last as u8).map(|n| unsafe { Square::from(n) })
     }
 }
 
 impl Display for Square {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.to_readable())
+        write!(f, "{}", self.readable())
     }
 }
 
@@ -66,6 +74,10 @@ impl Color {
     pub const fn flip(&self) -> Color {
         unsafe { std::mem::transmute::<u8, Color>(!(*self as u8)) }
     }
+
+    pub fn iter() -> impl Iterator<Item = Color> {
+        (0..=1).map(|n| unsafe { std::mem::transmute::<u8, Color>(n) })
+    }
 }
 
 #[repr(u8)]
@@ -75,16 +87,28 @@ pub enum PieceType {
 }
 
 impl PieceType {
-    pub const LIMIT: usize = 7;
+    pub const LIMIT: u8 = 7;
     pub const AllPieceTypes: PieceType = PieceType::NoPieceType;
     
     pub const unsafe fn from(piece_type_number: u8) -> PieceType {
         assert!(piece_type_number < PieceType::LIMIT as u8, "Piece type number out of bounds");
         std::mem::transmute::<u8, PieceType>(piece_type_number)
     }
-    
+
     pub const fn to_char(&self) -> char {
         ColoredPiece::from(Color::Black, *self).to_char()
+    }
+
+    pub fn iter_all() -> impl Iterator<Item = PieceType> {
+        PieceType::iter_between(PieceType::NoPieceType, PieceType::King)
+    }
+
+    pub fn iter_pieces() -> impl Iterator<Item = PieceType> {
+        PieceType::iter_between(PieceType::Pawn, PieceType::King)
+    }
+
+    pub fn iter_between(first: PieceType, last: PieceType) -> impl Iterator<Item = PieceType> {
+        (first as u8..=last as u8).map(|n| unsafe { PieceType::from(n) })
     }
 }
 

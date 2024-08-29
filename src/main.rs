@@ -18,6 +18,7 @@ mod bitboard;
 mod movegen;
 mod fen;
 mod perft;
+mod san;
 
 use crate::charboard::*;
 use crate::attacks::*;

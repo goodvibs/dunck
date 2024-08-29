@@ -5,7 +5,7 @@ use crate::masks::*;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Board {
-    pub bb_by_piece_type: [Bitboard; PieceType::LIMIT],
+    pub bb_by_piece_type: [Bitboard; PieceType::LIMIT as usize],
     pub bb_by_color: [Bitboard; 2],
     // pub colored_piece_count: [u8; ColoredPiece::LIMIT],
 }
@@ -48,7 +48,7 @@ impl Board {
 
     pub fn blank() -> Board {
         Board {
-            bb_by_piece_type: [0; PieceType::LIMIT],
+            bb_by_piece_type: [0; PieceType::LIMIT as usize],
             bb_by_color: [0; 2],
             // colored_piece_count: [0; ColoredPiece::LIMIT]
         }
@@ -119,8 +119,8 @@ impl Board {
     }
 
     pub fn clear_pieces_at(&mut self, mask: Bitboard) {
-        for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
-            self.bb_by_piece_type[piece_type_int] &= !mask;
+        for piece_type in PieceType::iter_pieces() {
+            self.bb_by_piece_type[piece_type as usize] &= !mask;
         }
         for color_int in Color::White as usize..Color::Black as usize + 1 {
             self.bb_by_color[color_int] &= !mask;
@@ -128,11 +128,11 @@ impl Board {
         self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
     }
     
-    pub fn process_uncolored_capture_and_get_captured_piece_type_at(&mut self, mask: Bitboard) -> PieceType {
+    pub fn remove_and_get_captured_piece_type_at(&mut self, mask: Bitboard) -> PieceType {
         self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
-        for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
+        for piece_type in PieceType::iter_pieces() {
+            let piece_type_int = piece_type as usize;
             if self.bb_by_piece_type[piece_type_int] & mask != 0 {
-                let piece_type = unsafe { PieceType::from(piece_type_int as u8) };
                 self.bb_by_piece_type[piece_type_int] &= !mask;
                 return piece_type;
             }
@@ -153,9 +153,10 @@ impl Board {
     }
     
     pub fn get_piece_type_at(&self, square_mask: Bitboard) -> PieceType {
-        for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
-            if self.bb_by_piece_type[piece_type_int] & square_mask != 0 {
-                return unsafe { PieceType::from(piece_type_int as u8) };
+        for piece_type in PieceType::iter_pieces() {
+            let piece_type_int = piece_type as u8;
+            if self.bb_by_piece_type[piece_type_int as usize] & square_mask != 0 {
+                return unsafe { PieceType::from(piece_type_int) };
             }
         }
         PieceType::NoPieceType
@@ -180,8 +181,8 @@ impl Board {
 
         let mut all_occupancy_bb_reconstructed: Bitboard = 0;
 
-        for piece_type_int in PieceType::Pawn as usize..PieceType::LIMIT {
-            let piece_bb = self.bb_by_piece_type[piece_type_int];
+        for piece_type in PieceType::iter_pieces() {
+            let piece_bb = self.bb_by_piece_type[piece_type as usize];
 
             if piece_bb & all_occupancy_bb != piece_bb {
                 return false;
@@ -355,8 +356,10 @@ mod tests {
     #[test]
     fn test_get_colored_piece_bb() {
         let board = Board::initial();
-        for piece_type_int in PieceType::Pawn as u8..PieceType::LIMIT as u8 {
-            for color_int in Color::White as u8..Color::Black as u8 + 1 {
+        for piece_type in PieceType::iter_pieces() {
+            let piece_type_int = piece_type as u8;
+            for color in Color::iter() {
+                let color_int = color as u8;
                 let colored_piece = ColoredPiece::from(Color::from(color_int != 0), unsafe { PieceType::from(piece_type_int) });
                 let colored_piece_bb = board.get_colored_piece_bb(colored_piece);
                 let expected_bb = board.bb_by_piece_type[piece_type_int as usize] & board.bb_by_color[color_int as usize];

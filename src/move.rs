@@ -1,6 +1,7 @@
-use crate::miscellaneous::{PieceType, Square};
+use crate::miscellaneous::{Color, PieceType, Square};
 use crate::charboard::SQUARE_NAMES;
-use crate::state::{State, Termination};
+use crate::masks::{STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
+use crate::state::{State, StateContext, Termination};
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -71,184 +72,168 @@ impl Move {
         (self.get_destination(), self.get_source(), self.get_promotion(), self.get_flag())
     }
 
-    pub fn to_readable(&self) -> String {
+    pub fn readable(&self) -> String {
         let (dst, src, promotion, flag) = self.unpack();
-        let (dst_str, src_str, promotion_char, flag_str) = (src.to_readable(), dst.to_readable(), promotion.to_char(), flag.to_readable());
+        let (dst_str, src_str, promotion_char, flag_str) = (src.readable(), dst.readable(), promotion.to_char(), flag.to_readable());
         format!("{}{}{}", dst_str, src_str, flag_str.replace('?', &promotion_char.to_string()))
     }
     
     pub fn uci(&self) -> String {
         let (dst, src, promotion, flag) = self.unpack();
-        let (dst_str, src_str) = (dst.to_readable(), src.to_readable());
+        let (dst_str, src_str) = (dst.readable(), src.readable());
         let promotion_str = match flag {
             MoveFlag::Promotion => promotion.to_char().to_string(),
             _ => "".to_string()
         };
         format!("{}{}{}", src_str, dst_str, promotion_str)
     }
-
-    pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
-        let (dst, src, promotion, flag) = self.unpack();
-        
-        let dst_str = dst.to_readable();
-        let src_str = src.to_readable();
-        let (src_file, src_rank) = (src.get_file_char(), src.get_rank_char());
-        
-        let mut promotion_str = String::new();
-        let is_capture;
-        let moved_piece;
-        
-        match flag {
-            MoveFlag::Castling => {
-                return if dst_str.contains('g') {
-                    "O-O".to_string()
-                } else {
-                    "O-O-O".to_string()
-                }
-            },
-            MoveFlag::EnPassant => {
-                is_capture = true;
-                moved_piece = PieceType::Pawn;
-            },
-            MoveFlag::NormalMove | MoveFlag::Promotion => {
-                is_capture = initial_state.board.bb_by_color[final_state.side_to_move as usize] != final_state.board.bb_by_color[final_state.side_to_move as usize];
-                
-                if flag == MoveFlag::Promotion {
-                    promotion_str = format!("={}", promotion.to_char());
-                    moved_piece = PieceType::Pawn;
-                }
-                else {
-                    moved_piece = initial_state.board.get_piece_type_at(src.to_mask());
-                }
-            }
-        }
-        
-        let capture_str = if is_capture { "x" } else { "" };
-        
-        let piece_str = match moved_piece {
-            PieceType::Pawn => {
-                if is_capture {
-                    src_file.to_string()
-                }
-                else {
-                    "".to_string()
-                }
-            },
-            _ => moved_piece.to_char().to_string()
-        };
-        
-        let annotation_str;
-        if final_state.board.is_color_in_check(final_state.side_to_move) {
-            if final_state.get_legal_moves().is_empty() {
-                annotation_str = "#";
-            }
-            else {
-                annotation_str = "+";
-            }
-        }
-        else {
-            annotation_str = "";
-        }
-        
-        let mut disambiguation_str = "".to_string();
-        
-        if moved_piece != PieceType::Pawn && moved_piece != PieceType::King {
-            let mut clashes = Vec::new();
-            
-            for other_move in initial_state_moves.iter() {
-                let other_src = other_move.get_source();
-                let other_dst = other_move.get_destination();
-                if src == other_src { // same move
-                    continue;
-                }
-                if dst == other_move.get_destination() && moved_piece == initial_state.board.get_piece_type_at(other_src.to_mask()) {
-                    clashes.push(other_move);
-                }
-            }
-            
-            if !clashes.is_empty() {
-                let mut is_file_unique = true;
-                let mut is_rank_unique = true;
-                
-                for other_move in clashes {
-                    if other_move.get_source().get_file() == src.get_file() {
-                        is_file_unique = false;
-                    }
-                    if other_move.get_source().get_rank() == src.get_rank() {
-                        is_rank_unique = false;
-                    }
-                }
-                
-                if is_file_unique {
-                    disambiguation_str = src_file.to_string();
-                }
-                else if is_rank_unique {
-                    disambiguation_str = src_rank.to_string();
-                }
-                else {
-                    disambiguation_str = src_str.to_string();
-                }
-            }
-        }
-
-        format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
-    }
-    
-    pub fn matches(&self, move_str: &str) -> bool { // todo: this function is temporary, eventually remove
-        true
-    }
-
-    // pub fn matches(&self, move_str: &str) -> bool {
-    //     if move_str.len() < 2 {
-    //         return false;
-    //     }
-    //     let (src_str, dst_str, flag_str) = self.to_readable();
-    //     if move_str == "0-0" || move_str == "O-O" {
-    //         return flag_str == "castling" && dst_str.starts_with('g');
-    //     }
-    //     if move_str == "0-0-0" || move_str == "O-O-O" {
-    //         return flag_str == "castling" && dst_str.starts_with('c');
-    //     }
-    //     let bytes = move_str.as_bytes();
-    //     let mut end = move_str.len() - move_str.ends_with('+') as usize - move_str.ends_with('#') as usize;
-    //     if bytes[end - 1].is_ascii_uppercase() {
-    //         if flag_str != "P to ?".replace('?', &move_str[end - 1..end]) {
-    //             return false;
-    //         }
-    //         end -= (bytes[end - 2] == b'=') as usize;
-    //     }
-    //     let is_capture = move_str.contains('x');
-    //     if &move_str[end - 2..end] != dst_str {
-    //         return false;
-    //     }
-    //     let is_piece_move = bytes[0].is_ascii_uppercase();
-    //     if is_piece_move {
-    //         if flag_str != &move_str[0..1] {
-    //             return false;
-    //         }
-    //     }
-    //     else {
-    //         if !flag_str.contains('P') {
-    //             return false;
-    //         }
-    //     }
-    //     return match end - is_piece_move as usize - is_capture as usize {
-    //         2 => true,
-    //         3 => src_str.contains(bytes[is_piece_move as usize] as char),
-    //         _ => false
-    //     }
-    // }
 }
 
 impl std::fmt::Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.to_readable())
+        write!(f, "{}", self.readable())
     }
 }
 
 impl std::fmt::Debug for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+impl State {
+    pub fn make_move(&mut self, mv: Move) { // todo: split into smaller functions for unit testing
+        let (dst_square, src_square, promotion, flag) = mv.unpack();
+        let dst = 1 << (63 - dst_square as u8);
+        let src = 1 << (63 - src_square as u8);
+        let src_dst = src | dst;
+
+        let mut new_context = StateContext::new(
+            self.context.halfmove_clock + 1,
+            -1,
+            self.context.castling_rights.clone(),
+            PieceType::NoPieceType,
+            Some(self.context.clone())
+        );
+
+        let castling_color_adjustment = self.side_to_move as usize * 2;
+        let opposite_color = self.side_to_move.flip();
+        let previous_castling_rights = self.context.castling_rights.clone();
+
+        self.board.bb_by_color[self.side_to_move as usize] ^= src_dst; // sufficient for all moves except the rook in castling
+
+        match flag {
+            MoveFlag::NormalMove | MoveFlag::Promotion => {
+                self.board.bb_by_color[opposite_color as usize] &= !dst; // clear opposite color piece presence
+
+                // remove captured piece and get captured piece type
+                let captured_piece = self.board.remove_and_get_captured_piece_type_at(dst);
+                if captured_piece != PieceType::NoPieceType {
+                    new_context.captured_piece = captured_piece;
+                    new_context.halfmove_clock = 0;
+                    if captured_piece == PieceType::Rook {
+                        let king_side_rook_mask = STARTING_KING_SIDE_ROOK[opposite_color as usize];
+                        let queen_side_rook_mask = STARTING_QUEEN_SIDE_ROOK[opposite_color as usize];
+                        let right_shift: u8 = match opposite_color {
+                            Color::White => 0,
+                            Color::Black => 2
+                        };
+                        if dst & king_side_rook_mask != 0 {
+                            new_context.castling_rights &= !(0b00001000 >> right_shift);
+                        }
+                        else if dst & queen_side_rook_mask != 0 {
+                            new_context.castling_rights &= !(0b00000100 >> right_shift);
+                        }
+                    }
+                }
+
+                if flag == MoveFlag::Promotion {
+                    new_context.halfmove_clock = 0;
+                    self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src;
+                    self.board.bb_by_piece_type[promotion as usize] |= dst;
+                }
+                else { // flag == MoveFlag::NormalMove
+                    let moved_piece = self.board.get_piece_type_at(src);
+
+                    self.board.bb_by_piece_type[moved_piece as usize] &= !src;
+                    self.board.bb_by_piece_type[moved_piece as usize] |= dst;
+
+                    match moved_piece {
+                        PieceType::Pawn => {
+                            new_context.halfmove_clock = 0;
+                            if dst & (src << 16) != 0 || dst & (src >> 16) != 0 { // double pawn push
+                                new_context.double_pawn_push = (src_square as u8 % 8) as i8;
+                            }
+                        },
+                        PieceType::King => {
+                            new_context.castling_rights &= !0b00001100 >> castling_color_adjustment;
+                        },
+                        PieceType::Rook => {
+                            let is_king_side = src & (1u64 << (self.side_to_move as u64 * 7 * 8));
+                            let is_queen_side = src & (0b10000000u64 << (self.side_to_move as u64 * 7 * 8));
+                            let king_side_mask = (is_king_side != 0) as u8 * (0b00001000 >> castling_color_adjustment);
+                            let queen_side_mask = (is_queen_side != 0) as u8 * (0b00000100 >> castling_color_adjustment);
+                            new_context.castling_rights &= !(king_side_mask | queen_side_mask);
+                        },
+                        _ => {}
+                    }
+                }
+            },
+            MoveFlag::EnPassant => { // en passant capture
+                let en_passant_capture = ((dst << 8) * self.side_to_move as u64) | ((dst >> 8) * opposite_color as u64);
+                self.board.bb_by_piece_type[PieceType::Pawn as usize] ^= src_dst | en_passant_capture;
+                self.board.bb_by_color[opposite_color as usize] &= !en_passant_capture;
+                new_context.captured_piece = PieceType::Pawn;
+                new_context.halfmove_clock = 0;
+            },
+            MoveFlag::Castling => { // src is king's origin square, dst is king's destination square
+                new_context.castling_rights &= !0b00001100 >> castling_color_adjustment;
+
+                self.board.bb_by_piece_type[PieceType::King as usize] ^= src_dst;
+
+                let is_king_side = dst & STARTING_KING_ROOK_GAP_SHORT[self.side_to_move as usize] != 0;
+
+                let rook_src_square = match is_king_side {
+                    true => unsafe { Square::from(src_square as u8 + 3) },
+                    false => unsafe { Square::from(src_square as u8 - 4) }
+                };
+                let rook_dst_square = match is_king_side {
+                    true => unsafe { Square::from(src_square as u8 + 1) },
+                    false => unsafe { Square::from(src_square as u8 - 1) }
+                };
+                let rook_src_dst = rook_src_square.to_mask() | rook_dst_square.to_mask();
+
+                self.board.bb_by_color[self.side_to_move as usize] ^= rook_src_dst;
+                self.board.bb_by_piece_type[PieceType::Rook as usize] ^= rook_src_dst;
+            }
+        }
+
+        // update data members
+        self.halfmove += 1;
+        self.side_to_move = opposite_color;
+        self.context = Box::new(new_context);
+        self.in_check = self.board.is_color_in_check(self.side_to_move);
+        self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] = self.board.bb_by_color[Color::White as usize] | self.board.bb_by_color[Color::Black as usize];
+
+        if self.board.are_both_sides_insufficient_material() {
+            self.termination = Some(Termination::InsufficientMaterial);
+        }
+        else if self.context.halfmove_clock == 100 { // fifty move rule
+            self.termination = Some(Termination::FiftyMoveRule);
+        }
+        else {
+            // update Zobrist table
+            let position_count = self.increment_position_count();
+
+            // check for repetition
+            if position_count == 3 {
+                self.termination = Some(Termination::ThreefoldRepetition);
+            }
+        }
+    }
+
+    pub fn unmake_move(&mut self, mv: Move) {
+        // todo
     }
 }
 
@@ -259,15 +244,9 @@ mod tests {
     
     #[test]
     fn test_move() {
-        for dst_square_int in Square::A8 as u8..Square::H1 as u8 {
-            let dst_square = unsafe { Square::from(dst_square_int) };
-
-            for src_square_int in Square::A8 as u8..Square::H1 as u8 {
-                let src_square = unsafe { Square::from(src_square_int) };
-
-                for promotion_piece_int in PieceType::Knight as u8..PieceType::Queen as u8 + 1 {
-                    let promotion_piece = unsafe { PieceType::from(promotion_piece_int) };
-
+        for dst_square in Square::iter_all() {
+            for src_square in Square::iter_all() {
+                for promotion_piece in PieceType::iter_between(PieceType::Knight, PieceType::Queen) {
                     for flag_int in 0..4 {
                         let flag = unsafe { MoveFlag::from(flag_int) };
 

@@ -23,13 +23,13 @@ pub fn generate_zobrist_table() -> [[u64; 12]; 64] {
 impl Board {
     pub fn zobrist_hash(&self) -> u64 {
         let mut hash: u64 = 0;
-        for piece_type_int in PieceType::Pawn as u8..PieceType::King as u8 { // skip PieceType::NoPieceType, PieceType::King
-            let piece_bb = self.bb_by_piece_type[piece_type_int as usize];
-            for color_int in Color::White as u8..Color::Black as u8 + 1 {
-                let color_bb = self.bb_by_color[color_int as usize];
+        for piece_type in PieceType::iter_between(PieceType::Pawn, PieceType::King) { // skip PieceType::NoPieceType, PieceType::King
+            let piece_bb = self.bb_by_piece_type[piece_type as usize];
+            for color in Color::iter() {
+                let color_bb = self.bb_by_color[color as usize];
                 let combined_bb = piece_bb & color_bb;
                 for index in get_squares_from_bb(combined_bb) {
-                    hash ^= ZOBRIST_TABLE[index as usize][piece_type_int as usize - 1];
+                    hash ^= ZOBRIST_TABLE[index as usize][piece_type as usize - 1];
                 }
             }
         }
