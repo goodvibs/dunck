@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use rand::Rng;
-use crate::bitboard::get_squares_from_bb;
+use crate::bitboard::get_squares_from_mask;
 use crate::board::Board;
 use crate::miscellaneous::{Color, PieceType};
 use crate::state::State;
@@ -28,7 +28,7 @@ impl Board {
             for color in Color::iter() {
                 let color_bb = self.bb_by_color[color as usize];
                 let combined_bb = piece_bb & color_bb;
-                for index in get_squares_from_bb(combined_bb) {
+                for index in get_squares_from_mask(combined_bb) {
                     hash ^= ZOBRIST_TABLE[index as usize][piece_type as usize - 1];
                 }
             }

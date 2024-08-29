@@ -1,6 +1,6 @@
 use crate::miscellaneous::*;
 use crate::attacks::*;
-use crate::bitboard::{Bitboard, unpack_bb};
+use crate::bitboard::{Bitboard, unpack_mask};
 use crate::masks::*;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -96,10 +96,10 @@ impl Board {
 
         let mut attacks = multi_pawn_attacks(self.bb_by_piece_type[PieceType::Pawn as usize] & attacking_color_pieces, by_color);
         attacks |= multi_knight_attacks(self.bb_by_piece_type[PieceType::Knight as usize] & attacking_color_pieces);
-        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
+        for bb in unpack_mask((self.bb_by_piece_type[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
             attacks |= single_bishop_attacks(bb, all_occ);
         }
-        for bb in unpack_bb((self.bb_by_piece_type[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
+        for bb in unpack_mask((self.bb_by_piece_type[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
             attacks |= single_rook_attacks(bb, all_occ);
         }
         attacks |= multi_king_attacks(self.bb_by_piece_type[PieceType::King as usize] & attacking_color_pieces);
