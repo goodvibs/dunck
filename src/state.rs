@@ -319,7 +319,7 @@ mod tests {
         let state = State::blank();
         assert!(state.has_valid_double_pawn_push());
         
-        let mut state = State::initial();
+        let state = State::initial();
         assert_eq!(state.context.double_pawn_push, -1);
         assert!(state.has_valid_double_pawn_push());
         

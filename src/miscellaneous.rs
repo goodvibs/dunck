@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use crate::bitboard::Bitboard;
 use crate::charboard::SQUARE_NAMES;
+use crate::masks::{FILES, RANKS};
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -28,9 +29,17 @@ impl Square {
     pub const fn get_file(&self) -> u8 {
         *self as u8 % 8
     }
+    
+    pub const fn get_file_mask(&self) -> Bitboard {
+        FILES[self.get_file() as usize]
+    }
 
     pub const fn get_rank(&self) -> u8 {
         7 - *self as u8 / 8
+    }
+    
+    pub const fn get_rank_mask(&self) -> Bitboard {
+        RANKS[self.get_rank() as usize]
     }
     
     pub const fn get_file_char(&self) -> char {

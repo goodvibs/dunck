@@ -31,54 +31,44 @@ pub fn get_squares_from_mask(mut mask: Bitboard) -> Vec<Square> {
     res
 }
 
-struct BitCombinationsIterator {
-    current: Bitboard,
-    num_masks: Bitboard,
-    set_bit_positions: Vec<u32>,
+#[derive(Debug, Clone)]
+pub struct BitCombinationsIterator {
+    set: u64,
+    subset: u64,
+    finished: bool,
 }
 
 impl BitCombinationsIterator {
-    fn new(mask: Bitboard) -> Self {
-        let num_set_bits = mask.count_ones();
-        let num_masks = 1 << num_set_bits;
-        let mut set_bit_positions = Vec::with_capacity(num_set_bits as usize);
-        let mut temp_mask = mask;
-
-        // Collect all positions of set bits in the mask
-        while temp_mask != 0 {
-            set_bit_positions.push(temp_mask.trailing_zeros());
-            temp_mask &= temp_mask - 1;
-        }
-
+    pub fn new(set: u64) -> Self {
         BitCombinationsIterator {
-            current: 0,
-            num_masks: num_masks as Bitboard,
-            set_bit_positions,
+            set,
+            subset: 0,
+            finished: set == 0,
         }
     }
 }
 
 impl Iterator for BitCombinationsIterator {
-    type Item = Bitboard;
+    type Item = u64;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.current >= self.num_masks {
+        if self.finished {
             return None;
         }
 
-        let mut combination_mask = 0;
-        for (i, &bit_position) in self.set_bit_positions.iter().enumerate() {
-            if (self.current & (1 << i)) != 0 {
-                combination_mask |= 1 << bit_position;
-            }
+        let current = self.subset;
+        self.subset = self.subset.wrapping_sub(self.set) & self.set;
+
+        // Once we generate the 0 subset again, we're done
+        if self.subset == 0 && current != 0 {
+            self.finished = true;
         }
 
-        self.current += 1;
-        Some(combination_mask)
+        Some(current)
     }
 }
 
-fn generate_bit_combinations(mask: Bitboard) -> BitCombinationsIterator {
+pub fn generate_bit_combinations(mask: Bitboard) -> BitCombinationsIterator {
     BitCombinationsIterator::new(mask)
 }
 
@@ -118,7 +108,7 @@ mod tests {
     fn test_generate_bit_combinations() {
         // Test with an empty bitmask
         let mask = 0;
-        let expected: Vec<u64> = vec![0];
+        let expected: Vec<u64> = vec![];
         let result: Vec<u64> = generate_bit_combinations(mask).collect();
         assert_eq!(result, expected);
 
