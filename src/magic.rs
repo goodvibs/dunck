@@ -4,6 +4,9 @@ use crate::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
 use crate::miscellaneous::{SlidingPieceType, Square};
 use lazy_static::lazy_static;
 
+const ROOK_ATTACK_TABLE_SIZE: usize = 60 * 2usize.pow(11) + 4 * 2usize.pow(12);
+const BISHOP_ATTACK_TABLE_SIZE: usize = 4 * 2usize.pow(6) + 44 * 2usize.pow(5) + 12 * 2usize.pow(7) + 4 * 2usize.pow(9);
+
 lazy_static! {
     static ref ROOK_RELEVANT_MASKS: [Bitboard; 64] = {
         let mut masks = [0; 64];
@@ -21,9 +24,9 @@ lazy_static! {
         masks
     };
 
-    static ref ROOK_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Rook);
+    static ref ROOK_MAGIC_DICT: MagicDict<ROOK_ATTACK_TABLE_SIZE> = MagicDict::new(SlidingPieceType::Rook);
 
-    static ref BISHOP_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Bishop);
+    static ref BISHOP_MAGIC_DICT: MagicDict<BISHOP_ATTACK_TABLE_SIZE> = MagicDict::new(SlidingPieceType::Bishop);
 }
 
 fn calc_rook_relevant_mask(square: Square) -> Bitboard {
@@ -63,24 +66,21 @@ pub fn get_bishop_relevant_mask(square: Square) -> Bitboard {
     BISHOP_RELEVANT_MASKS[square as usize]
 }
 
-pub struct MagicDict {
-    attacks: Vec<Bitboard>,
+pub struct MagicDict<const N: usize> {
+    attacks: [Bitboard; N],
     magic_info_for_squares: [MagicInfo; 64],
 }
 
-impl MagicDict {
-    fn init_empty(attacks_array_size: usize) -> Self {
+impl<const N: usize> MagicDict<N> {
+    fn init_empty() -> Self {
         MagicDict {
-            attacks: vec![0; attacks_array_size],
+            attacks: [0; N],
             magic_info_for_squares: [MagicInfo { relevant_mask: 0, magic_number: 0, right_shift_amount: 0, offset: 0}; 64]
         }
     }
 
     pub fn new(sliding_piece: SlidingPieceType) -> Self {
-        let mut res = match sliding_piece {
-            SlidingPieceType::Rook => MagicDict::init_empty(60 * 2usize.pow(11) + 4 * 2usize.pow(12)),
-            SlidingPieceType::Bishop => MagicDict::init_empty(4 * 2usize.pow(6) + 44 * 2usize.pow(5) + 12 * 2usize.pow(7) + 4 * 2usize.pow(9)),
-        };
+        let mut res = Self::init_empty();
         res.fill_magic_numbers_and_attacks(sliding_piece);
         res
     }
