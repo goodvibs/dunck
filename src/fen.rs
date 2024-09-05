@@ -36,10 +36,10 @@ fn process_fen_castle(state: &mut State, fen_castle: &str) -> bool {
     if fen_castle.len() > 4 {
         return false;
     }
-    const indexer: &str = "KQkq";
+    const INDEXER: &str = "KQkq";
     let mut already_seen = [false; 4];
     for c in fen_castle.chars() {
-        let index = match indexer.find(c) {
+        let index = match INDEXER.find(c) {
             Some(i) => i,
             None => return false
         };

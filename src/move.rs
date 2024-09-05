@@ -1,6 +1,5 @@
-use crate::miscellaneous::{Color, PieceType, Square};
-use crate::charboard::SQUARE_NAMES;
 use crate::masks::{STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
+use crate::miscellaneous::{Color, PieceType, Square};
 use crate::state::{State, StateContext, Termination};
 
 #[repr(u8)]
@@ -241,7 +240,7 @@ impl State {
 mod tests {
     use super::{Move, MoveFlag};
     use crate::miscellaneous::{PieceType, Square};
-    
+
     #[test]
     fn test_move() {
         for dst_square in Square::iter_all() {

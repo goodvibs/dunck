@@ -21,9 +21,9 @@ lazy_static! {
         masks
     };
 
-    static ref rook_magic_dict: MagicDict = MagicDict::new(SlidingPieceType::Rook);
+    static ref ROOK_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Rook);
 
-    static ref bishop_magic_dict: MagicDict = MagicDict::new(SlidingPieceType::Bishop);
+    static ref BISHOP_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Bishop);
 }
 
 fn calc_rook_relevant_mask(square: Square) -> Bitboard {
@@ -183,12 +183,12 @@ pub fn calc_magic_index(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usiz
 
 pub unsafe fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
     let src_square = Square::from(src_mask.leading_zeros() as u8);
-    rook_magic_dict.calc_attack_mask(src_square, occupied_mask)
+    ROOK_MAGIC_DICT.calc_attack_mask(src_square, occupied_mask)
 }
 
 pub unsafe fn single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
     let src_square = Square::from(src_mask.leading_zeros() as u8);
-    bishop_magic_dict.calc_attack_mask(src_square, occupied_mask)
+    BISHOP_MAGIC_DICT.calc_attack_mask(src_square, occupied_mask)
 }
 
 fn gen_random_magic_number() -> Bitboard {
@@ -196,8 +196,11 @@ fn gen_random_magic_number() -> Bitboard {
 }
 
 mod tests {
-    use super::*;
+    use crate::bitboard::generate_bit_combinations;
     use crate::charboard::print_bb_pretty;
+    use crate::{magic, manual_attacks};
+    use crate::magic::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
+    use crate::miscellaneous::{SlidingPieceType, Square};
 
     #[test]
     fn test_calc_rook_relevant_mask() {
@@ -227,8 +230,8 @@ mod tests {
                 let occupied_masks_iter = generate_bit_combinations(relevant_mask);
                 for occupied_mask in occupied_masks_iter {
                     let magic_attacks = match sliding_piece {
-                        SlidingPieceType::Rook => unsafe { single_rook_attacks(src_mask, occupied_mask) },
-                        SlidingPieceType::Bishop => unsafe { single_bishop_attacks(src_mask, occupied_mask) },
+                        SlidingPieceType::Rook => unsafe { magic::single_rook_attacks(src_mask, occupied_mask) },
+                        SlidingPieceType::Bishop => unsafe { magic::single_bishop_attacks(src_mask, occupied_mask) },
                     };
                     let manual_attacks = match sliding_piece {
                         SlidingPieceType::Rook => manual_attacks::single_rook_attacks(src_mask, occupied_mask),
