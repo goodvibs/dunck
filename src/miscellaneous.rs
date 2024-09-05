@@ -1,4 +1,5 @@
 use std::fmt::Display;
+use subenum::subenum;
 use crate::bitboard::Bitboard;
 use crate::charboard::SQUARE_NAMES;
 use crate::masks::{FILES, RANKS};
@@ -21,7 +22,7 @@ impl Square {
         assert!(square_number < 64, "Square number out of bounds");
         std::mem::transmute::<u8, Square>(square_number)
     }
-    
+
     pub const fn to_mask(&self) -> Bitboard {
         1 << (63 - *self as u8)
     }
@@ -29,7 +30,7 @@ impl Square {
     pub const fn get_file(&self) -> u8 {
         *self as u8 % 8
     }
-    
+
     pub const fn get_file_mask(&self) -> Bitboard {
         FILES[self.get_file() as usize]
     }
@@ -37,7 +38,7 @@ impl Square {
     pub const fn get_rank(&self) -> u8 {
         7 - *self as u8 / 8
     }
-    
+
     pub const fn get_rank_mask(&self) -> Bitboard {
         RANKS[self.get_rank() as usize]
     }
@@ -53,11 +54,11 @@ impl Square {
     pub const fn readable(&self) -> &str {
         SQUARE_NAMES[*self as usize]
     }
-    
+
     pub fn iter_all() -> impl Iterator<Item = Square> {
         Square::iter_between(Square::A8, Square::H1)
     }
-    
+
     pub fn iter_between(first: Square, last: Square) -> impl Iterator<Item = Square> {
         (first as u8..=last as u8).map(|n| unsafe { Square::from(n) })
     }
@@ -89,10 +90,19 @@ impl Color {
     }
 }
 
+#[subenum(SlidingPieceType)]
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum PieceType {
-    NoPieceType=0, Pawn=1, Knight=2, Bishop=3, Rook=4, Queen=5, King=6
+    NoPieceType=0,
+    Pawn=1,
+    Knight=2,
+    #[subenum(SlidingPieceType)]
+    Bishop=3,
+    #[subenum(SlidingPieceType)]
+    Rook=4,
+    Queen=5,
+    King=6
 }
 
 impl PieceType {
