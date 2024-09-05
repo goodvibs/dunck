@@ -178,14 +178,6 @@ pub struct MagicInfo {
     offset: u32
 }
 
-fn manual_sliding_piece_attacks(src_mask: Bitboard, occupied_mask: Bitboard, sliding_piece: PieceType) -> Bitboard {
-    match sliding_piece {
-        PieceType::Rook => manual_attacks::single_rook_attacks(src_mask, occupied_mask),
-        PieceType::Bishop => manual_attacks::single_bishop_attacks(src_mask, occupied_mask),
-        _ => panic!("Invalid sliding piece type")
-    }
-}
-
 pub fn calc_magic_index_without_offset(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usize {
     let blockers = occupied_mask & magic_info.relevant_mask;
     let mut hash = blockers.wrapping_mul(magic_info.magic_number);
@@ -249,7 +241,11 @@ mod tests {
                         PieceType::Bishop => unsafe { single_bishop_attacks(src_mask, occupied_mask) },
                         _ => panic!("Invalid sliding piece type")
                     };
-                    let manual_attacks = manual_sliding_piece_attacks(src_mask, occupied_mask, sliding_piece);
+                    let manual_attacks = match sliding_piece {
+                        PieceType::Rook => manual_attacks::single_rook_attacks(src_mask, occupied_mask),
+                        PieceType::Bishop => manual_attacks::single_bishop_attacks(src_mask, occupied_mask),
+                        _ => panic!("Invalid sliding piece type")
+                    };
                     if magic_attacks != manual_attacks {
                         println!("Square mask:");
                         print_bb_pretty(src_mask);
