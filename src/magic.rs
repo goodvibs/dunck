@@ -1,13 +1,8 @@
-use std::collections::HashSet;
-use std::fs::{metadata, File};
-use std::io::{BufReader, BufWriter};
-use std::iter::zip;
-use lazy_static::lazy_static;
-use crate::bitboard::{generate_bit_combinations, BitCombinationsIterator, Bitboard};
-use crate::charboard::print_bb;
+use crate::bitboard::{generate_bit_combinations, Bitboard};
 use crate::manual_attacks;
-use crate::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_B, FILE_H, RANK_1, RANK_8};
-use crate::miscellaneous::{PieceType, SlidingPieceType, Square};
+use crate::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
+use crate::miscellaneous::{SlidingPieceType, Square};
+use lazy_static::lazy_static;
 
 lazy_static! {
     static ref ROOK_RELEVANT_MASKS: [Bitboard; 64] = {
@@ -201,9 +196,8 @@ fn gen_random_magic_number() -> Bitboard {
 }
 
 mod tests {
-    use std::thread;
-    use crate::charboard::{print_bb, print_bb_pretty};
     use super::*;
+    use crate::charboard::print_bb_pretty;
 
     #[test]
     fn test_calc_rook_relevant_mask() {

@@ -1,4 +1,3 @@
-use std::iter::Iterator;
 use crate::bitboard::Bitboard;
 
 pub const FILE_A: Bitboard = 0x8080808080808080;

@@ -1,10 +1,9 @@
-use std::collections::HashMap;
 use crate::board::Board;
-use crate::charboard::print_bb_pretty;
-use crate::r#move::*;
+use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::miscellaneous::*;
-use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, FILES, RANK_4, STARTING_BK, STARTING_QUEEN_SIDE_BR, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK, STARTING_WK, STARTING_QUEEN_SIDE_WR, STARTING_KING_SIDE_WR};
 use crate::pgn::pgn_move_tree::PgnParseError;
+use crate::r#move::*;
+use std::collections::HashMap;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub enum Termination {

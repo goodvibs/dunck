@@ -1,8 +1,7 @@
-use crate::attacks::{single_bishop_attacks, multi_king_attacks, multi_knight_attacks, multi_pawn_attacks, multi_pawn_moves, single_rook_attacks, single_knight_attacks, single_king_attacks};
+use crate::attacks::{multi_pawn_attacks, multi_pawn_moves, single_bishop_attacks, single_king_attacks, single_knight_attacks, single_rook_attacks};
 use crate::bitboard::unpack_mask;
-use crate::charboard::print_bb;
+use crate::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8};
 use crate::miscellaneous::{Color, PieceType, Square};
-use crate::masks::{STARTING_BK_BR_GAP_LONG, STARTING_BK_BR_GAP_SHORT, FILE_A, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8, STARTING_WK_WR_GAP_LONG, STARTING_WK_WR_GAP_SHORT, RANK_1};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 
@@ -220,9 +219,6 @@ impl State {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::miscellaneous::ColoredPiece;
-
     #[test]
     fn test_pawn_normal_captures_pseudolegal() {
         // let mut state = State::initial();
