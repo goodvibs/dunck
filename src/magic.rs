@@ -113,12 +113,6 @@ impl MagicDict {
             PieceType::Bishop => get_bishop_relevant_mask(square),
             _ => panic!("Invalid sliding piece type")
         };
-        let occupied_masks_iter = generate_bit_combinations(relevant_mask);
-        let occupied_masks = occupied_masks_iter.collect::<Vec<Bitboard>>();
-        let attacks_for_occupied_masks = occupied_masks
-            .iter()
-            .map(|&occupied_mask| manual_sliding_piece_attacks(square.to_mask(), occupied_mask, sliding_piece))
-            .collect::<Vec<Bitboard>>();
 
         let mut magic_number: Bitboard;
 
@@ -137,15 +131,20 @@ impl MagicDict {
             // Clear the used array for the current iteration
             let mut used = [0 as Bitboard; SIZE_PER_SQUARE];
 
-            for (i, (occupied_mask, attack_mask)) in zip(&occupied_masks, &attacks_for_occupied_masks).enumerate() {
-                assert_ne!(*attack_mask, 0);
+            for (i, occupied_mask) in generate_bit_combinations(relevant_mask).enumerate() {
+                let attack_mask = match sliding_piece {
+                    PieceType::Rook => manual_attacks::single_rook_attacks(square.to_mask(), occupied_mask),
+                    PieceType::Bishop => manual_attacks::single_bishop_attacks(square.to_mask(), occupied_mask),
+                    _ => panic!("Invalid sliding piece type")
+                };
+                assert_ne!(attack_mask, 0);
 
-                let index = calc_magic_index(&magic_info, *occupied_mask);
+                let index = calc_magic_index(&magic_info, occupied_mask);
 
                 // If the index in the used array is not set, store the attack mask
                 if used[index] == 0 {
-                    used[index] = *attack_mask;
-                } else if used[index] != *attack_mask {
+                    used[index] = attack_mask;
+                } else if used[index] != attack_mask {
                     // If there's a non-constructive collision, the magic number is not suitable
                     failed = true;
                     break;
