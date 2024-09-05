@@ -1,11 +1,10 @@
+use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
+use crate::pgn::PgnMoveTreeTraverser;
+use crate::state::State;
+use indexmap::IndexMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
-use indexmap::IndexMap;
-use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
-use crate::pgn::PgnMoveTreeTraverser;
-use crate::r#move::Move;
-use crate::state::State;
 
 pub struct PgnMoveTree {
     pub tags: IndexMap<String, String>,
@@ -27,7 +26,7 @@ pub enum PgnParseState {
 pub enum PgnParseError {
     UnexpectedValue(PgnParseState, String),
     WrongMoveNumber(PgnParseState, String),
-    IllegalMove(PgnParseState, String),
+    InvalidMove(PgnParseState, String),
     IllegalVariationStart(PgnParseState, String),
     UnfinishedVariation(PgnParseState, String),
     UnfinishedComment(PgnParseState, String)
@@ -38,7 +37,7 @@ impl Display for PgnParseError {
         match self {
             PgnParseError::UnexpectedValue(state, parsed) => write!(f, "PGN Parse Error: 'Unexpected value' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::WrongMoveNumber(state, parsed) => write!(f, "PGN Parse Error: 'Wrong move number' at state '{:?}'\nParsed:\n'{}'", state, parsed),
-            PgnParseError::IllegalMove(state, parsed) => write!(f, "PGN Parse Error: 'Illegal move' at state '{:?}'\nParsed:\n'{}'", state, parsed),
+            PgnParseError::InvalidMove(state, parsed) => write!(f, "PGN Parse Error: 'Invalid move' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::IllegalVariationStart(state, parsed) => write!(f, "PGN Parse Error: 'Illegal variation start' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::UnfinishedVariation(state, parsed) => write!(f, "PGN Parse Error: 'Unfinished variation' at state '{:?}'\nParsed:\n'{}'", state, parsed),
             PgnParseError::UnfinishedComment(state, parsed) => write!(f, "PGN Parse Error: 'Unfinished comment' at state '{:?}'\nParsed:\n'{}'", state, parsed)
@@ -54,15 +53,14 @@ impl PgnMoveTree {
     }
 
     pub fn from_pgn(pgn: &str) -> Result<PgnMoveTree, PgnParseError> {
-        let mut pgn_history_tree: PgnMoveTree = PgnMoveTree {
+        let mut pgn_move_tree: PgnMoveTree = PgnMoveTree {
             tags: IndexMap::new(),
             head: PgnMoveTreeNode::new_raw_linked_to_previous(None, "".to_string(), None, State::initial())
         };
 
         let mut parse_state = PgnParseState::InitialState;
-        let mut tail_node: *mut PgnMoveTreeNode = pgn_history_tree.head;
+        let mut tail_node: *mut PgnMoveTreeNode = pgn_move_tree.head;
         let mut current_state = State::initial();
-        let mut previous_state = State::blank();
 
         // for variations
         let mut current_state_and_tail_node_stack: Vec<(State, *mut PgnMoveTreeNode)> = Vec::new();
@@ -94,7 +92,7 @@ impl PgnMoveTree {
                 PgnParseState::ParsingTag => {
                     match c {
                         ']' => {
-                            pgn_history_tree.check_and_add_tag(&tag_builder);
+                            pgn_move_tree.check_and_add_tag(&tag_builder);
                             tag_builder.clear();
                             parse_state = PgnParseState::InitialState;
                         },
@@ -113,8 +111,8 @@ impl PgnMoveTree {
                             match (*tail_node).move_and_san_and_previous_node {
                                 Some((_, _, node)) => {
                                     current_state_and_tail_node_stack.push((current_state.clone(), tail_node));
-                                    current_state = previous_state.clone();
-                                    // tail_node = node;
+                                    current_state = (*node).state_after_move.clone();
+                                    tail_node = node; // todo: finish fixes
                                 },
                                 None => return Err(PgnParseError::IllegalVariationStart(PgnParseState::ParsingMoveNumberOrSomethingElse, pgn[i..].to_string()))
                             }
@@ -188,13 +186,13 @@ impl PgnMoveTree {
                             }
                             match matched_move {
                                 Some(mv) => {
-                                    previous_state = current_state.clone();
+                                    let previous_state = current_state.clone();
                                     current_state.make_move(mv);
                                     let san = mv.san(&previous_state, &current_state, &possible_moves);
                                     let new_node = PgnMoveTreeNode::new_raw_linked_to_previous(Some(mv), san, Some(tail_node), current_state.clone());
                                     tail_node = new_node;
                                 },
-                                None => return Err(PgnParseError::IllegalMove(PgnParseState::ParsingMove, pgn[..i+1].to_string()))
+                                None => return Err(PgnParseError::InvalidMove(PgnParseState::ParsingMove, pgn[..i+1].to_string()))
                             }
                             parse_state = PgnParseState::ParsingMoveNumberOrSomethingElse;
                             move_san_builder.clear();
@@ -221,7 +219,7 @@ impl PgnMoveTree {
                 }
             }
         }
-        Ok(pgn_history_tree)
+        Ok(pgn_move_tree)
     }
 
     fn tags_pgn(&self) -> String {
@@ -295,9 +293,8 @@ impl Debug for PgnMoveTree {
 
 #[cfg(test)]
 mod tests {
-    
     use super::*;
-    
+
     fn load_input_and_expected_pgn(file_name: &str) -> (String, String) {
         let input_pgn = fs::read_to_string(format!("src/pgn/test_pgn_files/{}.pgn", file_name)).expect("Could not read file");
         let expected_pgn = fs::read_to_string(format!("src/pgn/test_pgn_files/{}_formatted.pgn", file_name)).expect("Could not read file");
