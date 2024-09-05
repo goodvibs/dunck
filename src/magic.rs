@@ -68,24 +68,25 @@ pub fn get_bishop_relevant_mask(square: Square) -> Bitboard {
     BISHOP_RELEVANT_MASKS[square as usize]
 }
 
-const SIZE_PER_SQUARE: usize = 4096;
-const TOTAL_ARRAY_SIZE: usize = SIZE_PER_SQUARE * 64;
-
 pub struct MagicDict {
     attacks: Vec<Bitboard>,
     magic_info_for_squares: [MagicInfo; 64],
 }
 
 impl MagicDict {
-    pub fn new_empty() -> Self {
+    fn init_empty(attacks_array_size: usize) -> Self {
         MagicDict {
-            attacks: vec![0; TOTAL_ARRAY_SIZE],
-            magic_info_for_squares: [MagicInfo { relevant_mask: 0, magic_number: 0, right_shift_amount: 0}; 64]
+            attacks: vec![0; attacks_array_size],
+            magic_info_for_squares: [MagicInfo { relevant_mask: 0, magic_number: 0, right_shift_amount: 0, offset: 0}; 64]
         }
     }
 
     pub fn new(sliding_piece: PieceType) -> Self {
-        let mut res = MagicDict::new_empty();
+        let mut res = match sliding_piece {
+            PieceType::Rook => MagicDict::init_empty(60 * 2usize.pow(11) + 4 * 2usize.pow(12)),
+            PieceType::Bishop => MagicDict::init_empty(4 * 2usize.pow(6) + 44 * 2usize.pow(5) + 12 * 2usize.pow(7) + 4 * 2usize.pow(9)),
+            _ => panic!("Invalid sliding piece type")
+        };
         res.fill_magic_numbers_and_attacks(sliding_piece);
         res
     }
@@ -97,17 +98,17 @@ impl MagicDict {
     pub fn calc_attack_mask(&self, square: Square, occupied_mask: Bitboard) -> Bitboard {
         let magic_info = self.get_magic_info_for_square(square);
         let magic_index = calc_magic_index(&magic_info, occupied_mask);
-        assert!(magic_index < SIZE_PER_SQUARE);
-        self.attacks[square as usize * SIZE_PER_SQUARE + magic_index]
+        self.attacks[magic_index]
     }
 
     pub fn fill_magic_numbers_and_attacks(&mut self, sliding_piece: PieceType) {
+        let mut current_offset = 0;
         for square in Square::iter_all() {
-            unsafe { self.fill_magic_numbers_and_attacks_for_square(square, sliding_piece) };
+            unsafe { self.fill_magic_numbers_and_attacks_for_square(square, sliding_piece, &mut current_offset) };
         }
     }
 
-    unsafe fn fill_magic_numbers_and_attacks_for_square(&mut self, square: Square, sliding_piece: PieceType) -> Bitboard {
+    unsafe fn fill_magic_numbers_and_attacks_for_square(&mut self, square: Square, sliding_piece: PieceType, current_offset: &mut u32) -> Bitboard {
         let relevant_mask = match sliding_piece {
             PieceType::Rook => get_rook_relevant_mask(square),
             PieceType::Bishop => get_bishop_relevant_mask(square),
@@ -123,13 +124,14 @@ impl MagicDict {
             if (relevant_mask.wrapping_mul(magic_number) & 0xFF_00_00_00_00_00_00_00).count_ones() < 6 {
                 continue;
             }
+            
+            let num_relevant_bits = relevant_mask.count_ones() as usize;
+            let right_shift_amount = 64 - num_relevant_bits as u8;
+            let mut used = vec![0 as Bitboard; 1 << num_relevant_bits];
 
-            let magic_info = MagicInfo { relevant_mask, magic_number, right_shift_amount: 64 - relevant_mask.count_ones() as u8 };
+            let magic_info = MagicInfo { relevant_mask, magic_number, right_shift_amount, offset: *current_offset };
 
             let mut failed = false;
-
-            // Clear the used array for the current iteration
-            let mut used = [0 as Bitboard; SIZE_PER_SQUARE];
 
             for (i, occupied_mask) in generate_bit_combinations(relevant_mask).enumerate() {
                 let attack_mask = match sliding_piece {
@@ -139,12 +141,12 @@ impl MagicDict {
                 };
                 assert_ne!(attack_mask, 0);
 
-                let index = calc_magic_index(&magic_info, occupied_mask);
+                let used_index = calc_magic_index_without_offset(&magic_info, occupied_mask);
 
                 // If the index in the used array is not set, store the attack mask
-                if used[index] == 0 {
-                    used[index] = attack_mask;
-                } else if used[index] != attack_mask {
+                if used[used_index] == 0 {
+                    used[used_index] = attack_mask;
+                } else if used[used_index] != attack_mask {
                     // If there's a non-constructive collision, the magic number is not suitable
                     failed = true;
                     break;
@@ -152,13 +154,14 @@ impl MagicDict {
             }
 
             if !failed {
-                for (index, attack_mask) in used.iter().enumerate() {
+                for (index_without_offset, attack_mask) in used.iter().enumerate() {
                     if *attack_mask == 0 {
                         continue;
                     }
-                    self.attacks[square as usize * SIZE_PER_SQUARE + index] = *attack_mask;
+                    self.attacks[index_without_offset + *current_offset as usize] = *attack_mask;
                 }
                 self.magic_info_for_squares[square as usize] = magic_info;
+                *current_offset += used.len() as u32;
                 break;
             }
         }
@@ -171,7 +174,8 @@ impl MagicDict {
 pub struct MagicInfo {
     relevant_mask: Bitboard,
     magic_number: Bitboard,
-    right_shift_amount: u8
+    right_shift_amount: u8,
+    offset: u32
 }
 
 fn manual_sliding_piece_attacks(src_mask: Bitboard, occupied_mask: Bitboard, sliding_piece: PieceType) -> Bitboard {
@@ -182,10 +186,15 @@ fn manual_sliding_piece_attacks(src_mask: Bitboard, occupied_mask: Bitboard, sli
     }
 }
 
-pub fn calc_magic_index(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usize {
+pub fn calc_magic_index_without_offset(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usize {
     let blockers = occupied_mask & magic_info.relevant_mask;
-    let hash = blockers.wrapping_mul(magic_info.magic_number);
-    (hash >> magic_info.right_shift_amount) as usize
+    let mut hash = blockers.wrapping_mul(magic_info.magic_number);
+    hash >>= magic_info.right_shift_amount;
+    hash as usize
+}
+
+pub fn calc_magic_index(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usize {
+    calc_magic_index_without_offset(magic_info, occupied_mask) + magic_info.offset as usize
 }
 
 pub unsafe fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
