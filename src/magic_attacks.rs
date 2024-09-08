@@ -128,8 +128,8 @@ impl<const N: usize> MagicDict<N> {
 
             for (i, occupied_mask) in generate_bit_combinations(relevant_mask).enumerate() {
                 let attack_mask = match sliding_piece {
-                    SlidingPieceType::Rook => manual_attacks::single_rook_attacks(square.to_mask(), occupied_mask),
-                    SlidingPieceType::Bishop => manual_attacks::single_bishop_attacks(square.to_mask(), occupied_mask),
+                    SlidingPieceType::Rook => manual_attacks::manual_single_rook_attacks(square.to_mask(), occupied_mask),
+                    SlidingPieceType::Bishop => manual_attacks::manual_single_bishop_attacks(square.to_mask(), occupied_mask),
                 };
                 assert_ne!(attack_mask, 0);
 
@@ -181,12 +181,12 @@ pub fn calc_magic_index(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usiz
     calc_magic_index_without_offset(magic_info, occupied_mask) + magic_info.offset as usize
 }
 
-pub unsafe fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
+pub unsafe fn magic_single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
     let src_square = Square::from(src_mask.leading_zeros() as u8);
     ROOK_MAGIC_DICT.calc_attack_mask(src_square, occupied_mask)
 }
 
-pub unsafe fn single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
+pub unsafe fn magic_single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
     let src_square = Square::from(src_mask.leading_zeros() as u8);
     BISHOP_MAGIC_DICT.calc_attack_mask(src_square, occupied_mask)
 }
@@ -198,8 +198,8 @@ fn gen_random_magic_number() -> Bitboard {
 mod tests {
     use crate::bitboard::generate_bit_combinations;
     use crate::charboard::print_bb_pretty;
-    use crate::{magic, manual_attacks};
-    use crate::magic::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
+    use crate::{magic_attacks, manual_attacks};
+    use crate::magic_attacks::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
     use crate::miscellaneous::{SlidingPieceType, Square};
 
     #[test]
@@ -230,12 +230,12 @@ mod tests {
                 let occupied_masks_iter = generate_bit_combinations(relevant_mask);
                 for occupied_mask in occupied_masks_iter {
                     let magic_attacks = match sliding_piece {
-                        SlidingPieceType::Rook => unsafe { magic::single_rook_attacks(src_mask, occupied_mask) },
-                        SlidingPieceType::Bishop => unsafe { magic::single_bishop_attacks(src_mask, occupied_mask) },
+                        SlidingPieceType::Rook => unsafe { magic_attacks::magic_single_rook_attacks(src_mask, occupied_mask) },
+                        SlidingPieceType::Bishop => unsafe { magic_attacks::magic_single_bishop_attacks(src_mask, occupied_mask) },
                     };
                     let manual_attacks = match sliding_piece {
-                        SlidingPieceType::Rook => manual_attacks::single_rook_attacks(src_mask, occupied_mask),
-                        SlidingPieceType::Bishop => manual_attacks::single_bishop_attacks(src_mask, occupied_mask),
+                        SlidingPieceType::Rook => manual_attacks::manual_single_rook_attacks(src_mask, occupied_mask),
+                        SlidingPieceType::Bishop => manual_attacks::manual_single_bishop_attacks(src_mask, occupied_mask),
                     };
                     if magic_attacks != manual_attacks {
                         println!("Square mask:");

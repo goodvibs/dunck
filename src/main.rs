@@ -7,7 +7,7 @@ mod board;
 mod attacks;
 mod charboard;
 mod masks;
-mod magic;
+mod magic_attacks;
 mod state;
 mod manual_attacks;
 mod r#move;
@@ -19,7 +19,7 @@ mod movegen;
 mod fen;
 mod perft;
 mod san;
-mod precompute;
+mod precomputed_attacks;
 
 use crate::state::State;
 

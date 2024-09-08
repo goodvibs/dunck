@@ -28,7 +28,7 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
     }
 }
 
-pub fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
+pub fn manual_single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
     let mut attacks: Bitboard = 0;
     let leading_zeros: u32 = src_mask.leading_zeros();
     let n_distance: u32 = leading_zeros / 8;
@@ -67,7 +67,7 @@ pub fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitbo
     attacks
 }
 
-pub fn single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
+pub fn manual_single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
     let mut attacks: Bitboard = 0;
     let leading_zeros: u32 = src_mask.leading_zeros();
     let n_distance: u32 = leading_zeros / 8;

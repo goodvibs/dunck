@@ -1,13 +1,13 @@
 use crate::bitboard::Bitboard;
 use crate::miscellaneous::Color;
-use crate::{magic, manual_attacks, precompute};
+use crate::{magic_attacks, manual_attacks, precomputed_attacks};
 
 pub fn single_knight_attacks(src_mask: Bitboard) -> Bitboard {
-    precompute::single_knight_attacks(src_mask)
+    precomputed_attacks::precomputed_single_knight_attacks(src_mask)
 }
 
 pub fn single_king_attacks(src_mask: Bitboard) -> Bitboard {
-    precompute::single_king_attacks(src_mask)
+    precomputed_attacks::precomputed_single_king_attacks(src_mask)
 }
 
 pub fn multi_knight_attacks(knights_mask: Bitboard) -> Bitboard {
@@ -27,9 +27,9 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
 }
 
 pub fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
-    unsafe { magic::single_rook_attacks(src_mask, occupied_mask) }
+    unsafe { magic_attacks::magic_single_rook_attacks(src_mask, occupied_mask) }
 }
 
 pub fn single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
-    unsafe { magic::single_bishop_attacks(src_mask, occupied_mask) }
+    unsafe { magic_attacks::magic_single_bishop_attacks(src_mask, occupied_mask) }
 }
