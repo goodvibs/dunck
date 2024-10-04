@@ -5,7 +5,8 @@ mod tests {
     use std::str::FromStr;
     use chess;
     use crate::miscellaneous::{PieceType, Square};
-    use crate::r#move::{Move, MoveFlag};
+    use crate::r#move::Move;
+    use crate::r#move::move_flag::MoveFlag;
     use crate::state::State;
 
     #[test]

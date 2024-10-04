@@ -1,8 +1,8 @@
 use lazy_static::lazy_static;
 use rand::Rng;
 use crate::bitboard::get_squares_from_mask;
-use crate::board::Board;
 use crate::miscellaneous::{Color, PieceType};
+use crate::state::board::Board;
 use crate::state::State;
 
 lazy_static! {

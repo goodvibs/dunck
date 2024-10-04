@@ -1,6 +1,6 @@
 use crate::bitboard::Bitboard;
-use crate::board::Board;
 use crate::miscellaneous::{Color, ColoredPiece};
+use crate::state::board::Board;
 
 pub type Charboard = [[char; 8]; 8];
 

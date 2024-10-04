@@ -1,6 +1,9 @@
+mod magic_attacks;
+mod manual_attacks;
+mod precomputed_attacks;
+
 use crate::bitboard::Bitboard;
 use crate::miscellaneous::Color;
-use crate::{magic_attacks, manual_attacks, precomputed_attacks};
 
 pub fn single_knight_attacks(src_mask: Bitboard) -> Bitboard {
     precomputed_attacks::precomputed_single_knight_attacks(src_mask)

@@ -1,8 +1,8 @@
 use crate::bitboard::{generate_bit_combinations, Bitboard};
-use crate::manual_attacks;
 use crate::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
 use crate::miscellaneous::{SlidingPieceType, Square};
 use lazy_static::lazy_static;
+use crate::attacks::manual_attacks::{manual_single_bishop_attacks, manual_single_rook_attacks};
 
 const ROOK_ATTACK_TABLE_SIZE: usize = 60 * 2usize.pow(11) + 4 * 2usize.pow(12);
 const BISHOP_ATTACK_TABLE_SIZE: usize = 4 * 2usize.pow(6) + 44 * 2usize.pow(5) + 12 * 2usize.pow(7) + 4 * 2usize.pow(9);
@@ -128,8 +128,8 @@ impl<const N: usize> MagicDict<N> {
 
             for (i, occupied_mask) in generate_bit_combinations(relevant_mask).enumerate() {
                 let attack_mask = match sliding_piece {
-                    SlidingPieceType::Rook => manual_attacks::manual_single_rook_attacks(square.to_mask(), occupied_mask),
-                    SlidingPieceType::Bishop => manual_attacks::manual_single_bishop_attacks(square.to_mask(), occupied_mask),
+                    SlidingPieceType::Rook => manual_single_rook_attacks(square.to_mask(), occupied_mask),
+                    SlidingPieceType::Bishop => manual_single_bishop_attacks(square.to_mask(), occupied_mask),
                 };
                 assert_ne!(attack_mask, 0);
 
@@ -196,10 +196,10 @@ fn gen_random_magic_number() -> Bitboard {
 }
 
 mod tests {
+    use crate::attacks::{magic_attacks, manual_attacks};
+    use crate::attacks::magic_attacks::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
     use crate::bitboard::generate_bit_combinations;
     use crate::charboard::print_bb_pretty;
-    use crate::{magic_attacks, manual_attacks};
-    use crate::magic_attacks::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
     use crate::miscellaneous::{SlidingPieceType, Square};
 
     #[test]

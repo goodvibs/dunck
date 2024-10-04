@@ -1,10 +1,10 @@
 use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
 use crate::pgn::PgnMoveTreeTraverser;
-use crate::state::State;
 use indexmap::IndexMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
+use crate::state::State;
 
 pub struct PgnMoveTree {
     pub tags: IndexMap<String, String>,

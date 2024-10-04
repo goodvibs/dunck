@@ -3,25 +3,20 @@
 #![allow(unused_imports)]
 #![allow(non_upper_case_globals)]
 
-mod board;
+use crate::state::State;
+
 mod attacks;
 mod charboard;
 mod masks;
-mod magic_attacks;
 mod state;
-mod manual_attacks;
-mod r#move;
 mod miscellaneous;
 mod zobrist;
 mod pgn;
 mod bitboard;
-mod movegen;
 mod fen;
 mod perft;
 mod san;
-mod precomputed_attacks;
-
-use crate::state::State;
+pub mod r#move;
 
 fn main() {
     let mut state = State::initial();

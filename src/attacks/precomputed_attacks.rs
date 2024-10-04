@@ -1,7 +1,7 @@
 use crate::bitboard::Bitboard;
-use crate::manual_attacks;
 use crate::miscellaneous::Square;
 use lazy_static::lazy_static;
+use crate::attacks::manual_attacks;
 
 lazy_static! {
     static ref SINGLE_KING_ATTACKS: [Bitboard; 64] = {

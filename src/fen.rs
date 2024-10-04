@@ -320,8 +320,9 @@ impl State {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
-    use crate::board::Board;
     use crate::masks::{RANK_2, RANK_3, RANK_6, RANK_7};
+    use crate::state::board::Board;
+    use crate::state::State;
     use super::*;
 
     #[test]

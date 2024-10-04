@@ -2,7 +2,8 @@ use crate::attacks::{multi_pawn_attacks, multi_pawn_moves, single_bishop_attacks
 use crate::bitboard::unpack_mask;
 use crate::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8};
 use crate::miscellaneous::{Color, PieceType, Square};
-use crate::r#move::{Move, MoveFlag};
+use crate::r#move::Move;
+use crate::r#move::move_flag::MoveFlag;
 use crate::state::State;
 
 fn add_pawn_promotion_moves(moves: &mut Vec<Move>, src: Square, dst: Square) {
@@ -214,6 +215,19 @@ impl State {
         self.add_castling_pseudolegal(&mut moves);
 
         moves
+    }
+
+    pub fn get_legal_moves(&self) -> Vec<Move> { // todo: filter out illegal moves
+        let pseudolegal_moves = self.get_pseudolegal_moves();
+        let mut filtered_moves = Vec::new();
+        for move_ in pseudolegal_moves {
+            let mut new_state = self.clone();
+            new_state.make_move(move_);
+            if new_state.is_valid() && !new_state.board.is_color_in_check(self.side_to_move) {
+                filtered_moves.push(move_);
+            }
+        }
+        filtered_moves
     }
 }
 

@@ -1,72 +1,16 @@
-use crate::board::Board;
+pub mod board;
+pub mod context;
+pub mod termination;
+pub mod make_move;
+pub mod movegen;
+
 use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::miscellaneous::*;
 use crate::pgn::pgn_move_tree::PgnParseError;
-use crate::r#move::*;
 use std::collections::HashMap;
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub enum Termination {
-    Checkmate,
-    Stalemate,
-    InsufficientMaterial,
-    ThreefoldRepetition,
-    FiftyMoveRule
-}
-
-impl Termination {
-    pub fn is_decisive(&self) -> bool {
-        self == &Termination::Checkmate
-    }
-
-    pub fn is_draw(&self) -> bool {
-        !self.is_decisive()
-    }
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub struct StateContext {
-    // copied from previous and then possibly modified
-    pub halfmove_clock: u8,
-    pub double_pawn_push: i8, // file of double pawn push, if any, else -1
-    pub castling_rights: u8, // 0, 0, 0, 0, wk, wq, bk, bq
-    
-    // updated after every move
-    pub captured_piece: PieceType,
-    pub previous: Option<Box<StateContext>>
-}
-
-impl StateContext {
-    pub fn new(halfmove_clock: u8, double_pawn_push: i8, castling_info: u8, captured_piece: PieceType, previous: Option<Box<StateContext>>) -> StateContext {
-        StateContext {
-            halfmove_clock,
-            double_pawn_push,
-            castling_rights: castling_info,
-            captured_piece,
-            previous
-        }
-    }
-    
-    pub fn initial() -> StateContext {
-        StateContext {
-            halfmove_clock: 0,
-            double_pawn_push: -1,
-            castling_rights: 0b00001111,
-            captured_piece: PieceType::NoPieceType,
-            previous: None
-        }
-    }
-    
-    pub fn initial_no_castling() -> StateContext {
-        StateContext {
-            halfmove_clock: 0,
-            double_pawn_push: -1,
-            castling_rights: 0b00000000,
-            captured_piece: PieceType::NoPieceType,
-            previous: None
-        }
-    }
-}
+use crate::state::board::Board;
+use crate::state::context::Context;
+use crate::state::termination::Termination;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct State {
@@ -76,7 +20,7 @@ pub struct State {
     pub side_to_move: Color,
     pub halfmove: u16,
     pub termination: Option<Termination>,
-    pub context: Box<StateContext>
+    pub context: Box<Context>
 }
 
 impl State {
@@ -89,7 +33,7 @@ impl State {
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Box::new(StateContext::initial_no_castling())
+            context: Box::new(Context::initial_no_castling())
         }
     }
 
@@ -103,7 +47,7 @@ impl State {
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Box::new(StateContext::initial())
+            context: Box::new(Context::initial())
         }
     }
 
@@ -131,93 +75,80 @@ impl State {
     const fn has_castling_space_long(&self, color: Color) -> bool {
         STARTING_KING_ROOK_GAP_LONG[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
     }
-    
+
     fn can_castle_short_without_check(&self, color: Color) -> bool {
         !self.board.is_mask_in_check(CASTLING_CHECK_MASK_SHORT[color as usize], color.flip())
     }
-    
+
     fn can_castle_long_without_check(&self, color: Color) -> bool {
         !self.board.is_mask_in_check(CASTLING_CHECK_MASK_LONG[color as usize], color.flip())
     }
-    
+
     pub fn can_legally_castle_short(&self, color: Color) -> bool {
         self.has_castling_rights_short(color) && self.has_castling_space_short(color) && self.can_castle_short_without_check(color)
     }
-    
+
     pub fn can_legally_castle_long(&self, color: Color) -> bool {
         self.has_castling_rights_long(color) && self.has_castling_space_long(color) && self.can_castle_long_without_check(color)
     }
-    
-    pub fn get_legal_moves(&self) -> Vec<Move> { // todo: filter out illegal moves
-        let pseudolegal_moves = self.get_pseudolegal_moves();
-        let mut filtered_moves = Vec::new();
-        for move_ in pseudolegal_moves {
-            let mut new_state = self.clone();
-            new_state.make_move(move_);
-            if new_state.is_valid() && !new_state.board.is_color_in_check(self.side_to_move) {
-                filtered_moves.push(move_);
-            }
-        }
-        filtered_moves
-    }
-    
+
     pub fn is_valid(&self) -> bool {
         self.board.is_valid() &&
-        self.has_valid_side_to_move() &&
-        self.has_valid_castling_rights() &&
-        self.has_valid_double_pawn_push() &&
-        self.has_valid_halfmove_clock()
+            self.has_valid_side_to_move() &&
+            self.has_valid_castling_rights() &&
+            self.has_valid_double_pawn_push() &&
+            self.has_valid_halfmove_clock()
     }
-    
+
     pub fn has_valid_halfmove_clock(&self) -> bool {
         self.context.halfmove_clock <= 100 && self.context.halfmove_clock as u16 <= self.halfmove
     }
-    
+
     pub fn has_valid_side_to_move(&self) -> bool {
         self.halfmove % 2 == self.side_to_move as u16
     }
-    
+
     pub fn has_valid_castling_rights(&self) -> bool {
         let kings_bb = self.board.bb_by_piece_type[PieceType::King as usize];
         let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize];
-        
+
         let white_bb = self.board.bb_by_color[Color::White as usize];
         let black_bb = self.board.bb_by_color[Color::Black as usize];
-        
+
         let is_white_king_in_place = (kings_bb & white_bb & STARTING_WK) != 0;
         let is_black_king_in_place = (kings_bb & black_bb & STARTING_BK) != 0;
-        
+
         if !is_white_king_in_place && self.context.castling_rights & 0b00001100 != 0 {
             return false;
         }
-        
+
         if !is_black_king_in_place && self.context.castling_rights & 0b00000011 != 0 {
             return false;
         }
-        
+
         let is_white_king_side_rook_in_place = (rooks_bb & white_bb & STARTING_KING_SIDE_WR) != 0;
         if !is_white_king_side_rook_in_place && (self.context.castling_rights & 0b00001000) != 0 {
             return false;
         }
-        
+
         let is_white_queen_side_rook_in_place = (rooks_bb & white_bb & STARTING_QUEEN_SIDE_WR) != 0;
         if !is_white_queen_side_rook_in_place && (self.context.castling_rights & 0b00000100) != 0 {
             return false;
         }
-        
+
         let is_black_king_side_rook_in_place = (rooks_bb & black_bb & STARTING_KING_SIDE_BR) != 0;
         if !is_black_king_side_rook_in_place && (self.context.castling_rights & 0b00000010) != 0 {
             return false;
         }
-        
+
         let is_black_queen_side_rook_in_place = (rooks_bb & black_bb & STARTING_QUEEN_SIDE_BR) != 0;
         if !is_black_queen_side_rook_in_place && (self.context.castling_rights & 0b00000001) != 0 {
             return false;
         }
-        
+
         true
     }
-    
+
     pub fn has_valid_double_pawn_push(&self) -> bool {
         match self.context.double_pawn_push {
             -1 => true,
@@ -245,7 +176,7 @@ mod tests {
     fn test_state_has_valid_side_to_move() {
         let state = State::blank();
         assert!(state.has_valid_side_to_move());
-        
+
         let mut state = State::initial();
         assert!(state.has_valid_side_to_move());
         state.side_to_move = Color::Black;
@@ -256,30 +187,30 @@ mod tests {
         state.halfmove = 100;
         assert!(!state.has_valid_side_to_move());
     }
-    
+
     #[test]
     fn test_state_has_valid_castling_rights() {
         let state = State::blank();
         assert!(state.has_valid_castling_rights());
-        
+
         let mut state = State::initial();
         assert!(state.has_valid_castling_rights());
-        
+
         state.context.castling_rights = 0b00000000;
         assert!(state.has_valid_castling_rights());
-        
+
         state.context.castling_rights = 0b00001111;
-        
+
         state.board.clear_pieces_at(STARTING_WK);
         assert!(!state.has_valid_castling_rights());
-        
+
         state.board.put_colored_pieces_at(ColoredPiece::WhiteKing, STARTING_WK);
         state.board.clear_pieces_at(STARTING_KING_SIDE_BR);
         assert!(state.board.is_valid());
         assert!(!state.has_valid_castling_rights());
         state.context.castling_rights = 0b00001101;
         assert!(state.has_valid_castling_rights());
-        
+
         state.board.put_colored_pieces_at(ColoredPiece::WhiteRook, STARTING_KING_SIDE_WR);
         state.board.clear_pieces_at(STARTING_QUEEN_SIDE_WR);
         assert!(state.board.is_valid());
@@ -294,7 +225,7 @@ mod tests {
         let castling_info = state.context.castling_rights;
         state.context.castling_rights &= !0b00000011;
         assert!(state.has_valid_castling_rights());
-        
+
         state.context.castling_rights = castling_info;
         state.board.clear_pieces_at(Square::E4.to_mask());
         state.board.put_colored_pieces_at(ColoredPiece::BlackKing, STARTING_BK);
@@ -308,23 +239,23 @@ mod tests {
 
         state.board.put_colored_pieces_at(ColoredPiece::BlackRook, STARTING_QUEEN_SIDE_BR);
         assert!(state.has_valid_castling_rights());
-        
+
         state.context.castling_rights = 0b00000010;
         assert!(state.has_valid_castling_rights());
     }
-    
+
     #[test]
     fn test_state_has_valid_double_pawn_push() {
         let state = State::blank();
         assert!(state.has_valid_double_pawn_push());
-        
+
         let state = State::initial();
         assert_eq!(state.context.double_pawn_push, -1);
         assert!(state.has_valid_double_pawn_push());
-        
+
         // todo
     }
-    
+
     #[test]
     fn test_state_play_move() {
         // todo

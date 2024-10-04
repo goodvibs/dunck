@@ -1,5 +1,6 @@
 use crate::miscellaneous::PieceType;
-use crate::r#move::{Move, MoveFlag};
+use crate::r#move::Move;
+use crate::r#move::move_flag::MoveFlag;
 use crate::state::State;
 
 impl Move {
