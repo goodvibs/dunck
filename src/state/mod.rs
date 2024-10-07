@@ -3,6 +3,8 @@ pub mod context;
 pub mod termination;
 pub mod make_move;
 pub mod movegen;
+mod unmake_move;
+mod zobrist;
 
 use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::miscellaneous::*;
@@ -253,11 +255,6 @@ mod tests {
         assert_eq!(state.context.double_pawn_push, -1);
         assert!(state.has_valid_double_pawn_push());
 
-        // todo
-    }
-
-    #[test]
-    fn test_state_play_move() {
         // todo
     }
 }

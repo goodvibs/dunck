@@ -10,7 +10,6 @@ mod charboard;
 mod masks;
 mod state;
 mod miscellaneous;
-mod zobrist;
 mod pgn;
 mod bitboard;
 mod fen;
