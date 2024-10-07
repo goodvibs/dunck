@@ -3,13 +3,14 @@ pub mod context;
 pub mod termination;
 pub mod make_move;
 pub mod movegen;
-mod unmake_move;
-mod zobrist;
+pub mod unmake_move;
+pub mod zobrist;
 
 use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::miscellaneous::*;
 use crate::pgn::pgn_move_tree::PgnParseError;
 use std::collections::HashMap;
+use crate::bitboard::Bitboard;
 use crate::state::board::Board;
 use crate::state::context::Context;
 use crate::state::termination::Termination;
@@ -18,16 +19,17 @@ use crate::state::termination::Termination;
 pub struct State {
     pub board: Board,
     pub in_check: bool,
-    pub position_counts: HashMap<u64, u8>,
+    pub position_counts: HashMap<Bitboard, u8>,
     pub side_to_move: Color,
     pub halfmove: u16,
     pub termination: Option<Termination>,
     pub context: Box<Context>
+    pub context: Box<Context>,
 }
 
 impl State {
     pub fn blank() -> State {
-        let position_count: HashMap<u64, u8> = HashMap::new();
+        let position_count: HashMap<Bitboard, u8> = HashMap::new();
         State {
             board: Board::blank(),
             in_check: false,
@@ -41,7 +43,7 @@ impl State {
 
     pub fn initial() -> State {
         let board = Board::initial();
-        let position_count: HashMap<u64, u8> = HashMap::from([(board.zobrist_hash(), 1)]);
+        let position_count: HashMap<Bitboard, u8> = HashMap::from([(board.zobrist_hash(), 1)]);
         State {
             board,
             in_check: false,
@@ -163,7 +165,7 @@ impl State {
                 let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize];
                 let colored_pawns_bb = pawns_bb & self.board.bb_by_color[color_just_moved as usize];
                 let file_mask = FILES[file as usize];
-                let rank_mask = RANK_4 << (color_just_moved as u64 * 8); // 4 for white, 5 for black
+                let rank_mask = RANK_4 << (color_just_moved as Bitboard * 8); // 4 for white, 5 for black
                 colored_pawns_bb & file_mask & rank_mask != 0
             }
         }
