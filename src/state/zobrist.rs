@@ -25,7 +25,7 @@ pub fn get_piece_zobrist_hash(square: Square, piece_type: PieceType) -> Bitboard
 }
 
 impl Board {
-    pub fn zobrist_hash(&self) -> Bitboard {
+    pub fn calc_zobrist_hash(&self) -> Bitboard {
         let mut hash: Bitboard = 0;
         for piece_type in PieceType::iter_between(PieceType::Pawn, PieceType::King) { // skip PieceType::NoPieceType, PieceType::King
             let piece_bb = self.bb_by_piece_type[piece_type as usize];
@@ -51,7 +51,7 @@ impl Board {
 
 impl State {
     pub fn increment_position_count(&mut self) -> u8 {
-        let position_count = self.position_counts.entry(self.zobrist_hash).or_insert(0);
+        let position_count = self.position_counts.entry(self.board.zobrist_hash).or_insert(0);
         *position_count += 1;
         position_count.clone()
     }

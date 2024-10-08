@@ -141,7 +141,7 @@ fn process_fen_board_row(state: &mut State, row_from_top: u8, row: &str) -> bool
                     return false;
                 }
                 let dst =  unsafe { Square::from(row_from_top * 8 + file).to_mask() };
-                state.board.put_colored_pieces_at(colored_piece, dst);
+                state.board.put_colored_piece_at(colored_piece, dst);
             },
             _ => {
                 return false;
@@ -319,11 +319,10 @@ impl State {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::HashMap;
+    use super::*;
     use crate::masks::{RANK_2, RANK_3, RANK_6, RANK_7};
     use crate::state::board::Board;
     use crate::state::State;
-    use super::*;
 
     #[test]
     fn test_process_fen_side_to_move() {
@@ -513,8 +512,8 @@ mod tests {
         assert!(result.is_ok());
         assert!(state.board.is_valid());
         let mut expected_board = Board::blank();
-        expected_board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::A2.to_mask());
-        expected_board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::H1.to_mask());
+        expected_board.put_colored_piece_at(ColoredPiece::BlackKing, Square::A2.to_mask());
+        expected_board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::H1.to_mask());
         assert_eq!(state.board, expected_board);
 
         let mut state = State::blank();
@@ -553,8 +552,8 @@ mod tests {
         let state = state.unwrap();
         assert!(state.board.is_valid());
         let mut expected_state = State::blank();
-        expected_state.board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::A2.to_mask());
-        expected_state.board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::H1.to_mask());
+        expected_state.board.put_colored_piece_at(ColoredPiece::BlackKing, Square::A2.to_mask());
+        expected_state.board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::H1.to_mask());
         expected_state.halfmove = 175;
         expected_state.side_to_move = Color::Black;
         expected_state.context.halfmove_clock = 99;
@@ -573,8 +572,8 @@ mod tests {
             Square::G8.to_mask() | Square::G1.to_mask() |
             RANK_7 | RANK_6 |
             RANK_3 | RANK_2;
-        expected_state.board.clear_pieces_at(clear_mask);
-        expected_state.board.put_colored_pieces_at(ColoredPiece::BlackPawn, Square::H5.to_mask());
+        expected_state.board.clear_piece_at(clear_mask);
+        expected_state.board.put_colored_piece_at(ColoredPiece::BlackPawn, Square::H5.to_mask());
         expected_state.halfmove = 10;
         expected_state.context.double_pawn_push = 7;
         expected_state.position_counts.clear();
@@ -593,8 +592,8 @@ mod tests {
         state.halfmove += 1;
         state.context.halfmove_clock += 1;
         state.side_to_move = Color::Black;
-        state.board.put_colored_pieces_at(ColoredPiece::BlackQueen, Square::D4.to_mask());
-        state.board.clear_pieces_at(Square::H1.to_mask());
+        state.board.put_colored_piece_at(ColoredPiece::BlackQueen, Square::D4.to_mask());
+        state.board.clear_piece_at(Square::H1.to_mask());
         state.context.castling_rights &= !0b1000;
         let fen = state.to_fen();
         let expected_fen = "rnbqkbnr/pppppppp/8/8/3q4/8/PPPPPPPP/RNBQKBN1 b Qkq - 1 1";

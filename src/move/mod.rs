@@ -1,7 +1,6 @@
 pub mod move_flag;
 
-use crate::masks::{STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
-use crate::miscellaneous::{Color, PieceType, Square};
+use crate::miscellaneous::{PieceType, Square};
 use crate::r#move::move_flag::MoveFlag;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]

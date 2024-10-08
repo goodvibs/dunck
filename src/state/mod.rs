@@ -24,7 +24,6 @@ pub struct State {
     pub halfmove: u16,
     pub termination: Option<Termination>,
     pub context: Box<Context>,
-    pub zobrist_hash: Bitboard
 }
 
 impl State {
@@ -38,13 +37,12 @@ impl State {
             halfmove: 0,
             termination: None,
             context: Box::new(Context::initial_no_castling()),
-            zobrist_hash: 0,
         }
     }
 
     pub fn initial() -> State {
         let board = Board::initial();
-        let zobrist_hash = board.zobrist_hash();
+        let zobrist_hash = board.calc_zobrist_hash();
         let position_count: HashMap<Bitboard, u8> = HashMap::from([(zobrist_hash, 1)]);
         State {
             board,
@@ -54,7 +52,6 @@ impl State {
             halfmove: 0,
             termination: None,
             context: Box::new(Context::initial()),
-            zobrist_hash,
         }
     }
 
@@ -208,25 +205,25 @@ mod tests {
 
         state.context.castling_rights = 0b00001111;
 
-        state.board.clear_pieces_at(STARTING_WK);
+        state.board.clear_piece_at(STARTING_WK);
         assert!(!state.has_valid_castling_rights());
 
-        state.board.put_colored_pieces_at(ColoredPiece::WhiteKing, STARTING_WK);
-        state.board.clear_pieces_at(STARTING_KING_SIDE_BR);
+        state.board.put_colored_piece_at(ColoredPiece::WhiteKing, STARTING_WK);
+        state.board.clear_piece_at(STARTING_KING_SIDE_BR);
         assert!(state.board.is_valid());
         assert!(!state.has_valid_castling_rights());
         state.context.castling_rights = 0b00001101;
         assert!(state.has_valid_castling_rights());
 
-        state.board.put_colored_pieces_at(ColoredPiece::WhiteRook, STARTING_KING_SIDE_WR);
-        state.board.clear_pieces_at(STARTING_QUEEN_SIDE_WR);
+        state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_KING_SIDE_WR);
+        state.board.clear_piece_at(STARTING_QUEEN_SIDE_WR);
         assert!(state.board.is_valid());
         assert!(!state.has_valid_castling_rights());
 
-        state.board.put_colored_pieces_at(ColoredPiece::WhiteRook, STARTING_QUEEN_SIDE_WR);
-        state.board.clear_pieces_at(STARTING_BK);
+        state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_QUEEN_SIDE_WR);
+        state.board.clear_piece_at(STARTING_BK);
         assert!(!state.has_valid_castling_rights());
-        state.board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::E4.to_mask());
+        state.board.put_colored_piece_at(ColoredPiece::BlackKing, Square::E4.to_mask());
         assert!(state.board.is_valid());
         assert!(!state.has_valid_castling_rights());
         let castling_info = state.context.castling_rights;
@@ -234,17 +231,17 @@ mod tests {
         assert!(state.has_valid_castling_rights());
 
         state.context.castling_rights = castling_info;
-        state.board.clear_pieces_at(Square::E4.to_mask());
-        state.board.put_colored_pieces_at(ColoredPiece::BlackKing, STARTING_BK);
-        state.board.clear_pieces_at(STARTING_KING_SIDE_BR);
+        state.board.clear_piece_at(Square::E4.to_mask());
+        state.board.put_colored_piece_at(ColoredPiece::BlackKing, STARTING_BK);
+        state.board.clear_piece_at(STARTING_KING_SIDE_BR);
         assert!(state.board.is_valid());
         assert!(state.has_valid_castling_rights());
 
-        state.board.put_colored_pieces_at(ColoredPiece::BlackRook, STARTING_KING_SIDE_BR);
-        state.board.clear_pieces_at(STARTING_QUEEN_SIDE_BR);
+        state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_KING_SIDE_BR);
+        state.board.clear_piece_at(STARTING_QUEEN_SIDE_BR);
         assert!(!state.has_valid_castling_rights());
 
-        state.board.put_colored_pieces_at(ColoredPiece::BlackRook, STARTING_QUEEN_SIDE_BR);
+        state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_QUEEN_SIDE_BR);
         assert!(state.has_valid_castling_rights());
 
         state.context.castling_rights = 0b00000010;

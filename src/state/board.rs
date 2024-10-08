@@ -2,17 +2,18 @@ use crate::miscellaneous::*;
 use crate::attacks::*;
 use crate::bitboard::{Bitboard, unpack_mask};
 use crate::masks::*;
+use crate::state::zobrist::get_piece_zobrist_hash;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Board {
     pub bb_by_piece_type: [Bitboard; PieceType::LIMIT as usize],
     pub bb_by_color: [Bitboard; 2],
-    // pub colored_piece_count: [u8; ColoredPiece::LIMIT],
+    pub zobrist_hash: Bitboard
 }
 
 impl Board {
     pub fn initial() -> Board {
-        Board {
+        let mut res = Board {
             bb_by_piece_type: [
                 STARTING_ALL,
                 STARTING_WP | STARTING_BP,
@@ -26,31 +27,17 @@ impl Board {
                 STARTING_WHITE,
                 STARTING_BLACK
             ],
-            // colored_piece_count: [
-            //     30,
-            //     8,
-            //     2,
-            //     2,
-            //     2,
-            //     1,
-            //     0,
-            //     0,
-            //     1,
-            //     8,
-            //     2,
-            //     2,
-            //     2,
-            //     1,
-            //     1
-            // ]
-        }
+            zobrist_hash: 0
+        };
+        res.zobrist_hash = res.calc_zobrist_hash();
+        res
     }
 
     pub fn blank() -> Board {
         Board {
             bb_by_piece_type: [0; PieceType::LIMIT as usize],
             bb_by_color: [0; 2],
-            // colored_piece_count: [0; ColoredPiece::LIMIT]
+            zobrist_hash: 0
         }
     }
     
@@ -114,11 +101,11 @@ impl Board {
     }
 
     pub fn clear_and_put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
-        self.clear_pieces_at(mask);
-        self.put_colored_pieces_at(colored_piece, mask);
+        self.clear_piece_at(mask);
+        self.put_colored_piece_at(colored_piece, mask);
     }
 
-    pub fn clear_pieces_at(&mut self, mask: Bitboard) {
+    pub fn clear_piece_at(&mut self, mask: Bitboard) {
         for piece_type in PieceType::iter_pieces() {
             self.bb_by_piece_type[piece_type as usize] &= !mask;
         }
@@ -128,7 +115,7 @@ impl Board {
         self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
     }
     
-    pub fn remove_and_get_captured_piece_type_at(&mut self, mask: Bitboard) -> PieceType {
+    pub fn clear_and_get_piece_type_at(&mut self, mask: Bitboard) -> PieceType {
         self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
         for piece_type in PieceType::iter_pieces() {
             let piece_type_int = piece_type as usize;
@@ -139,31 +126,76 @@ impl Board {
         }
         PieceType::NoPieceType
     }
+    
+    pub fn put_color_at(&mut self, color: Color, mask: Bitboard) {
+        self.bb_by_color[color as usize] |= mask;
+    }
+    
+    pub fn put_piece_type_at(&mut self, piece_type: PieceType, mask: Bitboard) {
+        self.bb_by_piece_type[piece_type as usize] |= mask;
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] |= mask;
+    }
 
-    pub fn put_colored_pieces_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
+    pub fn put_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
         let piece_type = colored_piece.get_piece_type();
         let color = colored_piece.get_color();
 
-        let piece_type_int = piece_type as usize;
-        let color_int = color as usize;
+        self.put_color_at(color, mask);
+        self.put_piece_type_at(piece_type, mask);
+    }
+    
+    pub fn remove_color_at(&mut self, color: Color, mask: Bitboard) {
+        self.bb_by_color[color as usize] &= !mask;
+    }
+    
+    pub fn remove_piece_type_at(&mut self, piece_type: PieceType, mask: Bitboard) {
+        self.bb_by_piece_type[piece_type as usize] &= !mask;
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] &= !mask;
+    }
+    
+    pub fn move_piece_type(&mut self, piece_type: PieceType, dst_mask: Bitboard, src_mask: Bitboard) {
+        let src_dst_mask = src_mask | dst_mask;
+        
+        self.bb_by_piece_type[piece_type as usize] ^= src_dst_mask;
+        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] ^= src_dst_mask;
+    }
+    
+    pub fn move_color(&mut self, color: Color, dst_mask: Bitboard, src_mask: Bitboard) {
+        let src_dst_mask = src_mask | dst_mask;
+        
+        self.bb_by_color[color as usize] ^= src_dst_mask;
+    }
+    
+    pub fn move_colored_piece(&mut self, colored_piece: ColoredPiece, dst_mask: Bitboard, src_mask: Bitboard) {
+        let piece_type = colored_piece.get_piece_type();
+        let color = colored_piece.get_color();
+        
+        self.move_color(color, dst_mask, src_mask);
+        self.move_piece_type(piece_type, dst_mask, src_mask);
+    }
+    
+    pub fn remove_colored_piece_at(&mut self, colored_piece: ColoredPiece, mask: Bitboard) {
+        let piece_type = colored_piece.get_piece_type();
+        let color = colored_piece.get_color();
 
-        self.bb_by_piece_type[piece_type_int] |= mask;
-        self.bb_by_color[color_int] |= mask;
-        self.bb_by_piece_type[PieceType::AllPieceTypes as usize] |= mask;
+        self.remove_color_at(color, mask);
+        self.remove_piece_type_at(piece_type, mask);
     }
     
     pub fn get_piece_type_at(&self, square_mask: Bitboard) -> PieceType {
         for piece_type in PieceType::iter_pieces() {
-            let piece_type_int = piece_type as u8;
-            if self.bb_by_piece_type[piece_type_int as usize] & square_mask != 0 {
-                return unsafe { PieceType::from(piece_type_int) };
+            if self.bb_by_piece_type[piece_type as usize] & square_mask != 0 {
+                return piece_type;
             }
         }
         PieceType::NoPieceType
     }
     
     pub const fn get_colored_piece_bb(&self, colored_piece: ColoredPiece) -> Bitboard {
-        self.bb_by_piece_type[colored_piece as usize & 0b0111] & self.bb_by_color[colored_piece.get_color() as usize]
+        let piece_type = colored_piece.get_piece_type();
+        let color = colored_piece.get_color();
+        
+        self.bb_by_piece_type[piece_type as usize] & self.bb_by_color[color as usize]
     }
     
     pub fn is_consistent(&self) -> bool {
@@ -212,23 +244,6 @@ impl Board {
         self.is_consistent() && self.has_valid_kings()
     }
 
-    // pub fn from_cb(cb: Charboard) -> Board {
-    //     let mut board = Board::blank();
-    //     for i in 0..8 {
-    //         for j in 0..8 {
-    //             let mask = 1 << (63 - (i * 8 + j));
-    //             let piece = ColoredPiece::from_char(cb[i][j]);
-    //             if piece != ColoredPiece::NoPiece {
-    //                 board.bb_by_piece_type[piece as usize] |= mask;
-    //                 board.bb_by_color[piece.get_color() as usize] |= mask;
-    //                 board.bb_by_piece_type[PieceType::AllPieceTypes as usize] |= mask;
-    //                 // board.colored_piece_count[piece as usize] += 1;
-    //             }
-    //         }
-    //     }
-    //     board
-    // }
-
     pub fn print(&self) {
         println!("{}", self);
     }
@@ -243,12 +258,12 @@ mod tests {
     fn test_put_colored_piece_at() {
         let mut board = Board::blank();
         let mask = Square::A1.to_mask();
-        board.put_colored_pieces_at(ColoredPiece::WhitePawn, mask);
+        board.put_colored_piece_at(ColoredPiece::WhitePawn, mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::Pawn);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], mask);
         assert_eq!(board.bb_by_color[Color::White as usize], mask);
         assert_eq!(board.bb_by_piece_type[PieceType::AllPieceTypes as usize], mask);
-        board.put_colored_pieces_at(ColoredPiece::BlackPawn, mask);
+        board.put_colored_piece_at(ColoredPiece::BlackPawn, mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::Pawn);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], mask);
         assert_eq!(board.bb_by_color[Color::Black as usize], mask);
@@ -259,15 +274,15 @@ mod tests {
     fn test_clear_piece_at() {
         let mut board = Board::blank();
         let mask = Square::A1.to_mask() | Square::B1.to_mask();
-        board.put_colored_pieces_at(ColoredPiece::WhitePawn, mask);
-        board.clear_pieces_at(mask);
+        board.put_colored_piece_at(ColoredPiece::WhitePawn, mask);
+        board.clear_piece_at(mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], 0);
         assert_eq!(board.bb_by_color[Color::White as usize], 0);
         assert_eq!(board.bb_by_piece_type[PieceType::AllPieceTypes as usize], 0);
 
         let mut board = Board::initial();
-        board.clear_pieces_at(mask);
+        board.clear_piece_at(mask);
         assert_eq!(board.get_piece_type_at(mask), PieceType::NoPieceType);
         assert_eq!(board.bb_by_piece_type[PieceType::Pawn as usize], STARTING_WP | STARTING_BP);
         assert_eq!(board.bb_by_color[Color::White as usize], STARTING_WHITE & !mask);
@@ -285,33 +300,33 @@ mod tests {
     fn test_board_is_valid() {
         let mut board = Board::blank();
         assert!(!board.is_valid());
-        board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
+        board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
         assert!(!board.is_valid());
-        board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::F6.to_mask());
+        board.put_colored_piece_at(ColoredPiece::BlackKing, Square::F6.to_mask());
         assert!(board.is_valid());
-        board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::E8.to_mask());
+        board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::E8.to_mask());
         assert!(!board.is_valid());
-        board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::E8.to_mask());
+        board.put_colored_piece_at(ColoredPiece::BlackKing, Square::E8.to_mask());
         assert!(!board.is_valid());
 
         let mut board = Board::initial();
         assert!(board.is_valid());
 
-        board.put_colored_pieces_at(ColoredPiece::BlackBishop, Square::C5.to_mask());
+        board.put_colored_piece_at(ColoredPiece::BlackBishop, Square::C5.to_mask());
         assert!(board.is_valid());
 
         let mut board = Board::initial();
-        board.put_colored_pieces_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
+        board.put_colored_piece_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
         assert!(!board.is_valid());
 
         let mut board = Board::initial();
-        board.put_colored_pieces_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
+        board.put_colored_piece_at(ColoredPiece::WhitePawn, Square::A1.to_mask());
         assert!(!board.is_valid());
 
         let mut board = Board::initial();
-        board.clear_pieces_at(Square::A1.to_mask());
+        board.clear_piece_at(Square::A1.to_mask());
         assert!(board.is_valid());
-        board.clear_pieces_at(Square::E1.to_mask());
+        board.clear_piece_at(Square::E1.to_mask());
         assert!(!board.is_valid());
     }
 
@@ -319,9 +334,9 @@ mod tests {
     fn test_blank_board() {
         let mut board = Board::blank();
         assert!(!board.is_valid());
-        board.put_colored_pieces_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
+        board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::E1.to_mask());
         assert!(!board.is_valid());
-        board.put_colored_pieces_at(ColoredPiece::BlackKing, Square::F6.to_mask());
+        board.put_colored_piece_at(ColoredPiece::BlackKing, Square::F6.to_mask());
         assert!(board.is_valid());
         
         let cb = Board::blank().to_cb();

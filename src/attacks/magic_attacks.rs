@@ -126,7 +126,7 @@ impl<const N: usize> MagicDict<N> {
 
             let mut failed = false;
 
-            for (i, occupied_mask) in generate_bit_combinations(relevant_mask).enumerate() {
+            for (_i, occupied_mask) in generate_bit_combinations(relevant_mask).enumerate() {
                 let attack_mask = match sliding_piece {
                     SlidingPieceType::Rook => manual_single_rook_attacks(square.to_mask(), occupied_mask),
                     SlidingPieceType::Bishop => manual_single_bishop_attacks(square.to_mask(), occupied_mask),

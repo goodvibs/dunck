@@ -173,7 +173,7 @@ impl State {
 
     fn add_king_pseudolegal(&self, moves: &mut Vec<Move>) {
         let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
 
         // king moves
         let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & same_color_bb;
@@ -186,9 +186,6 @@ impl State {
     }
     
     fn add_castling_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
-
         let king_src_square = match self.side_to_move {
             Color::White => Square::E1,
             Color::Black => Square::E8

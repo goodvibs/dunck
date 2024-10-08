@@ -78,7 +78,7 @@ impl Move {
                 if src == other_src { // same move
                     continue;
                 }
-                if dst == other_move.get_destination() && moved_piece == initial_state.board.get_piece_type_at(other_src.to_mask()) {
+                if dst == other_dst && moved_piece == initial_state.board.get_piece_type_at(other_src.to_mask()) {
                     clashes.push(other_move);
                 }
             }

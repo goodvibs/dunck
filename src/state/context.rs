@@ -35,6 +35,16 @@ impl Context {
             previous
         }
     }
+    
+    pub fn new_from(previous_context: Box<Context>) -> Context {
+        Context {
+            halfmove_clock: previous_context.halfmove_clock + 1,
+            double_pawn_push: -1,
+            castling_rights: previous_context.castling_rights,
+            captured_piece: PieceType::NoPieceType,
+            previous: Some(previous_context)
+        }
+    }
 
     pub fn initial() -> Context {
         Context {
