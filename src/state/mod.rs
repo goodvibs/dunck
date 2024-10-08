@@ -23,8 +23,8 @@ pub struct State {
     pub side_to_move: Color,
     pub halfmove: u16,
     pub termination: Option<Termination>,
-    pub context: Box<Context>
     pub context: Box<Context>,
+    pub zobrist_hash: Bitboard
 }
 
 impl State {
@@ -37,13 +37,15 @@ impl State {
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Box::new(Context::initial_no_castling())
+            context: Box::new(Context::initial_no_castling()),
+            zobrist_hash: 0,
         }
     }
 
     pub fn initial() -> State {
         let board = Board::initial();
-        let position_count: HashMap<Bitboard, u8> = HashMap::from([(board.zobrist_hash(), 1)]);
+        let zobrist_hash = board.zobrist_hash();
+        let position_count: HashMap<Bitboard, u8> = HashMap::from([(zobrist_hash, 1)]);
         State {
             board,
             in_check: false,
@@ -51,7 +53,8 @@ impl State {
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Box::new(Context::initial())
+            context: Box::new(Context::initial()),
+            zobrist_hash,
         }
     }
 

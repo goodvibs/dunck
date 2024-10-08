@@ -6,6 +6,7 @@ use crate::r#move::move_flag::MoveFlag;
 use crate::state::State;
 use crate::state::context::Context;
 use crate::state::termination::Termination;
+use crate::state::zobrist::get_piece_zobrist_hash;
 
 const fn calc_castling_color_adjustment(color: Color) -> usize {
     (color as usize) << 1
@@ -18,9 +19,10 @@ impl State {
         let dst_mask = dst_square.to_mask();
         let src_mask = src_square.to_mask();
         
-        new_context.halfmove_clock = 0;
         self.board.bb_by_piece_type[PieceType::Pawn as usize] &= !src_mask;
         self.board.bb_by_piece_type[promotion as usize] |= dst_mask;
+        
+        new_context.handle_promotion_disregarding_capture();
     }
     
     fn handle_normal(&mut self, dst_square: Square, src_square: Square, new_context: &mut Context) {
@@ -35,25 +37,7 @@ impl State {
         self.board.bb_by_piece_type[moved_piece as usize] &= !src_mask;
         self.board.bb_by_piece_type[moved_piece as usize] |= dst_mask;
 
-        match moved_piece {
-            PieceType::Pawn => {
-                new_context.halfmove_clock = 0;
-                if dst_mask & (src_mask << 16) != 0 || dst_mask & (src_mask >> 16) != 0 { // double pawn push
-                    new_context.double_pawn_push = (src_square as u8 % 8) as i8;
-                }
-            },
-            PieceType::King => {
-                new_context.castling_rights &= !0b00001100 >> castling_color_adjustment;
-            },
-            PieceType::Rook => {
-                let is_king_side = src_mask & (1u64 << (self.side_to_move as u64 * 7 * 8));
-                let is_queen_side = src_mask & (0b10000000u64 << (self.side_to_move as u64 * 7 * 8));
-                let king_side_mask = (is_king_side != 0) as u8 * (0b00001000 >> castling_color_adjustment);
-                let queen_side_mask = (is_queen_side != 0) as u8 * (0b00000100 >> castling_color_adjustment);
-                new_context.castling_rights &= !(king_side_mask | queen_side_mask);
-            },
-            _ => {}
-        }
+        new_context.handle_normal_disregarding_capture(ColoredPiece::from(self.side_to_move, moved_piece), dst_square, src_square);
     }
 
     fn handle_possible_capture(&mut self, dst_square: Square, new_context: &mut Context) {
@@ -67,6 +51,7 @@ impl State {
         let captured_piece = self.board.remove_and_get_captured_piece_type_at(dst_mask);
         if captured_piece != PieceType::NoPieceType {
             new_context.handle_capture(ColoredPiece::from(opposite_color, captured_piece), dst_mask);
+            self.zobrist_hash ^= get_piece_zobrist_hash(dst_square, captured_piece);
         }
     }
     
@@ -78,16 +63,13 @@ impl State {
         let en_passant_capture = ((dst_mask << 8) * self.side_to_move as u64) | ((dst_mask >> 8) * opposite_color as u64);
         self.board.bb_by_piece_type[PieceType::Pawn as usize] ^= dst_mask | src_mask | en_passant_capture;
         self.board.bb_by_color[opposite_color as usize] &= !en_passant_capture;
-        new_context.captured_piece = PieceType::Pawn;
-        new_context.halfmove_clock = 0;
+        
+        new_context.handle_en_passant();
     }
     
     fn handle_castling(&mut self, dst_square: Square, src_square: Square, new_context: &mut Context) {
         let dst_mask = dst_square.to_mask();
         let src_mask = src_square.to_mask();
-        let castling_color_adjustment = calc_castling_color_adjustment(self.side_to_move);
-        
-        new_context.castling_rights &= !0b00001100 >> castling_color_adjustment;
 
         self.board.bb_by_piece_type[PieceType::King as usize] ^= dst_mask | src_mask;
 
@@ -105,6 +87,8 @@ impl State {
 
         self.board.bb_by_color[self.side_to_move as usize] ^= rook_src_dst;
         self.board.bb_by_piece_type[PieceType::Rook as usize] ^= rook_src_dst;
+
+        new_context.handle_castle(self.side_to_move);
     }
     
     pub fn make_move(&mut self, mv: Move) { // todo: split into smaller functions for unit testing
