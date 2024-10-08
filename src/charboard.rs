@@ -113,7 +113,7 @@ impl Board {
         for i in 0..64 {
             let mask = 1 << (63 - i);
             let piece_type = self.get_piece_type_at(mask);
-            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
+            let color = if self.color_masks[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
             cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char();
         }
         cb
@@ -124,7 +124,7 @@ impl Board {
         for i in 0..64 {
             let mask = 1 << (63 - i);
             let piece_type = self.get_piece_type_at(mask);
-            let color = if self.bb_by_color[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
+            let color = if self.color_masks[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
             cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char_pretty();
         }
         cb

@@ -250,7 +250,7 @@ impl State {
                         fen_board.push_str(&empty_count.to_string());
                         empty_count = 0;
                     }
-                    let is_black = self.board.bb_by_color[Color::Black as usize] & square_mask != 0;
+                    let is_black = self.board.color_masks[Color::Black as usize] & square_mask != 0;
                     let colored_piece = ColoredPiece::from(Color::from(is_black), piece_type);
                     fen_board.push(colored_piece.to_char());
                 }

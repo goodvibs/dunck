@@ -15,7 +15,7 @@ fn add_pawn_promotion_moves(moves: &mut Vec<Move>, src: Square, dst: Square) {
 impl State {
     fn add_normal_pawn_captures_pseudolegal(&self, moves: &mut Vec<Move>, pawn_srcs: &Vec<u64>) {
         let opposite_color = self.side_to_move.flip();
-        let opposite_color_bb = self.board.bb_by_color[opposite_color as usize];
+        let opposite_color_bb = self.board.color_masks[opposite_color as usize];
 
         let promotion_rank = match self.side_to_move {
             Color::White => RANK_8,
@@ -38,8 +38,8 @@ impl State {
     }
 
     fn add_en_passant_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize] & same_color_bb;
+        let same_color_bb = self.board.color_masks[self.side_to_move as usize];
+        let pawns_bb = self.board.piece_type_masks[PieceType::Pawn as usize] & same_color_bb;
 
         let (src_rank_bb, dst_rank_bb) = match self.side_to_move {
             Color::White => (RANK_5, RANK_6),
@@ -62,7 +62,7 @@ impl State {
     }
     
     fn add_pawn_push_pseudolegal(&self, moves: &mut Vec<Move>, pawn_srcs: &Vec<u64>) {
-        let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
         let promotion_rank = RANK_8 >> (self.side_to_move as u8 * 7 * 8); // RANK_8 for white, RANK_1 for black
 
@@ -103,8 +103,8 @@ impl State {
     }
     
     fn add_all_pawn_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize] & same_color_bb;
+        let same_color_bb = self.board.color_masks[self.side_to_move as usize];
+        let pawns_bb = self.board.piece_type_masks[PieceType::Pawn as usize] & same_color_bb;
         let pawn_srcs = unpack_mask(pawns_bb);
 
         self.add_normal_pawn_captures_pseudolegal(moves, &pawn_srcs);
@@ -113,9 +113,9 @@ impl State {
     }
 
     fn add_knight_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
+        let same_color_bb = self.board.color_masks[self.side_to_move as usize];
 
-        let knights_bb = self.board.bb_by_piece_type[PieceType::Knight as usize] & same_color_bb;
+        let knights_bb = self.board.piece_type_masks[PieceType::Knight as usize] & same_color_bb;
         for src_bb in unpack_mask(knights_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let knight_moves = single_knight_attacks(*src_bb) & !same_color_bb;
@@ -127,10 +127,10 @@ impl State {
     }
 
     fn add_bishop_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        let same_color_bb = self.board.color_masks[self.side_to_move as usize];
+        let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
-        let bishops_bb = self.board.bb_by_piece_type[PieceType::Bishop as usize] & same_color_bb;
+        let bishops_bb = self.board.piece_type_masks[PieceType::Bishop as usize] & same_color_bb;
         for src_bb in unpack_mask(bishops_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let bishop_moves = single_bishop_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
@@ -142,10 +142,10 @@ impl State {
     }
 
     fn add_rook_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        let same_color_bb = self.board.color_masks[self.side_to_move as usize];
+        let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
-        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize] & same_color_bb;
+        let rooks_bb = self.board.piece_type_masks[PieceType::Rook as usize] & same_color_bb;
         for src_bb in unpack_mask(rooks_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let rook_moves = single_rook_attacks(*src_bb, all_occupancy_bb) & !same_color_bb;
@@ -157,10 +157,10 @@ impl State {
     }
 
     fn add_queen_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        let all_occupancy_bb = self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        let same_color_bb = self.board.color_masks[self.side_to_move as usize];
+        let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
-        let queens_bb = self.board.bb_by_piece_type[PieceType::Queen as usize] & same_color_bb;
+        let queens_bb = self.board.piece_type_masks[PieceType::Queen as usize] & same_color_bb;
         for src_bb in unpack_mask(queens_bb).iter() {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
             let queen_moves = (single_rook_attacks(*src_bb, all_occupancy_bb) | single_bishop_attacks(*src_bb, all_occupancy_bb)) & !same_color_bb;
@@ -172,11 +172,11 @@ impl State {
     }
 
     fn add_king_pseudolegal(&self, moves: &mut Vec<Move>) {
-        let same_color_bb = self.board.bb_by_color[self.side_to_move as usize];
-        self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize];
+        let same_color_bb = self.board.color_masks[self.side_to_move as usize];
+        self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
         // king moves
-        let king_src_bb = self.board.bb_by_piece_type[PieceType::King as usize] & same_color_bb;
+        let king_src_bb = self.board.piece_type_masks[PieceType::King as usize] & same_color_bb;
         let king_src_square = unsafe { Square::from(king_src_bb.leading_zeros() as u8) };
         let king_moves = single_king_attacks(king_src_bb) & !same_color_bb;
         for dst_bb in unpack_mask(king_moves).iter() {

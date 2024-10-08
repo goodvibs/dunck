@@ -38,8 +38,9 @@ impl State {
         self.board.remove_color_at(opposite_color, dst_mask);
 
         // remove captured piece and get captured piece type
-        let captured_piece = self.board.clear_and_get_piece_type_at(dst_mask);
+        let captured_piece = self.board.get_piece_type_at(dst_mask);
         if captured_piece != PieceType::NoPieceType {
+            self.board.remove_piece_type_at(captured_piece, dst_mask);
             new_context.handle_capture(ColoredPiece::from(opposite_color, captured_piece), dst_mask);
         }
     }
@@ -100,7 +101,6 @@ impl State {
         self.side_to_move = self.side_to_move.flip();
         self.context = Box::new(new_context);
         self.in_check = self.board.is_color_in_check(self.side_to_move);
-        self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] = self.board.bb_by_color[Color::White as usize] | self.board.bb_by_color[Color::Black as usize];
 
         if self.board.are_both_sides_insufficient_material() {
             self.termination = Some(Termination::InsufficientMaterial);
@@ -111,6 +111,8 @@ impl State {
         else {
             // update Zobrist table
             let position_count = self.increment_position_count();
+            assert_eq!(self.board.zobrist_hash, self.board.calc_zobrist_hash());
+            assert!(self.board.is_valid());
 
             // check for repetition
             if position_count == 3 {

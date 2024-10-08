@@ -27,25 +27,17 @@ pub fn get_piece_zobrist_hash(square: Square, piece_type: PieceType) -> Bitboard
 impl Board {
     pub fn calc_zobrist_hash(&self) -> Bitboard {
         let mut hash: Bitboard = 0;
-        for piece_type in PieceType::iter_between(PieceType::Pawn, PieceType::King) { // skip PieceType::NoPieceType, PieceType::King
-            let piece_bb = self.bb_by_piece_type[piece_type as usize];
-            for color in Color::iter() {
-                let color_bb = self.bb_by_color[color as usize];
-                let combined_bb = piece_bb & color_bb;
-                for square in get_squares_from_mask(combined_bb) {
-                    hash ^= get_piece_zobrist_hash(square, piece_type);
-                }
-            }
-        }
-        let kings_bb = self.bb_by_piece_type[PieceType::King as usize];
-        for color in Color::iter() {
-            let single_king_bb = kings_bb & self.bb_by_color[color as usize];
-            if single_king_bb != 0 {
-                let colored_king_square = unsafe { Square::from(single_king_bb.leading_zeros() as u8) };
-                hash ^= get_piece_zobrist_hash(colored_king_square, PieceType::King);
+        for piece_type in PieceType::iter_pieces() { // skip PieceType::NoPieceType
+            let pieces_mask = self.piece_type_masks[piece_type as usize];
+            for square in get_squares_from_mask(pieces_mask) {
+                hash ^= get_piece_zobrist_hash(square, piece_type);
             }
         }
         hash
+    }
+    
+    pub fn xor_piece_zobrist_hash(&mut self, square: Square, piece_type: PieceType) {
+        self.zobrist_hash ^= get_piece_zobrist_hash(square, piece_type)
     }
 }
 

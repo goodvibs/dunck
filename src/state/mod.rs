@@ -73,11 +73,11 @@ impl State {
     }
 
     const fn has_castling_space_short(&self, color: Color) -> bool {
-        STARTING_KING_ROOK_GAP_SHORT[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
+        STARTING_KING_ROOK_GAP_SHORT[color as usize] & self.board.piece_type_masks[PieceType::AllPieceTypes as usize] == 0
     }
 
     const fn has_castling_space_long(&self, color: Color) -> bool {
-        STARTING_KING_ROOK_GAP_LONG[color as usize] & self.board.bb_by_piece_type[PieceType::AllPieceTypes as usize] == 0
+        STARTING_KING_ROOK_GAP_LONG[color as usize] & self.board.piece_type_masks[PieceType::AllPieceTypes as usize] == 0
     }
 
     fn can_castle_short_without_check(&self, color: Color) -> bool {
@@ -113,11 +113,11 @@ impl State {
     }
 
     pub fn has_valid_castling_rights(&self) -> bool {
-        let kings_bb = self.board.bb_by_piece_type[PieceType::King as usize];
-        let rooks_bb = self.board.bb_by_piece_type[PieceType::Rook as usize];
+        let kings_bb = self.board.piece_type_masks[PieceType::King as usize];
+        let rooks_bb = self.board.piece_type_masks[PieceType::Rook as usize];
 
-        let white_bb = self.board.bb_by_color[Color::White as usize];
-        let black_bb = self.board.bb_by_color[Color::Black as usize];
+        let white_bb = self.board.color_masks[Color::White as usize];
+        let black_bb = self.board.color_masks[Color::Black as usize];
 
         let is_white_king_in_place = (kings_bb & white_bb & STARTING_WK) != 0;
         let is_black_king_in_place = (kings_bb & black_bb & STARTING_BK) != 0;
@@ -162,8 +162,8 @@ impl State {
                     return false;
                 }
                 let color_just_moved = self.side_to_move.flip();
-                let pawns_bb = self.board.bb_by_piece_type[PieceType::Pawn as usize];
-                let colored_pawns_bb = pawns_bb & self.board.bb_by_color[color_just_moved as usize];
+                let pawns_bb = self.board.piece_type_masks[PieceType::Pawn as usize];
+                let colored_pawns_bb = pawns_bb & self.board.color_masks[color_just_moved as usize];
                 let file_mask = FILES[file as usize];
                 let rank_mask = RANK_4 << (color_just_moved as Bitboard * 8); // 4 for white, 5 for black
                 colored_pawns_bb & file_mask & rank_mask != 0

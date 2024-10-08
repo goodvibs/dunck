@@ -28,7 +28,7 @@ impl Move {
                 moved_piece = PieceType::Pawn;
             },
             MoveFlag::NormalMove | MoveFlag::Promotion => {
-                is_capture = initial_state.board.bb_by_color[final_state.side_to_move as usize] != final_state.board.bb_by_color[final_state.side_to_move as usize];
+                is_capture = initial_state.board.color_masks[final_state.side_to_move as usize] != final_state.board.color_masks[final_state.side_to_move as usize];
 
                 if flag == MoveFlag::Promotion {
                     promotion_str = format!("={}", promotion.to_char());
