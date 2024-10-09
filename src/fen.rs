@@ -574,7 +574,6 @@ mod tests {
             RANK_7 | RANK_6 |
             RANK_3 | RANK_2;
         for square in get_squares_from_mask(clear_mask) {
-            print!("{:?} ", square);
             let colored_piece = expected_state.board.get_colored_piece_at(square);
             if colored_piece != ColoredPiece::NoPiece {
                 expected_state.board.remove_colored_piece_at(colored_piece, square);

@@ -180,7 +180,7 @@ impl Board {
     
     pub fn get_color_at(&self, square: Square) -> Color {
         let mask = square.to_mask();
-        Color::from(self.color_masks[Color::White as usize] & mask != 0)
+        Color::from(self.color_masks[Color::Black as usize] & mask != 0)
     }
     
     pub fn get_colored_piece_at(&self, square: Square) -> ColoredPiece {
