@@ -1,5 +1,5 @@
 use crate::bitboard::Bitboard;
-use crate::miscellaneous::{Color, ColoredPiece};
+use crate::miscellaneous::{Color, ColoredPiece, Square};
 use crate::state::board::Board;
 
 pub type Charboard = [[char; 8]; 8];
@@ -110,22 +110,18 @@ pub fn print_cb(cb: &Charboard) {
 impl Board {
     pub fn to_cb(&self) -> Charboard {
         let mut cb: Charboard = [[' '; 8]; 8];
-        for i in 0..64 {
-            let mask = 1 << (63 - i);
-            let piece_type = self.get_piece_type_at(mask);
-            let color = if self.color_masks[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
-            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char();
+        for (i, square) in Square::iter_all().enumerate() {
+            let colored_piece = self.get_colored_piece_at(square);
+            cb[i / 8][i % 8] = colored_piece.to_char();
         }
         cb
     }
 
     pub fn to_cb_pretty(&self) -> Charboard {
         let mut cb: Charboard = [[' '; 8]; 8];
-        for i in 0..64 {
-            let mask = 1 << (63 - i);
-            let piece_type = self.get_piece_type_at(mask);
-            let color = if self.color_masks[Color::White as usize] & mask != 0 { Color::White } else { Color::Black };
-            cb[i / 8][i % 8] = ColoredPiece::from(color, piece_type).to_char_pretty();
+        for (i, square) in Square::iter_all().enumerate() {
+            let colored_piece = self.get_colored_piece_at(square);
+            cb[i / 8][i % 8] = colored_piece.to_char_pretty();
         }
         cb
     }

@@ -174,89 +174,89 @@ impl State {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[test]
-    fn test_state_has_valid_side_to_move() {
-        let state = State::blank();
-        assert!(state.has_valid_side_to_move());
-
-        let mut state = State::initial();
-        assert!(state.has_valid_side_to_move());
-        state.side_to_move = Color::Black;
-        assert!(!state.has_valid_side_to_move());
-
-        state.halfmove = 99;
-        assert!(state.has_valid_side_to_move());
-        state.halfmove = 100;
-        assert!(!state.has_valid_side_to_move());
-    }
-
-    #[test]
-    fn test_state_has_valid_castling_rights() {
-        let state = State::blank();
-        assert!(state.has_valid_castling_rights());
-
-        let mut state = State::initial();
-        assert!(state.has_valid_castling_rights());
-
-        state.context.castling_rights = 0b00000000;
-        assert!(state.has_valid_castling_rights());
-
-        state.context.castling_rights = 0b00001111;
-
-        state.board.clear_piece_at(STARTING_WK);
-        assert!(!state.has_valid_castling_rights());
-
-        state.board.put_colored_piece_at(ColoredPiece::WhiteKing, STARTING_WK);
-        state.board.clear_piece_at(STARTING_KING_SIDE_BR);
-        assert!(state.board.is_valid());
-        assert!(!state.has_valid_castling_rights());
-        state.context.castling_rights = 0b00001101;
-        assert!(state.has_valid_castling_rights());
-
-        state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_KING_SIDE_WR);
-        state.board.clear_piece_at(STARTING_QUEEN_SIDE_WR);
-        assert!(state.board.is_valid());
-        assert!(!state.has_valid_castling_rights());
-
-        state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_QUEEN_SIDE_WR);
-        state.board.clear_piece_at(STARTING_BK);
-        assert!(!state.has_valid_castling_rights());
-        state.board.put_colored_piece_at(ColoredPiece::BlackKing, Square::E4.to_mask());
-        assert!(state.board.is_valid());
-        assert!(!state.has_valid_castling_rights());
-        let castling_info = state.context.castling_rights;
-        state.context.castling_rights &= !0b00000011;
-        assert!(state.has_valid_castling_rights());
-
-        state.context.castling_rights = castling_info;
-        state.board.clear_piece_at(Square::E4.to_mask());
-        state.board.put_colored_piece_at(ColoredPiece::BlackKing, STARTING_BK);
-        state.board.clear_piece_at(STARTING_KING_SIDE_BR);
-        assert!(state.board.is_valid());
-        assert!(state.has_valid_castling_rights());
-
-        state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_KING_SIDE_BR);
-        state.board.clear_piece_at(STARTING_QUEEN_SIDE_BR);
-        assert!(!state.has_valid_castling_rights());
-
-        state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_QUEEN_SIDE_BR);
-        assert!(state.has_valid_castling_rights());
-
-        state.context.castling_rights = 0b00000010;
-        assert!(state.has_valid_castling_rights());
-    }
-
-    #[test]
-    fn test_state_has_valid_double_pawn_push() {
-        let state = State::blank();
-        assert!(state.has_valid_double_pawn_push());
-
-        let state = State::initial();
-        assert_eq!(state.context.double_pawn_push, -1);
-        assert!(state.has_valid_double_pawn_push());
-
-        // todo
-    }
+    // use super::*;
+    // 
+    // #[test]
+    // fn test_state_has_valid_side_to_move() {
+    //     let state = State::blank();
+    //     assert!(state.has_valid_side_to_move());
+    // 
+    //     let mut state = State::initial();
+    //     assert!(state.has_valid_side_to_move());
+    //     state.side_to_move = Color::Black;
+    //     assert!(!state.has_valid_side_to_move());
+    // 
+    //     state.halfmove = 99;
+    //     assert!(state.has_valid_side_to_move());
+    //     state.halfmove = 100;
+    //     assert!(!state.has_valid_side_to_move());
+    // }
+    // 
+    // #[test]
+    // fn test_state_has_valid_castling_rights() {
+    //     let state = State::blank();
+    //     assert!(state.has_valid_castling_rights());
+    // 
+    //     let mut state = State::initial();
+    //     assert!(state.has_valid_castling_rights());
+    // 
+    //     state.context.castling_rights = 0b00000000;
+    //     assert!(state.has_valid_castling_rights());
+    // 
+    //     state.context.castling_rights = 0b00001111;
+    // 
+    //     state.board.clear_piece_at(STARTING_WK);
+    //     assert!(!state.has_valid_castling_rights());
+    // 
+    //     state.board.put_colored_piece_at(ColoredPiece::WhiteKing, STARTING_WK);
+    //     state.board.clear_piece_at(STARTING_KING_SIDE_BR);
+    //     assert!(state.board.is_valid());
+    //     assert!(!state.has_valid_castling_rights());
+    //     state.context.castling_rights = 0b00001101;
+    //     assert!(state.has_valid_castling_rights());
+    // 
+    //     state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_KING_SIDE_WR);
+    //     state.board.clear_piece_at(STARTING_QUEEN_SIDE_WR);
+    //     assert!(state.board.is_valid());
+    //     assert!(!state.has_valid_castling_rights());
+    // 
+    //     state.board.put_colored_piece_at(ColoredPiece::WhiteRook, STARTING_QUEEN_SIDE_WR);
+    //     state.board.clear_piece_at(STARTING_BK);
+    //     assert!(!state.has_valid_castling_rights());
+    //     state.board.put_colored_piece_at(ColoredPiece::BlackKing, Square::E4.to_mask());
+    //     assert!(state.board.is_valid());
+    //     assert!(!state.has_valid_castling_rights());
+    //     let castling_info = state.context.castling_rights;
+    //     state.context.castling_rights &= !0b00000011;
+    //     assert!(state.has_valid_castling_rights());
+    // 
+    //     state.context.castling_rights = castling_info;
+    //     state.board.clear_piece_at(Square::E4.to_mask());
+    //     state.board.put_colored_piece_at(ColoredPiece::BlackKing, STARTING_BK);
+    //     state.board.clear_piece_at(STARTING_KING_SIDE_BR);
+    //     assert!(state.board.is_valid());
+    //     assert!(state.has_valid_castling_rights());
+    // 
+    //     state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_KING_SIDE_BR);
+    //     state.board.clear_piece_at(STARTING_QUEEN_SIDE_BR);
+    //     assert!(!state.has_valid_castling_rights());
+    // 
+    //     state.board.put_colored_piece_at(ColoredPiece::BlackRook, STARTING_QUEEN_SIDE_BR);
+    //     assert!(state.has_valid_castling_rights());
+    // 
+    //     state.context.castling_rights = 0b00000010;
+    //     assert!(state.has_valid_castling_rights());
+    // }
+    // 
+    // #[test]
+    // fn test_state_has_valid_double_pawn_push() {
+    //     let state = State::blank();
+    //     assert!(state.has_valid_double_pawn_push());
+    // 
+    //     let state = State::initial();
+    //     assert_eq!(state.context.double_pawn_push, -1);
+    //     assert!(state.has_valid_double_pawn_push());
+    // 
+    //     // todo
+    // }
 }

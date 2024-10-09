@@ -5,11 +5,11 @@ use crate::state::State;
 
 impl Move {
     pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
-        let (dst, src, promotion, flag) = self.unpack();
+        let (dst_square, src_square, promotion, flag) = self.unpack();
 
-        let dst_str = dst.readable();
-        let src_str = src.readable();
-        let (src_file, src_rank) = (src.get_file_char(), src.get_rank_char());
+        let dst_str = dst_square.readable();
+        let src_str = src_square.readable();
+        let (src_file, src_rank) = (src_square.get_file_char(), src_square.get_rank_char());
 
         let mut promotion_str = String::new();
         let is_capture;
@@ -35,7 +35,7 @@ impl Move {
                     moved_piece = PieceType::Pawn;
                 }
                 else {
-                    moved_piece = initial_state.board.get_piece_type_at(src.to_mask());
+                    moved_piece = initial_state.board.get_piece_type_at(src_square);
                 }
             }
         }
@@ -73,12 +73,12 @@ impl Move {
             let mut clashes = Vec::new();
 
             for other_move in initial_state_moves.iter() {
-                let other_src = other_move.get_source();
-                let other_dst = other_move.get_destination();
-                if src == other_src { // same move
+                let other_src_square = other_move.get_source();
+                let other_dst_square = other_move.get_destination();
+                if src_square == other_src_square { // same move
                     continue;
                 }
-                if dst == other_dst && moved_piece == initial_state.board.get_piece_type_at(other_src.to_mask()) {
+                if dst_square == other_dst_square && moved_piece == initial_state.board.get_piece_type_at(other_src_square) {
                     clashes.push(other_move);
                 }
             }
@@ -88,10 +88,10 @@ impl Move {
                 let mut is_rank_unique = true;
 
                 for other_move in clashes {
-                    if other_move.get_source().get_file() == src.get_file() {
+                    if other_move.get_source().get_file() == src_square.get_file() {
                         is_file_unique = false;
                     }
-                    if other_move.get_source().get_rank() == src.get_rank() {
+                    if other_move.get_source().get_rank() == src_square.get_rank() {
                         is_rank_unique = false;
                     }
                 }
