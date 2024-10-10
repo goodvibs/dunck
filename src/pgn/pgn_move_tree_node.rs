@@ -12,24 +12,23 @@ pub(crate) struct PgnMoveTreeNode {
 }
 
 impl PgnMoveTreeNode {
-    pub(crate) fn new_raw_linked_to_previous(move_: Option<Move>, san: String, previous_node: Option<*mut PgnMoveTreeNode>, state_after_move: State) -> *mut PgnMoveTreeNode {
-        if previous_node.is_none() != move_.is_none() {
-            panic!("Previous node and move must be both Some or both None");
-        }
-        let move_and_san_and_previous_node = match move_ {
-            None => None,
-            Some(m) => Some((m, san, previous_node.unwrap()))
-        };
+    pub(crate) fn new_root() -> *mut PgnMoveTreeNode {
+        Box::into_raw(Box::new(PgnMoveTreeNode {
+            move_and_san_and_previous_node: None,
+            state_after_move: State::initial(),
+            next_nodes: Vec::new()
+        }))
+    }
+    
+    pub(crate) unsafe fn new_raw_linked_to_previous(move_: Move, san: String, previous_node: *mut PgnMoveTreeNode, state_after_move: State) -> *mut PgnMoveTreeNode {
+        let move_and_san_and_previous_node = Some((move_, san, previous_node));
         let raw = Box::into_raw(Box::new(PgnMoveTreeNode {
             move_and_san_and_previous_node,
             state_after_move,
             next_nodes: Vec::new()
         }));
-        if let Some(previous_node_unwrapped) = previous_node {
-            unsafe {
-                (*previous_node_unwrapped).next_nodes.push(raw);
-            }
-        }
+        (*previous_node).next_nodes.push(raw);
+        
         raw
     }
 
@@ -88,12 +87,12 @@ impl PgnMoveTreeNode {
     }
 }
 
-impl Drop for PgnMoveTreeNode {
-    fn drop(&mut self) {
-        for node in self.next_nodes.iter() {
-            unsafe {
-                drop(Box::from_raw(*node));
-            }
-        }
-    }
-}
+// impl Drop for PgnMoveTreeNode {
+//     fn drop(&mut self) {
+//         for node in self.next_nodes.iter() {
+//             unsafe {
+//                 drop(Box::from_raw(*node));
+//             }
+//         }
+//     }
+// }

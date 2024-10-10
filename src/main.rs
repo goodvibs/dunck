@@ -14,7 +14,6 @@ mod pgn;
 mod bitboard;
 mod fen;
 mod perft;
-mod san;
 pub mod r#move;
 
 fn main() {

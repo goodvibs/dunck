@@ -8,9 +8,11 @@ pub mod zobrist;
 
 use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::miscellaneous::*;
-use crate::pgn::pgn_move_tree::PgnParseError;
 use std::collections::HashMap;
+use std::str::FromStr;
 use crate::bitboard::Bitboard;
+use crate::pgn::error::PgnParseError;
+use crate::pgn::PgnMoveTree;
 use crate::state::board::Board;
 use crate::state::context::Context;
 use crate::state::termination::Termination;
@@ -55,10 +57,9 @@ impl State {
         }
     }
 
-    pub fn from_pgn(pgn: &str) -> Result<State, PgnParseError> {
-        // let move_tree = PgnMoveTree::from_pgn(pgn);
-        todo!()
-    }
+    // pub fn from_pgn(pgn: &str) -> Result<State, PgnParseError> {
+    //     PgnMoveTree::from_str(pgn);
+    // }
 
     pub const fn get_fullmove(&self) -> u16 {
         self.halfmove / 2 + 1

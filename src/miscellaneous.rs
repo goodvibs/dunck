@@ -115,7 +115,7 @@ impl PieceType {
     }
 
     pub const fn to_char(&self) -> char {
-        ColoredPiece::from(Color::Black, *self).to_char()
+        ColoredPiece::from(Color::White, *self).to_char()
     }
 
     pub fn iter_all() -> impl Iterator<Item = PieceType> {

@@ -1,4 +1,5 @@
 pub mod move_flag;
+mod san;
 
 use crate::miscellaneous::{PieceType, Square};
 use crate::r#move::move_flag::MoveFlag;
