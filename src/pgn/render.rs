@@ -70,8 +70,16 @@ impl PgnMoveTreeNode {
     //     res
     // }
     
-    pub(crate) fn to_tokens(&self) -> Vec<PgnToken> {
+    pub(crate) fn to_tokens(&self, is_start_of_variation: bool) -> Vec<PgnToken> {
         let mut res = Vec::new();
+        
+        if is_start_of_variation {
+            let san = match self.move_and_san_and_previous_node.clone() {
+                None => panic!(),
+                Some((_, s, _)) => s
+            };
+            res.push(PgnToken::Move(san));
+        }
 
         let optional_next_node = self.next_main_node();
         let next_node = match optional_next_node {
@@ -91,12 +99,12 @@ impl PgnMoveTreeNode {
             res.push(PgnToken::StartVariation);
             let variations = self.next_variation_nodes();
             for variation in variations {
-                res.append(&mut (*variation).borrow().to_tokens());
+                res.append(&mut (*variation).borrow().to_tokens(true));
             }
             res.push(PgnToken::EndVariation);
         }
 
-        res.append(&mut next_node.borrow().to_tokens());
+        res.append(&mut next_node.borrow().to_tokens(false));
         
         res
     }
@@ -139,7 +147,7 @@ impl PgnMoveTree {
             res.push(PgnToken::Tag(format!("[{} \"{}\"]", tag.0, tag.1)));
         }
         
-        res.append(&mut (*self.head).borrow().to_tokens());
+        res.append(&mut (*self.head).borrow().to_tokens(false));
         
         res
     }
