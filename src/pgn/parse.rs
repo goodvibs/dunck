@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 use std::iter::Peekable;
+use std::rc::Rc;
 use std::str::{Chars, FromStr};
 use indexmap::IndexMap;
 use crate::pgn::error::PgnParseError;
@@ -160,7 +161,7 @@ impl PgnMoveTree {
 
         let mut pgn_move_tree = PgnMoveTree::new();
 
-        let mut current_node = pgn_move_tree.head;
+        let mut current_node = pgn_move_tree.head.clone();
         let mut node_stack = Vec::new();
         
         let mut tokens = tokens.iter().peekable();
@@ -174,8 +175,8 @@ impl PgnMoveTree {
                 PgnToken::MoveNumber(move_number) => {
                     // todo!()
                 }
-                PgnToken::Move(mv) => unsafe {
-                    let initial_state = (*current_node).state_after_move.clone();
+                PgnToken::Move(mv) => {
+                    let initial_state = (*current_node).borrow().state_after_move.clone();
                     let legal_moves = initial_state.get_legal_moves();
                     
                     let mut found_match = false;
@@ -184,10 +185,11 @@ impl PgnMoveTree {
                         let mut new_state = initial_state.clone();
                         new_state.make_move(*legal_move);
                         
-                        if legal_move.san(&initial_state, &new_state, &legal_moves) == *mv {
+                        let san = legal_move.san(&initial_state, &new_state, &legal_moves);
+                        if san == *mv {
                             found_match = true;
                             
-                            current_node = PgnMoveTreeNode::new_raw_linked_to_previous(*legal_move, mv.to_string(), current_node, new_state);
+                            current_node = PgnMoveTreeNode::new_linked_to_previous(*legal_move, mv.to_string(), current_node, new_state);
                             
                             break;
                         }
@@ -197,12 +199,13 @@ impl PgnMoveTree {
                         return Err(PgnParseError::IllegalMove(mv.to_string()));
                     }
                 }
-                PgnToken::StartVariation => unsafe {
-                    node_stack.push(current_node);
-                    current_node = match (*current_node).move_and_san_and_previous_node {
-                        Some((_, _, previous_node)) => previous_node,
-                        None => return Err(PgnParseError::InvalidVariationStart("Variation does not start after a move".to_string()))
-                    }
+                PgnToken::StartVariation => {
+                    node_stack.push(current_node.clone());
+                    let move_and_san_and_previous_node = &current_node.borrow().move_and_san_and_previous_node.clone();
+                    current_node = match move_and_san_and_previous_node {
+                        Some((_, _, previous_node)) => previous_node.clone(), // Clone the Rc to get a new reference
+                        None => return Err(PgnParseError::InvalidVariationStart("Variation does not start after a move".to_string())),
+                    };
                 }
                 PgnToken::EndVariation => {
                     current_node = match node_stack.pop() {

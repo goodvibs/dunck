@@ -6,12 +6,12 @@ pub mod tokenize;
 pub mod error;
 
 use indexmap::IndexMap;
-pub use pgn_move_tree_traverser::PgnMoveTreeTraverser;
-use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
+// pub use pgn_move_tree_traverser::PgnMoveTreeTraverser;
+use crate::pgn::pgn_move_tree_node::{PgnMoveTreeNode, PgnMoveTreeNodePtr};
 
 pub struct PgnMoveTree {
     pub tags: IndexMap<String, String>,
-    pub head: *mut PgnMoveTreeNode,
+    pub head: PgnMoveTreeNodePtr,
 }
 
 impl PgnMoveTree {
@@ -19,14 +19,6 @@ impl PgnMoveTree {
         PgnMoveTree {
             tags: IndexMap::new(),
             head: PgnMoveTreeNode::new_root()
-        }
-    }
-}
-
-impl Drop for PgnMoveTree {
-    fn drop(&mut self) {
-        unsafe {
-            drop(Box::from_raw(self.head));
         }
     }
 }
@@ -45,7 +37,7 @@ mod tests {
 
     fn test_pgn(input_pgn: &str, expected_pgn: &str) {
         let pgn_tree = PgnMoveTree::from_str(input_pgn).unwrap();
-        assert_eq!(pgn_tree.pgn(), expected_pgn);
+        assert_eq!(pgn_tree.to_string(), expected_pgn);
     }
 
     fn generic_pgn_test(file_name: &str) {
@@ -58,10 +50,8 @@ mod tests {
         let input_pgn = "";
         let pgn_tree = PgnMoveTree::from_str(input_pgn).unwrap();
         assert!(pgn_tree.tags.is_empty());
-        unsafe {
-            assert!((*pgn_tree.head).move_and_san_and_previous_node.is_none());
-        }
-        assert_eq!(pgn_tree.pgn(), "");
+        assert!((*pgn_tree.head).borrow().move_and_san_and_previous_node.is_none());
+        assert_eq!(pgn_tree.to_string(), "");
     }
 
     #[test]
