@@ -5,14 +5,14 @@ use crate::pgn::error::PgnParseError;
 /// Represents a token in a PGN string
 #[derive(Debug, PartialEq)]
 pub enum PgnToken {
-    Tag(String),            // Represents a tag (e.g., "[Event "F/S Return Match"]")
-    Move(String),           // Represents a move (e.g., "e4", "Nf3#")
-    MoveNumber(u16),        // Represents a move number (e.g., "1", "2")
-    StartVariation,         // Represents the start of a variation ('(')
-    EndVariation,           // Represents the end of a variation (')')
-    Comment(String),        // Represents a comment (e.g., "{This is a comment}")
-    Annotation(String),     // Represents an annotation (e.g., "!", "?", "!?", etc.)
-    Result(String),         // Represents a game result (e.g., "1-0", "0-1", "1/2-1/2")
+    Tag(String),                       // Represents a tag (e.g., "[Event "F/S Return Match"]")
+    Move(String),                      // Represents a move (e.g., "e4", "Nf3#")
+    MoveNumberAndPeriods(u16, usize),  // Represents a move number (e.g., "1", "2")
+    StartVariation,                    // Represents the start of a variation ('(')
+    EndVariation,                      // Represents the end of a variation (')')
+    Comment(String),                   // Represents a comment (e.g., "{This is a comment}")
+    Annotation(String),                // Represents an annotation (e.g., "!", "?", "!?", etc.)
+    Result(String),                    // Represents a game result (e.g., "1-0", "0-1", "1/2-1/2")
 }
 
 /// Tokenizes a PGN string into a list of PgnTokens
@@ -68,15 +68,12 @@ pub fn tokenize_pgn(pgn: &str) -> Result<Vec<PgnToken>, PgnParseError> {
                     tokens.push(PgnToken::Result(move_number_or_result));
                 }
                 else if let Ok(num) = move_number_or_result.parse::<u16>() {
-                    tokens.push(PgnToken::MoveNumber(num));
+                    let periods = collect_until(&mut chars, |c| c != '.');
+                    tokens.push(PgnToken::MoveNumberAndPeriods(num, periods.len()));
                 }
                 else {
                     return Err(PgnParseError::InvalidToken(move_number_or_result));
                 }
-            }
-            '.' => {
-                // Skip periods
-                chars.next();
             }
             _ if ch.is_alphabetic() => {
                 // Assume it's a move (e.g., "e4", "Nf3", "O-O", etc.)

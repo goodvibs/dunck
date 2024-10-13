@@ -62,7 +62,7 @@ fn validate_variation_start_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnP
                 }
                 last_token_was_move = false;
             }
-            PgnToken::MoveNumber(_) | PgnToken::Tag(_) | PgnToken::Result(_) => {
+            PgnToken::MoveNumberAndPeriods(_, _) | PgnToken::Tag(_) | PgnToken::Result(_) => {
                 last_token_was_move = false;
             }
             _ => {}
@@ -86,7 +86,7 @@ fn validate_variation_end_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnPar
                     return Err(PgnParseError::InvalidVariationClosure("Variation does not end after a move".to_string()));
                 }
             }
-            PgnToken::StartVariation | PgnToken::MoveNumber(_) | PgnToken::Tag(_) | PgnToken::Result(_) => {
+            PgnToken::StartVariation | PgnToken::MoveNumberAndPeriods(_, _) | PgnToken::Tag(_) | PgnToken::Result(_) => {
                 last_token_was_move = false;
             }
             _ => {}
@@ -124,7 +124,7 @@ fn validate_move_numbers(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
     
     for token in tokens {
         match token {
-            PgnToken::MoveNumber(found_fullmove) => {
+            PgnToken::MoveNumberAndPeriods(found_fullmove, _) => {
                 let expected_fullmove = (halfmove + 1) / 2;
                 if found_fullmove != &expected_fullmove {
                     return Err(PgnParseError::IncorrectMoveNumber(found_fullmove.to_string()));
@@ -172,7 +172,7 @@ impl PgnMoveTree {
                     // let (key, value) = parse_tag(tag)?;
                     // pgn_move_tree.tags.insert(key, value);
                 }
-                PgnToken::MoveNumber(move_number) => {
+                PgnToken::MoveNumberAndPeriods(move_number, num_periods) => {
                     // todo!()
                 }
                 PgnToken::Move(mv) => {
