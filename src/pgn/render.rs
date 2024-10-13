@@ -70,10 +70,10 @@ impl PgnMoveTreeNode {
     //     res
     // }
     
-    pub(crate) fn to_tokens(&self, is_start_of_variation: bool) -> Vec<PgnToken> {
+    pub(crate) fn to_tokens(&self, render_self: bool) -> Vec<PgnToken> {
         let mut res = Vec::new();
         
-        if is_start_of_variation {
+        if render_self {
             let san = match self.move_and_san_and_previous_node.clone() {
                 None => panic!(),
                 Some((_, s, _)) => s
