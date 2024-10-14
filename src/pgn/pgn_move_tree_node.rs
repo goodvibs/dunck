@@ -9,7 +9,7 @@ pub type PgnMoveTreeNodePtr = Rc<RefCell<PgnMoveTreeNode>>;
 pub struct PgnMoveTreeNode {
     pub(crate) move_and_san_and_previous_node: Option<(Move, String, PgnMoveTreeNodePtr)>,
     pub(crate) state_after_move: State,
-    next_nodes: Vec<PgnMoveTreeNodePtr>,
+    pub(crate) next_nodes: Vec<PgnMoveTreeNodePtr>,
 }
 
 impl PgnMoveTreeNode {
@@ -45,6 +45,10 @@ impl PgnMoveTreeNode {
 
     pub(crate) fn has_variation(&self) -> bool {
         self.next_nodes.len() > 1
+    }
+    
+    pub fn next_nodes(&self) -> Vec<PgnMoveTreeNodePtr> {
+        self.next_nodes.clone()
     }
 
     pub(crate) fn next_main_node(&self) -> Option<PgnMoveTreeNodePtr> {
