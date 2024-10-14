@@ -1,5 +1,5 @@
-use crate::bitboard::Bitboard;
-use crate::miscellaneous::Square;
+use crate::utils::Bitboard;
+use crate::utils::Square;
 use lazy_static::lazy_static;
 use crate::attacks::manual_attacks;
 
@@ -34,7 +34,7 @@ pub fn precomputed_single_knight_attacks(src_mask: Bitboard) -> Bitboard {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::miscellaneous::Square;
+    use crate::utils::Square;
 
     #[test]
     fn test_single_king_attacks() {

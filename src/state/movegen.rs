@@ -1,7 +1,7 @@
 use crate::attacks::{multi_pawn_attacks, multi_pawn_moves, single_bishop_attacks, single_king_attacks, single_knight_attacks, single_rook_attacks};
-use crate::bitboard::unpack_mask;
-use crate::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8};
-use crate::miscellaneous::{Color, PieceType, Square};
+use crate::utils::unpack_mask;
+use crate::utils::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8};
+use crate::utils::{Color, PieceType, Square};
 use crate::r#move::Move;
 use crate::r#move::move_flag::MoveFlag;
 use crate::state::State;

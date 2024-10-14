@@ -1,4 +1,4 @@
-use crate::bitboard::Bitboard;
+use crate::utils::bitboard::Bitboard;
 
 pub const FILE_A: Bitboard = 0x8080808080808080;
 pub const FILE_B: Bitboard = 0x4040404040404040;

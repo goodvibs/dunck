@@ -5,16 +5,12 @@
 
 use crate::state::State;
 
-mod attacks;
-mod charboard;
-mod masks;
-mod state;
-mod miscellaneous;
-mod pgn;
-mod bitboard;
-mod fen;
-mod perft;
+pub mod attacks;
+pub mod state;
+pub mod pgn;
+pub mod perft;
 pub mod r#move;
+pub mod utils;
 
 fn main() {
     let mut state = State::initial();

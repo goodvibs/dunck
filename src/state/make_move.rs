@@ -1,5 +1,5 @@
-use crate::masks::STARTING_KING_ROOK_GAP_SHORT;
-use crate::miscellaneous::{Color, ColoredPiece, PieceType, Square};
+use crate::utils::masks::STARTING_KING_ROOK_GAP_SHORT;
+use crate::utils::{Color, ColoredPiece, PieceType, Square};
 use crate::r#move::move_flag::MoveFlag;
 use crate::r#move::Move;
 use crate::state::context::Context;

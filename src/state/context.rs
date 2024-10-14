@@ -1,6 +1,6 @@
-use crate::bitboard::Bitboard;
-use crate::masks::{STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
-use crate::miscellaneous::{Color, ColoredPiece, PieceType, Square};
+use crate::utils::Bitboard;
+use crate::utils::masks::{STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
+use crate::utils::{Color, ColoredPiece, PieceType, Square};
 
 const fn calc_castling_color_adjustment(color: Color) -> usize {
     (color as usize) << 1

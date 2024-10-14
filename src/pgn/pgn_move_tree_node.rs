@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::miscellaneous::Color;
+use crate::utils::Color;
 use crate::r#move::Move;
 use crate::state::State;
 

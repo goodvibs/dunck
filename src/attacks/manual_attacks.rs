@@ -1,7 +1,7 @@
 use std::cmp;
-use crate::bitboard::Bitboard;
-use crate::miscellaneous::Color;
-use crate::masks::*;
+use crate::utils::Bitboard;
+use crate::utils::Color;
+use crate::utils::masks::*;
 
 pub fn multi_knight_attacks(knights_mask: Bitboard) -> Bitboard {
     (knights_mask << 17 & !FILE_H) | (knights_mask << 15 & !FILE_A) | (knights_mask << 10 & !FILES_GH) | (knights_mask << 6 & !FILES_AB) |

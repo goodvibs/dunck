@@ -1,6 +1,6 @@
-use crate::bitboard::{generate_bit_combinations, Bitboard};
-use crate::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
-use crate::miscellaneous::{SlidingPieceType, Square};
+use crate::utils::{generate_bit_combinations, Bitboard};
+use crate::utils::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
+use crate::utils::{SlidingPieceType, Square};
 use lazy_static::lazy_static;
 use crate::attacks::manual_attacks::{manual_single_bishop_attacks, manual_single_rook_attacks};
 
@@ -198,9 +198,9 @@ fn gen_random_magic_number() -> Bitboard {
 mod tests {
     use crate::attacks::{magic_attacks, manual_attacks};
     use crate::attacks::magic_attacks::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
-    use crate::bitboard::generate_bit_combinations;
-    use crate::charboard::print_bb_pretty;
-    use crate::miscellaneous::{SlidingPieceType, Square};
+    use crate::utils::generate_bit_combinations;
+    use crate::utils::charboard::print_bb_pretty;
+    use crate::utils::{SlidingPieceType, Square};
 
     #[test]
     fn test_calc_rook_relevant_mask() {

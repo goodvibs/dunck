@@ -1,7 +1,7 @@
 pub mod move_flag;
 mod san;
 
-use crate::miscellaneous::{PieceType, Square};
+use crate::utils::{PieceType, Square};
 use crate::r#move::move_flag::MoveFlag;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
@@ -80,7 +80,7 @@ impl std::fmt::Debug for Move {
 #[cfg(test)]
 mod tests {
     use super::{Move, MoveFlag};
-    use crate::miscellaneous::{PieceType, Square};
+    use crate::utils::{PieceType, Square};
 
     #[test]
     fn test_move() {

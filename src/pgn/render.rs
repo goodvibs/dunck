@@ -6,7 +6,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::fs;
 use std::ptr::null_mut;
 use std::str::FromStr;
-use crate::miscellaneous::Color;
+use crate::utils::Color;
 use crate::pgn::tokenize::PgnToken;
 use crate::state::State;
 

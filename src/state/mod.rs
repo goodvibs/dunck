@@ -5,14 +5,12 @@ pub mod make_move;
 pub mod movegen;
 pub mod unmake_move;
 pub mod zobrist;
+mod fen;
 
-use crate::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
-use crate::miscellaneous::*;
+use crate::utils::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
+use crate::utils::*;
 use std::collections::HashMap;
 use std::str::FromStr;
-use crate::bitboard::Bitboard;
-use crate::pgn::error::PgnParseError;
-use crate::pgn::PgnMoveTree;
 use crate::state::board::Board;
 use crate::state::context::Context;
 use crate::state::termination::Termination;

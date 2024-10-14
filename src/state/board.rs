@@ -1,7 +1,7 @@
-use crate::miscellaneous::*;
+use crate::utils::*;
 use crate::attacks::*;
-use crate::bitboard::{Bitboard, unpack_mask};
-use crate::masks::*;
+use crate::utils::{Bitboard, unpack_mask};
+use crate::utils::masks::*;
 use crate::state::zobrist::get_piece_zobrist_hash;
 
 #[derive(Eq, PartialEq, Clone, Debug)]

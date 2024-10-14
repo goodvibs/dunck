@@ -4,7 +4,7 @@ mod tests {
     use std::iter::zip;
     use std::str::FromStr;
     use chess;
-    use crate::miscellaneous::{PieceType, Square};
+    use crate::utils::{PieceType, Square};
     use crate::r#move::Move;
     use crate::r#move::move_flag::MoveFlag;
     use crate::state::State;
@@ -34,7 +34,7 @@ mod tests {
     }
 
     fn are_moves_equal(mv: Move, chess_mv: chess::ChessMove) -> bool {
-        let uci = mv.uci();
+        let uci = mv.uci().to_lowercase();
         let flag = mv.get_flag();
         let created_chess_mv = chess::ChessMove::from_str(uci.as_str()).unwrap();
         created_chess_mv == chess_mv
