@@ -1,4 +1,4 @@
-pub mod board;
+mod board;
 mod context;
 mod termination;
 mod make_move;
@@ -7,6 +7,7 @@ mod unmake_move;
 mod zobrist;
 mod fen;
 
+pub use board::*;
 pub use context::*;
 pub use termination::*;
 pub use make_move::*;
@@ -19,9 +20,6 @@ use crate::utils::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, F
 use crate::utils::*;
 use std::collections::HashMap;
 use std::str::FromStr;
-use crate::state::board::Board;
-use crate::state::context::Context;
-use crate::state::termination::Termination;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct State {

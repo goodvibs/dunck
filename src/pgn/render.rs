@@ -8,7 +8,7 @@ use std::ptr::null_mut;
 use std::str::FromStr;
 use crate::utils::Color;
 use crate::pgn::tokenize::PgnToken;
-use crate::state::State;
+use crate::state::{State, Termination};
 
 use std::fmt::Write;
 
@@ -34,7 +34,7 @@ pub fn render_tokens(tokens: Vec<PgnToken>) -> String {
             PgnToken::Tag(tag) => writeln!(result, "{}", tag).unwrap(),
             PgnToken::Comment(c) => write!(result, "{}", c).unwrap(),
             PgnToken::Annotation(a) => write!(result, "{}", a).unwrap(),
-            PgnToken::Result(r) => write!(result, " {}", r).unwrap(),
+            PgnToken::Result(r) => write!(result, "{}", r).unwrap(),
         }
     }
 
@@ -121,6 +121,27 @@ impl PgnMoveTree {
         }
         
         res.append(&mut (*self.head).borrow().to_tokens(false));
+        
+        let mut last_node = self.head.clone();
+        while let Some(next_node) = last_node.clone().borrow().next_main_node() {
+            last_node = next_node;
+        };
+        let final_state = last_node.borrow().state_after_move.clone();
+        match final_state.termination {
+            None => (),
+            Some(termination) => {
+                let result_string = match termination {
+                    Termination::Checkmate => {
+                        match final_state.side_to_move {
+                            Color::White => "0-1",
+                            Color::Black => "1-0"
+                        }
+                    },
+                    Termination::Stalemate | Termination::ThreefoldRepetition | Termination::InsufficientMaterial | Termination::FiftyMoveRule => "1/2-1/2",
+                };
+                res.push(PgnToken::Result(result_string.to_string()));
+            }
+        }
         
         res
     }

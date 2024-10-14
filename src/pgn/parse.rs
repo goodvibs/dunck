@@ -8,7 +8,8 @@ use crate::pgn::error::PgnParseError;
 use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
 use crate::pgn::PgnMoveTree;
 use crate::pgn::tokenize::{tokenize_pgn, PgnToken};
-use crate::state::State;
+use crate::state::{State, Termination};
+use crate::utils::Color;
 
 fn validate_tag_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
     let mut can_tag_be_placed = true;
@@ -222,13 +223,18 @@ impl PgnMoveTree {
                 PgnToken::Result(result) => {
                     match result.as_str() {
                         "1-0" => {
-                            // todo!()
+                            let mut node = current_node.borrow_mut();
+                            node.state_after_move.termination = Some(Termination::Checkmate);
+                            assert_eq!(node.state_after_move.side_to_move, Color::Black);
                         }
                         "0-1" => {
-                            // todo!()
+                            let mut node = current_node.borrow_mut();
+                            node.state_after_move.termination = Some(Termination::Checkmate);
+                            assert_eq!(node.state_after_move.side_to_move, Color::White);
                         }
                         "1/2-1/2" => {
-                            // todo!()
+                            let mut node = current_node.borrow_mut();
+                            node.state_after_move.termination = Some(Termination::Stalemate);
                         }
                         _ => {
                             return Err(PgnParseError::InvalidResult(result.to_string()));
