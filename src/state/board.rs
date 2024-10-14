@@ -83,11 +83,11 @@ impl Board {
 
         let mut attacks = multi_pawn_attacks(self.piece_type_masks[PieceType::Pawn as usize] & attacking_color_pieces, by_color);
         attacks |= multi_knight_attacks(self.piece_type_masks[PieceType::Knight as usize] & attacking_color_pieces);
-        for bb in unpack_mask((self.piece_type_masks[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
-            attacks |= single_bishop_attacks(bb, all_occ);
+        for src_square in get_squares_from_mask((self.piece_type_masks[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
+            attacks |= single_bishop_attacks(src_square, all_occ);
         }
-        for bb in unpack_mask((self.piece_type_masks[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
-            attacks |= single_rook_attacks(bb, all_occ);
+        for src_square in get_squares_from_mask((self.piece_type_masks[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
+            attacks |= single_rook_attacks(src_square, all_occ);
         }
         attacks |= multi_king_attacks(self.piece_type_masks[PieceType::King as usize] & attacking_color_pieces);
         attacks & mask != 0

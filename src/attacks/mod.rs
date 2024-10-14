@@ -2,15 +2,15 @@ mod magic;
 mod manual;
 mod precomputed;
 
-use crate::utils::Bitboard;
+use crate::utils::{Bitboard, Square};
 use crate::utils::Color;
 
-pub fn single_knight_attacks(src_mask: Bitboard) -> Bitboard {
-    precomputed::precomputed_single_knight_attacks(src_mask)
+pub fn single_knight_attacks(src_square: Square) -> Bitboard {
+    precomputed::precomputed_single_knight_attacks(src_square)
 }
 
-pub fn single_king_attacks(src_mask: Bitboard) -> Bitboard {
-    precomputed::precomputed_single_king_attacks(src_mask)
+pub fn single_king_attacks(src_square: Square) -> Bitboard {
+    precomputed::precomputed_single_king_attacks(src_square)
 }
 
 pub fn multi_knight_attacks(knights_mask: Bitboard) -> Bitboard {
@@ -29,10 +29,10 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
     manual::multi_pawn_moves(pawns_mask, by_color)
 }
 
-pub fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
-    unsafe { magic::magic_single_rook_attacks(src_mask, occupied_mask) }
+pub fn single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
+    magic::magic_single_rook_attacks(src_square, occupied_mask)
 }
 
-pub fn single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
-    unsafe { magic::magic_single_bishop_attacks(src_mask, occupied_mask) }
+pub fn single_bishop_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
+    magic::magic_single_bishop_attacks(src_square, occupied_mask)
 }

@@ -23,12 +23,12 @@ lazy_static! {
     };
 }
 
-pub fn precomputed_single_king_attacks(src_mask: Bitboard) -> Bitboard {
-    SINGLE_KING_ATTACKS[src_mask.leading_zeros() as usize]
+pub fn precomputed_single_king_attacks(src_square: Square) -> Bitboard {
+    SINGLE_KING_ATTACKS[src_square as usize]
 }
 
-pub fn precomputed_single_knight_attacks(src_mask: Bitboard) -> Bitboard {
-    SINGLE_KNIGHT_ATTACKS[src_mask.leading_zeros() as usize]
+pub fn precomputed_single_knight_attacks(src_square: Square) -> Bitboard {
+    SINGLE_KNIGHT_ATTACKS[src_square as usize]
 }
 
 #[cfg(test)]
@@ -39,14 +39,14 @@ mod tests {
     #[test]
     fn test_single_king_attacks() {
         for square in Square::iter_all() {
-            assert_eq!(precomputed_single_king_attacks(square.to_mask()), manual::multi_king_attacks(square.to_mask()));
+            assert_eq!(precomputed_single_king_attacks(square), manual::multi_king_attacks(square.to_mask()));
         }
     }
 
     #[test]
     fn test_single_knight_attacks() {
         for square in Square::iter_all() {
-            assert_eq!(precomputed_single_knight_attacks(square.to_mask()), manual::multi_knight_attacks(square.to_mask()));
+            assert_eq!(precomputed_single_knight_attacks(square), manual::multi_knight_attacks(square.to_mask()));
         }
     }
 }

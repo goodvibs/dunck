@@ -1,5 +1,5 @@
 use std::cmp;
-use crate::utils::Bitboard;
+use crate::utils::{Bitboard, Square};
 use crate::utils::Color;
 use crate::utils::masks::*;
 
@@ -28,13 +28,14 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
     }
 }
 
-pub fn manual_single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
+pub fn manual_single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
     let mut attacks: Bitboard = 0;
-    let leading_zeros: u32 = src_mask.leading_zeros();
+    let leading_zeros = src_square as u32;
     let n_distance: u32 = leading_zeros / 8;
     let s_distance: u32 = 7 - n_distance;
     let w_distance: u32 = leading_zeros % 8;
     let e_distance: u32 = 7 - w_distance;
+    let src_mask = src_square.to_mask();
     let (mut pos_n, mut pos_s, mut pos_w, mut pos_e): (Bitboard, Bitboard, Bitboard, Bitboard) = (src_mask, src_mask, src_mask, src_mask);
     for _ in 0..n_distance {
         pos_n <<= 8;
@@ -67,13 +68,14 @@ pub fn manual_single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -
     attacks
 }
 
-pub fn manual_single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
+pub fn manual_single_bishop_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
     let mut attacks: Bitboard = 0;
-    let leading_zeros: u32 = src_mask.leading_zeros();
+    let leading_zeros = src_square as u32;
     let n_distance: u32 = leading_zeros / 8;
     let s_distance: u32 = 7 - n_distance;
     let w_distance: u32 = leading_zeros % 8;
     let e_distance: u32 = 7 - w_distance;
+    let src_mask = src_square.to_mask();
     let (mut pos_nw, mut pos_ne, mut pos_sw, mut pos_se): (Bitboard, Bitboard, Bitboard, Bitboard) = (src_mask, src_mask, src_mask, src_mask);
     for _ in 0..cmp::min(n_distance, w_distance) {
         pos_nw <<= 9;
