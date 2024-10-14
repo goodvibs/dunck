@@ -6,7 +6,7 @@ impl mocats::GameAction for Move {}
 
 impl mocats::Player for Color {}
 
-impl<'a> mocats::GameState<Move, Color> for State<'a> {
+impl mocats::GameState<Move, Color> for State {
     fn get_actions(&self) -> Vec<Move> {
         self.get_legal_moves()
     }
@@ -61,6 +61,17 @@ mod tests {
     #[test]
     fn test_game_state2() {
         let state = State::from_fen("5K2/1p2pp2/P7/1b3Nk1/4B1pN/5r2/p3Pp2/4Q3 w - - 0 1").unwrap();
+        let tree_policy = mocats::UctPolicy::new(2.0);
+        let mut search_tree = mocats::SearchTree::new(state, tree_policy);
+        search_tree.run(500);
+        let best_action = search_tree.get_best_action();
+        println!("{}", search_tree);
+        println!("Best action: {}", best_action.unwrap());
+    }
+
+    #[test]
+    fn test_game_state3() {
+        let state = State::from_fen("5K2/1p2pp2/P7/1b3Nk1/4B1p1/5N2/p3Pp2/4Q3 b - - 0 1").unwrap();
         let tree_policy = mocats::UctPolicy::new(2.0);
         let mut search_tree = mocats::SearchTree::new(state, tree_policy);
         search_tree.run(500);

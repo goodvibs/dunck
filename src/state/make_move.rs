@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::utils::masks::STARTING_KING_ROOK_GAP_SHORT;
 use crate::utils::{Color, ColoredPiece, PieceType, Square};
 use crate::r#move::MoveFlag;
@@ -78,7 +80,7 @@ impl State {
     pub fn make_move(&mut self, mv: Move) { // todo: split into smaller functions for unit testing
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 
-        let mut new_context = Context::new_from(self.context.clone());
+        let mut new_context = Context::new_from(Rc::clone(&self.context));
 
         self.board.move_color(self.side_to_move, dst_square, src_square);
 
@@ -92,13 +94,13 @@ impl State {
         // update data members
         self.halfmove += 1;
         self.side_to_move = self.side_to_move.flip();
-        self.context = Box::new(new_context);
+        self.context = Rc::new(RefCell::new(new_context));
         self.in_check = self.board.is_color_in_check(self.side_to_move);
 
         if self.board.are_both_sides_insufficient_material() {
             self.termination = Some(Termination::InsufficientMaterial);
         }
-        else if self.context.halfmove_clock == 100 { // fifty move rule
+        else if self.context.borrow().halfmove_clock == 100 { // fifty move rule
             self.termination = Some(Termination::FiftyMoveRule);
         }
         else {

@@ -7,6 +7,7 @@ mod unmake_move;
 mod zobrist;
 mod fen;
 
+use std::cell::RefCell;
 pub use board::*;
 pub use context::*;
 pub use termination::*;
@@ -19,6 +20,7 @@ pub use fen::*;
 use crate::utils::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::utils::*;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::str::FromStr;
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -29,7 +31,7 @@ pub struct State {
     pub side_to_move: Color,
     pub halfmove: u16,
     pub termination: Option<Termination>,
-    pub context: Box<Context>,
+    pub context: Rc<RefCell<Context>>,
 }
 
 impl State {
@@ -42,7 +44,7 @@ impl State {
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Box::new(Context::initial_no_castling()),
+            context: Rc::new(RefCell::new(Context::initial_no_castling())),
         }
     }
 
@@ -57,7 +59,7 @@ impl State {
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Box::new(Context::initial()),
+            context: Rc::new(RefCell::new(Context::initial())),
         }
     }
 
@@ -69,12 +71,12 @@ impl State {
         self.halfmove / 2 + 1
     }
 
-    pub const fn has_castling_rights_short(&self, color: Color) -> bool {
-        self.context.castling_rights & (0b00001000 >> (color as u8 * 2)) != 0
+    pub fn has_castling_rights_short(&self, color: Color) -> bool {
+        self.context.borrow().castling_rights & (0b00001000 >> (color as u8 * 2)) != 0
     }
 
-    pub const fn has_castling_rights_long(&self, color: Color) -> bool {
-        self.context.castling_rights & (0b00000100 >> (color as u8 * 2)) != 0
+    pub fn has_castling_rights_long(&self, color: Color) -> bool {
+        self.context.borrow().castling_rights & (0b00000100 >> (color as u8 * 2)) != 0
     }
 
     const fn has_castling_space_short(&self, color: Color) -> bool {
@@ -110,7 +112,8 @@ impl State {
     }
 
     pub fn has_valid_halfmove_clock(&self) -> bool {
-        self.context.halfmove_clock <= 100 && self.context.halfmove_clock as u16 <= self.halfmove
+        let context = self.context.borrow();
+        context.halfmove_clock <= 100 && context.halfmove_clock as u16 <= self.halfmove
     }
 
     pub fn has_valid_side_to_move(&self) -> bool {
@@ -118,6 +121,8 @@ impl State {
     }
 
     pub fn has_valid_castling_rights(&self) -> bool {
+        let context = self.context.borrow();
+        
         let kings_bb = self.board.piece_type_masks[PieceType::King as usize];
         let rooks_bb = self.board.piece_type_masks[PieceType::Rook as usize];
 
@@ -127,31 +132,31 @@ impl State {
         let is_white_king_in_place = (kings_bb & white_bb & STARTING_WK) != 0;
         let is_black_king_in_place = (kings_bb & black_bb & STARTING_BK) != 0;
 
-        if !is_white_king_in_place && self.context.castling_rights & 0b00001100 != 0 {
+        if !is_white_king_in_place && context.castling_rights & 0b00001100 != 0 {
             return false;
         }
 
-        if !is_black_king_in_place && self.context.castling_rights & 0b00000011 != 0 {
+        if !is_black_king_in_place && context.castling_rights & 0b00000011 != 0 {
             return false;
         }
 
         let is_white_king_side_rook_in_place = (rooks_bb & white_bb & STARTING_KING_SIDE_WR) != 0;
-        if !is_white_king_side_rook_in_place && (self.context.castling_rights & 0b00001000) != 0 {
+        if !is_white_king_side_rook_in_place && (context.castling_rights & 0b00001000) != 0 {
             return false;
         }
 
         let is_white_queen_side_rook_in_place = (rooks_bb & white_bb & STARTING_QUEEN_SIDE_WR) != 0;
-        if !is_white_queen_side_rook_in_place && (self.context.castling_rights & 0b00000100) != 0 {
+        if !is_white_queen_side_rook_in_place && (context.castling_rights & 0b00000100) != 0 {
             return false;
         }
 
         let is_black_king_side_rook_in_place = (rooks_bb & black_bb & STARTING_KING_SIDE_BR) != 0;
-        if !is_black_king_side_rook_in_place && (self.context.castling_rights & 0b00000010) != 0 {
+        if !is_black_king_side_rook_in_place && (context.castling_rights & 0b00000010) != 0 {
             return false;
         }
 
         let is_black_queen_side_rook_in_place = (rooks_bb & black_bb & STARTING_QUEEN_SIDE_BR) != 0;
-        if !is_black_queen_side_rook_in_place && (self.context.castling_rights & 0b00000001) != 0 {
+        if !is_black_queen_side_rook_in_place && (context.castling_rights & 0b00000001) != 0 {
             return false;
         }
 
@@ -159,7 +164,7 @@ impl State {
     }
 
     pub fn has_valid_double_pawn_push(&self) -> bool {
-        match self.context.double_pawn_push {
+        match self.context.borrow().double_pawn_push {
             -1 => true,
             file if file > 7 || file < -1 => false,
             file => {

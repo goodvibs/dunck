@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use crate::utils::Bitboard;
 use crate::utils::masks::{STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
 use crate::utils::{Color, ColoredPiece, PieceType, Square};
@@ -22,11 +24,11 @@ pub struct Context {
 
     // updated after every move
     pub captured_piece: PieceType,
-    pub previous: Option<Box<Context>>
+    pub previous: Option<Rc<RefCell<Context>>>
 }
 
 impl Context {
-    pub fn new(halfmove_clock: u8, double_pawn_push: i8, castling_info: u8, captured_piece: PieceType, previous: Option<Box<Context>>) -> Context {
+    pub fn new(halfmove_clock: u8, double_pawn_push: i8, castling_info: u8, captured_piece: PieceType, previous: Option<Rc<RefCell<Context>>>) -> Context {
         Context {
             halfmove_clock,
             double_pawn_push,
@@ -36,13 +38,14 @@ impl Context {
         }
     }
     
-    pub fn new_from(previous_context: Box<Context>) -> Context {
+    pub fn new_from(previous_context: Rc<RefCell<Context>>) -> Context {
+        let previous = previous_context.borrow();
         Context {
-            halfmove_clock: previous_context.halfmove_clock + 1,
+            halfmove_clock: previous.halfmove_clock + 1,
             double_pawn_push: -1,
-            castling_rights: previous_context.castling_rights,
+            castling_rights: previous.castling_rights,
             captured_piece: PieceType::NoPieceType,
-            previous: Some(previous_context)
+            previous: Some(previous_context.clone())
         }
     }
 

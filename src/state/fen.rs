@@ -47,7 +47,7 @@ fn process_fen_castle(state: &mut State, fen_castle: &str) -> bool {
             return false;
         }
         already_seen[index] = true;
-        state.context.castling_rights |= 1 << (3 - index);
+        state.context.borrow_mut().castling_rights |= 1 << (3 - index);
     }
     return true;
 }
@@ -82,7 +82,7 @@ fn process_en_passant_target_square(state: &mut State, fen_en_passant_target_squ
                 return false;
             }
             
-            state.context.double_pawn_push = file_int as i8;
+            state.context.borrow_mut().double_pawn_push = file_int as i8;
             
             true
         }
@@ -97,7 +97,7 @@ fn process_fen_halfmove_clock(state: &mut State, fen_halfmove_clock: &str) -> bo
             if halfmove_clock > 100 {
                 return false;
             }
-            state.context.halfmove_clock = halfmove_clock;
+            state.context.borrow_mut().halfmove_clock = halfmove_clock;
             true
         },
         Err(_) => false
@@ -272,14 +272,15 @@ impl State {
     }
 
     fn get_fen_castling_info(&self) -> String {
-        if self.context.castling_rights == 0 {
+        let context = self.context.borrow(); 
+        if context.castling_rights == 0 {
             return "-".to_string();
         }
         let mut castling_info = String::with_capacity(4);
         let castling_chars = ['K', 'Q', 'k', 'q'];
         let mask = 0b1000;
         for i in 0..4 {
-            if self.context.castling_rights & mask >> i != 0 {
+            if context.castling_rights & mask >> i != 0 {
                 castling_info.push(castling_chars[i]);
             }
         }
@@ -287,10 +288,11 @@ impl State {
     }
 
     fn get_fen_en_passant_target(&self) -> String {
-        if self.context.double_pawn_push == -1 {
+        let context = self.context.borrow();
+        if context.double_pawn_push == -1 {
             return "-".to_string();
         }
-        let file = (self.context.double_pawn_push + 'a' as i8) as u8;
+        let file = (context.double_pawn_push + 'a' as i8) as u8;
         let rank = match self.side_to_move {
             Color::White => 6,
             Color::Black => 3
@@ -299,7 +301,7 @@ impl State {
     }
 
     fn get_fen_halfmove_clock(&self) -> String {
-        self.context.halfmove_clock.to_string()
+        self.context.borrow().halfmove_clock.to_string()
     }
 
     fn get_fen_fullmove(&self) -> String {
@@ -343,7 +345,7 @@ mod tests {
     fn test_process_fen_castle() {
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "-"), true);
-        assert_eq!(state.context.castling_rights, 0b00000000);
+        assert_eq!(state.context.borrow().castling_rights, 0b00000000);
         
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "KQkqq"), false);
@@ -353,15 +355,15 @@ mod tests {
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "KQkq"), true);
-        assert_eq!(state.context.castling_rights, 0b00001111);
+        assert_eq!(state.context.borrow().castling_rights, 0b00001111);
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "Qkq"), true);
-        assert_eq!(state.context.castling_rights, 0b00000111);
+        assert_eq!(state.context.borrow().castling_rights, 0b00000111);
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, "qkK"), true);
-        assert_eq!(state.context.castling_rights, 0b00001011);
+        assert_eq!(state.context.borrow().castling_rights, 0b00001011);
 
         let mut state = State::blank();
         assert_eq!(process_fen_castle(&mut state, " "), false);
@@ -371,15 +373,15 @@ mod tests {
     fn test_process_fen_double_pawn_push() {
         let mut state = State::blank();
         assert!(process_en_passant_target_square(&mut state, "-"));
-        assert_eq!(state.context.double_pawn_push, -1);
+        assert_eq!(state.context.borrow().double_pawn_push, -1);
         
         let mut state = State::initial();
 
         assert!(process_en_passant_target_square(&mut state, "a6"));
-        assert_eq!(state.context.double_pawn_push, 0);
+        assert_eq!(state.context.borrow().double_pawn_push, 0);
 
         assert!(process_en_passant_target_square(&mut state, "f6"));
-        assert_eq!(state.context.double_pawn_push, 5);
+        assert_eq!(state.context.borrow().double_pawn_push, 5);
         
         assert!(!process_en_passant_target_square(&mut state, "f4"));
         assert!(!process_en_passant_target_square(&mut state, "f 3"));
@@ -387,21 +389,21 @@ mod tests {
         assert!(!process_en_passant_target_square(&mut state, "h3"));
 
         state.halfmove += 1;
-        state.context.halfmove_clock += 1;
+        state.context.borrow_mut().halfmove_clock += 1;
         state.side_to_move = Color::Black;
         
         assert!(process_en_passant_target_square(&mut state, "a3"));
         assert!(!process_en_passant_target_square(&mut state, " 3"));
         assert!(!process_en_passant_target_square(&mut state, "i3"));
         assert!(process_en_passant_target_square(&mut state, "a3"));
-        assert_eq!(state.context.double_pawn_push, 0);
+        assert_eq!(state.context.borrow().double_pawn_push, 0);
 
         assert!(!process_en_passant_target_square(&mut state, "d6"));
         assert!(process_en_passant_target_square(&mut state, "d3"));
-        assert_eq!(state.context.double_pawn_push, 3);
+        assert_eq!(state.context.borrow().double_pawn_push, 3);
 
         assert!(process_en_passant_target_square(&mut state, "h3"));
-        assert_eq!(state.context.double_pawn_push, 7);
+        assert_eq!(state.context.borrow().double_pawn_push, 7);
     }
 
     #[test]
@@ -409,10 +411,10 @@ mod tests {
         let mut state = State::initial();
         let is_valid = process_fen_halfmove_clock(&mut state, "0");
         assert!(is_valid);
-        assert_eq!(state.context.halfmove_clock, 0);
+        assert_eq!(state.context.borrow().halfmove_clock, 0);
         let is_valid = process_fen_halfmove_clock(&mut state, "100");
         assert!(is_valid);
-        assert_eq!(state.context.halfmove_clock, 100);
+        assert_eq!(state.context.borrow().halfmove_clock, 100);
         let is_valid = process_fen_halfmove_clock(&mut state, "101");
         assert!(!is_valid);
         let is_valid = process_fen_halfmove_clock(&mut state, "101a");
@@ -491,7 +493,7 @@ mod tests {
         let is_valid = process_fen_board_row(&mut state, 7, "RNBQKBNR");
         assert!(is_valid);
         assert!(state.board.is_valid());
-        state.context.castling_rights = 0b00001111;
+        state.context.borrow_mut().castling_rights = 0b00001111;
         state.increment_position_count();
         assert_eq!(state, State::initial());
     }
@@ -504,7 +506,7 @@ mod tests {
         assert!(result.is_ok());
         assert!(state.board.is_valid());
         state.increment_position_count();
-        state.context.castling_rights = 0b00001111;
+        state.context.borrow_mut().castling_rights = 0b00001111;
         assert_eq!(state, State::initial());
         
         let mut state = State::blank();
@@ -557,7 +559,7 @@ mod tests {
         expected_state.board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::H1);
         expected_state.halfmove = 175;
         expected_state.side_to_move = Color::Black;
-        expected_state.context.halfmove_clock = 99;
+        expected_state.context.borrow_mut().halfmove_clock = 99;
         expected_state.increment_position_count();
         assert_eq!(state, expected_state);
         
@@ -581,7 +583,7 @@ mod tests {
         }
         expected_state.board.put_colored_piece_at(ColoredPiece::BlackPawn, Square::H5);
         expected_state.halfmove = 10;
-        expected_state.context.double_pawn_push = 7;
+        expected_state.context.borrow_mut().double_pawn_push = 7;
         expected_state.position_counts.clear();
         expected_state.increment_position_count();
         assert_eq!(state, expected_state);
@@ -596,11 +598,11 @@ mod tests {
         assert_eq!(fen, expected_fen);
         
         state.halfmove += 1;
-        state.context.halfmove_clock += 1;
+        state.context.borrow_mut().halfmove_clock += 1;
         state.side_to_move = Color::Black;
         state.board.put_colored_piece_at(ColoredPiece::BlackQueen, Square::D4);
         state.board.remove_colored_piece_at(ColoredPiece::WhiteRook, Square::H1);
-        state.context.castling_rights &= !0b1000;
+        state.context.borrow_mut().castling_rights &= !0b1000;
         let fen = state.to_fen();
         let expected_fen = "rnbqkbnr/pppppppp/8/8/3q4/8/PPPPPPPP/RNBQKBN1 b Qkq - 1 1";
     }

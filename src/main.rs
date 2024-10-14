@@ -11,6 +11,7 @@ pub mod pgn;
 pub mod perft;
 pub mod r#move;
 pub mod utils;
+mod engine;
 
 fn main() {
     let mut state = State::initial();

@@ -38,6 +38,7 @@ impl State {
     }
 
     fn add_en_passant_pseudolegal(&self, moves: &mut Vec<Move>) {
+        let context = self.context.borrow();
         let same_color_bb = self.board.color_masks[self.side_to_move as usize];
         let pawns_bb = self.board.piece_type_masks[PieceType::Pawn as usize] & same_color_bb;
 
@@ -46,14 +47,14 @@ impl State {
             Color::Black => (RANK_4, RANK_3),
         };
 
-        if self.context.double_pawn_push != -1 { // if en passant is possible
+        if context.double_pawn_push != -1 { // if en passant is possible
             for &direction in [-1, 1].iter() { // left and right
-                let double_pawn_push_file = self.context.double_pawn_push as i32 + direction;
+                let double_pawn_push_file = context.double_pawn_push as i32 + direction;
                 if double_pawn_push_file >= 0 && double_pawn_push_file <= 7 { // if within bounds
                     let double_pawn_push_file_mask = FILE_A >> double_pawn_push_file;
                     if pawns_bb & double_pawn_push_file_mask & src_rank_bb != 0 {
                         let move_src = unsafe { Square::from(src_rank_bb.leading_zeros() as u8 + double_pawn_push_file as u8) };
-                        let move_dst = unsafe { Square::from(dst_rank_bb.leading_zeros() as u8 + self.context.double_pawn_push as u8) };
+                        let move_dst = unsafe { Square::from(dst_rank_bb.leading_zeros() as u8 + context.double_pawn_push as u8) };
                         moves.push(Move::new_non_promotion(move_dst, move_src, MoveFlag::EnPassant));
                     }
                 }
