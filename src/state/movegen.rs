@@ -4,7 +4,7 @@ use crate::utils::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8
 use crate::utils::{Color, PieceType, Square};
 use crate::r#move::Move;
 use crate::r#move::MoveFlag;
-use crate::state::State;
+use crate::state::{State, Termination};
 
 fn add_pawn_promotion_moves(moves: &mut Vec<Move>, src: Square, dst: Square) {
     for promotion_piece in PieceType::iter_between(PieceType::Knight, PieceType::Queen) {
@@ -215,6 +215,9 @@ impl State {
     }
 
     pub fn get_legal_moves(&self) -> Vec<Move> { // todo: filter out illegal moves
+        if self.termination.is_some() {
+            return Vec::new();
+        }
         let pseudolegal_moves = self.get_pseudolegal_moves();
         let mut filtered_moves = Vec::new();
         for move_ in pseudolegal_moves {

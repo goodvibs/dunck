@@ -83,6 +83,7 @@ dependencies = [
  "fastrand",
  "indexmap",
  "lazy_static",
+ "mocats",
  "rand 0.8.5",
  "serde",
  "subenum",
@@ -186,6 +187,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8a240ddb74feaf34a79a7add65a741f3167852fba007066dcac1ca548d89c08"
 dependencies = [
  "adler",
+]
+
+[[package]]
+name = "mocats"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e0191a9f9f2671330fea92b749e1fc7468bb602ab137b58c0b597af1fd5ec48d"
+dependencies = [
+ "fastrand",
 ]
 
 [[package]]
