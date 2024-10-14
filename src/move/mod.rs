@@ -1,8 +1,10 @@
-pub mod move_flag;
+mod move_flag;
 mod san;
 
+pub use move_flag::*;
+pub use san::*;
+
 use crate::utils::{PieceType, Square};
-use crate::r#move::move_flag::MoveFlag;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash)]
 pub struct Move {

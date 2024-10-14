@@ -3,7 +3,7 @@ use crate::utils::unpack_mask;
 use crate::utils::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8};
 use crate::utils::{Color, PieceType, Square};
 use crate::r#move::Move;
-use crate::r#move::move_flag::MoveFlag;
+use crate::r#move::MoveFlag;
 use crate::state::State;
 
 fn add_pawn_promotion_moves(moves: &mut Vec<Move>, src: Square, dst: Square) {

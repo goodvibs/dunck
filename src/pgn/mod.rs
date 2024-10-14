@@ -1,9 +1,14 @@
 mod pgn_move_tree_node;
 pub mod pgn_move_tree_traverser;
-pub mod render;
-pub mod parse;
-pub mod tokenize;
-pub mod error;
+mod render;
+mod parse;
+mod tokenize;
+mod error;
+
+pub use render::*;
+pub use parse::*;
+pub use tokenize::*;
+pub use error::*;
 
 use indexmap::IndexMap;
 // pub use pgn_move_tree_traverser::PgnMoveTreeTraverser;

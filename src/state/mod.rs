@@ -1,11 +1,19 @@
 pub mod board;
-pub mod context;
-pub mod termination;
-pub mod make_move;
-pub mod movegen;
-pub mod unmake_move;
-pub mod zobrist;
+mod context;
+mod termination;
+mod make_move;
+mod movegen;
+mod unmake_move;
+mod zobrist;
 mod fen;
+
+pub use context::*;
+pub use termination::*;
+pub use make_move::*;
+pub use movegen::*;
+pub use unmake_move::*;
+pub use zobrist::*;
+pub use fen::*;
 
 use crate::utils::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::utils::*;
