@@ -227,8 +227,8 @@ mod tests {
                 let occupied_masks_iter = generate_bit_combinations(relevant_mask);
                 for occupied_mask in occupied_masks_iter {
                     let magic_attacks = match sliding_piece {
-                        SlidingPieceType::Rook => unsafe { magic::magic_single_rook_attacks(src_square, occupied_mask) },
-                        SlidingPieceType::Bishop => unsafe { magic::magic_single_bishop_attacks(src_square, occupied_mask) },
+                        SlidingPieceType::Rook => magic::magic_single_rook_attacks(src_square, occupied_mask),
+                        SlidingPieceType::Bishop => magic::magic_single_bishop_attacks(src_square, occupied_mask),
                     };
                     let manual_attacks = match sliding_piece {
                         SlidingPieceType::Rook => manual::manual_single_rook_attacks(src_square, occupied_mask),
