@@ -1,38 +1,38 @@
-mod magic_attacks;
-mod manual_attacks;
-mod precomputed_attacks;
+mod magic;
+mod manual;
+mod precomputed;
 
 use crate::utils::Bitboard;
 use crate::utils::Color;
 
 pub fn single_knight_attacks(src_mask: Bitboard) -> Bitboard {
-    precomputed_attacks::precomputed_single_knight_attacks(src_mask)
+    precomputed::precomputed_single_knight_attacks(src_mask)
 }
 
 pub fn single_king_attacks(src_mask: Bitboard) -> Bitboard {
-    precomputed_attacks::precomputed_single_king_attacks(src_mask)
+    precomputed::precomputed_single_king_attacks(src_mask)
 }
 
 pub fn multi_knight_attacks(knights_mask: Bitboard) -> Bitboard {
-    manual_attacks::multi_knight_attacks(knights_mask)
+    manual::multi_knight_attacks(knights_mask)
 }
 
 pub fn multi_king_attacks(kings_mask: Bitboard) -> Bitboard {
-    manual_attacks::multi_king_attacks(kings_mask)
+    manual::multi_king_attacks(kings_mask)
 }
 
 pub fn multi_pawn_attacks(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
-    manual_attacks::multi_pawn_attacks(pawns_mask, by_color)
+    manual::multi_pawn_attacks(pawns_mask, by_color)
 }
 
 pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
-    manual_attacks::multi_pawn_moves(pawns_mask, by_color)
+    manual::multi_pawn_moves(pawns_mask, by_color)
 }
 
 pub fn single_rook_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
-    unsafe { magic_attacks::magic_single_rook_attacks(src_mask, occupied_mask) }
+    unsafe { magic::magic_single_rook_attacks(src_mask, occupied_mask) }
 }
 
 pub fn single_bishop_attacks(src_mask: Bitboard, occupied_mask: Bitboard) -> Bitboard {
-    unsafe { magic_attacks::magic_single_bishop_attacks(src_mask, occupied_mask) }
+    unsafe { magic::magic_single_bishop_attacks(src_mask, occupied_mask) }
 }

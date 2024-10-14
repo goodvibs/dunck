@@ -2,7 +2,7 @@ use crate::utils::{generate_bit_combinations, Bitboard};
 use crate::utils::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
 use crate::utils::{SlidingPieceType, Square};
 use lazy_static::lazy_static;
-use crate::attacks::manual_attacks::{manual_single_bishop_attacks, manual_single_rook_attacks};
+use crate::attacks::manual::{manual_single_bishop_attacks, manual_single_rook_attacks};
 
 const ROOK_ATTACK_TABLE_SIZE: usize = 60 * 2usize.pow(11) + 4 * 2usize.pow(12);
 const BISHOP_ATTACK_TABLE_SIZE: usize = 4 * 2usize.pow(6) + 44 * 2usize.pow(5) + 12 * 2usize.pow(7) + 4 * 2usize.pow(9);
@@ -196,8 +196,8 @@ fn gen_random_magic_number() -> Bitboard {
 }
 
 mod tests {
-    use crate::attacks::{magic_attacks, manual_attacks};
-    use crate::attacks::magic_attacks::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
+    use crate::attacks::{magic, manual};
+    use crate::attacks::magic::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
     use crate::utils::generate_bit_combinations;
     use crate::utils::charboard::print_bb_pretty;
     use crate::utils::{SlidingPieceType, Square};
@@ -230,12 +230,12 @@ mod tests {
                 let occupied_masks_iter = generate_bit_combinations(relevant_mask);
                 for occupied_mask in occupied_masks_iter {
                     let magic_attacks = match sliding_piece {
-                        SlidingPieceType::Rook => unsafe { magic_attacks::magic_single_rook_attacks(src_mask, occupied_mask) },
-                        SlidingPieceType::Bishop => unsafe { magic_attacks::magic_single_bishop_attacks(src_mask, occupied_mask) },
+                        SlidingPieceType::Rook => unsafe { magic::magic_single_rook_attacks(src_mask, occupied_mask) },
+                        SlidingPieceType::Bishop => unsafe { magic::magic_single_bishop_attacks(src_mask, occupied_mask) },
                     };
                     let manual_attacks = match sliding_piece {
-                        SlidingPieceType::Rook => manual_attacks::manual_single_rook_attacks(src_mask, occupied_mask),
-                        SlidingPieceType::Bishop => manual_attacks::manual_single_bishop_attacks(src_mask, occupied_mask),
+                        SlidingPieceType::Rook => manual::manual_single_rook_attacks(src_mask, occupied_mask),
+                        SlidingPieceType::Bishop => manual::manual_single_bishop_attacks(src_mask, occupied_mask),
                     };
                     if magic_attacks != manual_attacks {
                         println!("Square mask:");
