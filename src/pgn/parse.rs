@@ -159,7 +159,7 @@ impl PgnMoveTree {
         validate_variation_closure(&tokens)?;
         validate_move_numbers(&tokens)?;
 
-        let mut pgn_move_tree = PgnMoveTree::new();
+        let pgn_move_tree = PgnMoveTree::new();
 
         let mut current_node = pgn_move_tree.head.clone();
         let mut node_stack = Vec::new();
