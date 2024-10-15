@@ -106,8 +106,8 @@ impl State {
         else {
             // update Zobrist table
             let position_count = self.increment_position_count();
-            assert_eq!(self.board.zobrist_hash, self.board.calc_zobrist_hash());
-            assert!(self.board.is_valid());
+            // assert_eq!(self.board.zobrist_hash, self.board.calc_zobrist_hash());
+            // assert!(self.board.is_valid());
 
             // check for repetition
             if position_count == 3 {

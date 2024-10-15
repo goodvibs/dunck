@@ -84,6 +84,7 @@ dependencies = [
  "indexmap",
  "lazy_static",
  "mocats",
+ "pyrrhic-rs",
  "rand 0.8.5",
  "serde",
  "subenum",
@@ -181,6 +182,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
+name = "memmap2"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd3f7eed9d3848f8b98834af67102b720745c4ec028fcd0aa0239277e7de374f"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "miniz_oxide"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -226,6 +236,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "134c189feb4956b20f6f547d2cf727d4c0fe06722b20a0eec87ed445a97f92da"
 dependencies = [
  "unicode-ident",
+]
+
+[[package]]
+name = "pyrrhic-rs"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3910f053bb86e0d75fb0e61b47d82e456a15c548fb4d8a8da9d9d1a34a4e299"
+dependencies = [
+ "libc",
+ "memmap2",
 ]
 
 [[package]]

@@ -32,46 +32,57 @@ fn main() {
             print!("{}, ", san);
         }
         println!();
-        println!("Enter move (q to quit, n for new position from fen): ");
+        println!("Enter move (q|QUIT to quit, n|NEW for new position from fen, b|BEST for best position according to engine): ");
         let mut input = String::new();
         std::io::stdin().read_line(&mut input).unwrap();
         let input = input.trim();
-        if input == "q" {
-            break;
-        }
-        if input == "n" {
-            loop {
-                println!("Enter fen (q to cancel): ");
-                let mut input = String::new();
-                std::io::stdin().read_line(&mut input).unwrap();
-                let input = input.trim();
-                if input == "q" {
-                    break;
-                }
-                let state_result = State::from_fen(input);
-                match state_result {
-                    Ok(s) => {
-                        state = s;
-                        assert!(state.is_valid());
+        match input {
+            "q" | "QUIT" => {
+                break;
+            },
+            "n" | "NEW" => {
+                loop {
+                    println!("Enter fen (q to cancel): ");
+                    let mut input = String::new();
+                    std::io::stdin().read_line(&mut input).unwrap();
+                    let input = input.trim();
+                    if input == "q" {
                         break;
                     }
-                    Err(e) => {
-                        println!("{:?}", e);
+                    let state_result = State::from_fen(input);
+                    match state_result {
+                        Ok(s) => {
+                            state = s;
+                            assert!(state.is_valid());
+                            break;
+                        }
+                        Err(e) => {
+                            println!("{:?}", e);
+                        }
                     }
                 }
             }
-            continue;
-        }
-        let mut found = false;
-        for i in 0..moves.len() {
-            if move_sans[i] == input {
-                state.make_move(moves[i]);
-                found = true;
-                break;
+            "b" | "BEST" => {
+                let tree_policy = engine::UctPolicy::new(2.0);
+                let mut search_tree = engine::SearchTree::new(state.clone(), tree_policy);
+                search_tree.run(500);
+                let best_action = search_tree.get_best_action();
+                println!("Best action: {}", best_action.unwrap());
+                state.make_move(best_action.unwrap());
             }
-        }
-        if !found {
-            println!("Invalid move");
+            _ => {
+                let mut found = false;
+                for i in 0..moves.len() {
+                    if move_sans[i] == input {
+                        state.make_move(moves[i]);
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    println!("Invalid move");
+                }
+            }
         }
     }
 }

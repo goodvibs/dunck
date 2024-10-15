@@ -19,7 +19,7 @@ pub fn get_squares_from_mask(mut mask: Bitboard) -> Vec<Square> {
     let num_set_bits = mask.count_ones(); // Count the number of set bits
     let mut res = Vec::with_capacity(num_set_bits as usize); // Allocate vector with exact capacity needed
 
-    while mask != 0 {
+    for _ in 0..num_set_bits {
         let ls1b = mask & mask.wrapping_neg();  // Isolate the least significant set bit
         let square_index = ls1b.leading_zeros();  // Index of the set bit
         unsafe {
