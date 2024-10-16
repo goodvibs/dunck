@@ -43,22 +43,13 @@ impl Board {
 
 impl State {
     pub fn increment_position_count(&mut self) -> u8 {
-        let position_count = self.position_counts.entry(self.board.zobrist_hash).or_insert(0);
-        *position_count += 1;
-        position_count.clone()
+        self.position_counts
+            .entry(self.board.zobrist_hash)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+
+        *self.position_counts.get(&self.board.zobrist_hash).unwrap()
     }
-    
-    // pub fn decrement_position_count(&mut self) {
-    //     let hash = self.board.zobrist_hash();
-    //     match self.position_counts.get_mut(&hash) {
-    //         Some(position_count) => {
-    //             if *position_count == 0 {
-    //                 self.position_counts.remove(&hash);
-    //             }
-    //         },
-    //         None => {}
-    //     }
-    // }
 }
 
 #[cfg(test)]

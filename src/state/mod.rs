@@ -26,7 +26,6 @@ use std::str::FromStr;
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct State {
     pub board: Board,
-    pub in_check: bool,
     pub position_counts: HashMap<Bitboard, u8>,
     pub side_to_move: Color,
     pub halfmove: u16,
@@ -39,7 +38,6 @@ impl State {
         let position_count: HashMap<Bitboard, u8> = HashMap::new();
         State {
             board: Board::blank(),
-            in_check: false,
             position_counts: position_count,
             side_to_move: Color::White,
             halfmove: 0,
@@ -54,7 +52,6 @@ impl State {
         let position_count: HashMap<Bitboard, u8> = HashMap::from([(zobrist_hash, 1)]);
         State {
             board,
-            in_check: false,
             position_counts: position_count,
             side_to_move: Color::White,
             halfmove: 0,
@@ -62,10 +59,6 @@ impl State {
             context: Rc::new(RefCell::new(Context::initial())),
         }
     }
-
-    // pub fn from_pgn(pgn: &str) -> Result<State, PgnParseError> {
-    //     PgnMoveTree::from_str(pgn);
-    // }
 
     pub const fn get_fullmove(&self) -> u16 {
         self.halfmove / 2 + 1

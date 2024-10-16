@@ -95,7 +95,6 @@ impl State {
         self.halfmove += 1;
         self.side_to_move = self.side_to_move.flip();
         self.context = Rc::new(RefCell::new(new_context));
-        self.in_check = self.board.is_color_in_check(self.side_to_move);
 
         if self.board.are_both_sides_insufficient_material() {
             self.termination = Some(Termination::InsufficientMaterial);
