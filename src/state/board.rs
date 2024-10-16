@@ -1,6 +1,6 @@
 use crate::utils::*;
 use crate::attacks::*;
-use crate::utils::{Bitboard, unpack_mask};
+use crate::utils::{Bitboard, get_set_bit_mask_iter};
 use crate::utils::masks::*;
 use crate::state::zobrist::get_piece_zobrist_hash;
 
@@ -77,19 +77,30 @@ impl Board {
     }
     
     pub fn is_mask_in_check(&self, mask: Bitboard, by_color: Color) -> bool {
-        let attacking_color_pieces = self.color_masks[by_color as usize];
-        let all_occ = self.piece_type_masks[PieceType::AllPieceTypes as usize];
-        let queens_bb = self.piece_type_masks[PieceType::Queen as usize];
+        let attacking_color_mask = self.color_masks[by_color as usize];
+        let occupied_mask = self.piece_type_masks[PieceType::AllPieceTypes as usize];
+        
+        let pawns_mask = self.piece_type_masks[PieceType::Pawn as usize];
+        let knights_mask = self.piece_type_masks[PieceType::Knight as usize];
+        let bishops_mask = self.piece_type_masks[PieceType::Bishop as usize];
+        let rooks_mask = self.piece_type_masks[PieceType::Rook as usize];
+        let queens_mask = self.piece_type_masks[PieceType::Queen as usize];
+        let kings_mask = self.piece_type_masks[PieceType::King as usize];
 
-        let mut attacks = multi_pawn_attacks(self.piece_type_masks[PieceType::Pawn as usize] & attacking_color_pieces, by_color);
-        attacks |= multi_knight_attacks(self.piece_type_masks[PieceType::Knight as usize] & attacking_color_pieces);
-        for src_square in get_squares_from_mask((self.piece_type_masks[PieceType::Bishop as usize] | queens_bb) & attacking_color_pieces) {
-            attacks |= single_bishop_attacks(src_square, all_occ);
+        let mut attacks = multi_pawn_attacks(pawns_mask & attacking_color_mask, by_color);
+        
+        attacks |= multi_knight_attacks(knights_mask & attacking_color_mask);
+        
+        for src_square in get_squares_from_mask_iter((bishops_mask | queens_mask) & attacking_color_mask) {
+            attacks |= single_bishop_attacks(src_square, occupied_mask);
         }
-        for src_square in get_squares_from_mask((self.piece_type_masks[PieceType::Rook as usize] | queens_bb) & attacking_color_pieces) {
-            attacks |= single_rook_attacks(src_square, all_occ);
+        
+        for src_square in get_squares_from_mask_iter((rooks_mask | queens_mask) & attacking_color_mask) {
+            attacks |= single_rook_attacks(src_square, occupied_mask);
         }
-        attacks |= multi_king_attacks(self.piece_type_masks[PieceType::King as usize] & attacking_color_pieces);
+        
+        attacks |= multi_king_attacks(kings_mask & attacking_color_mask);
+        
         attacks & mask != 0
     }
 

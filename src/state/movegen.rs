@@ -1,5 +1,5 @@
 use crate::attacks::{multi_pawn_attacks, multi_pawn_moves, single_bishop_attacks, single_king_attacks, single_knight_attacks, single_rook_attacks};
-use crate::utils::{get_squares_from_mask, unpack_mask};
+use crate::utils::{get_squares_from_mask_iter, get_set_bit_mask_iter, SetBitMaskIterator};
 use crate::utils::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8};
 use crate::utils::{Color, PieceType, Square};
 use crate::r#move::Move;
@@ -13,7 +13,7 @@ fn add_pawn_promotion_moves(moves: &mut Vec<Move>, src: Square, dst: Square) {
 }
 
 impl State {
-    fn add_normal_pawn_captures_pseudolegal(&self, moves: &mut Vec<Move>, pawn_srcs: &Vec<u64>) {
+    fn add_normal_pawn_captures_pseudolegal(&self, moves: &mut Vec<Move>, pawn_srcs: SetBitMaskIterator) {
         let opposite_color = self.side_to_move.flip();
         let opposite_color_bb = self.board.color_masks[opposite_color as usize];
 
@@ -24,7 +24,7 @@ impl State {
 
         for src in pawn_srcs.clone() {
             let captures = multi_pawn_attacks(src, self.side_to_move) & opposite_color_bb;
-            for dst in unpack_mask(captures) {
+            for dst in get_set_bit_mask_iter(captures) {
                 let move_src = unsafe { Square::from(src.leading_zeros() as u8) };
                 let move_dst = unsafe { Square::from(dst.leading_zeros() as u8) };
                 if dst & promotion_rank != 0 {
@@ -62,7 +62,7 @@ impl State {
         }
     }
     
-    fn add_pawn_push_pseudolegal(&self, moves: &mut Vec<Move>, pawn_srcs: &Vec<u64>) {
+    fn add_pawn_push_pseudolegal(&self, moves: &mut Vec<Move>, pawn_srcs: SetBitMaskIterator) {
         let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
         let promotion_rank = RANK_8 >> (self.side_to_move as u8 * 7 * 8); // RANK_8 for white, RANK_1 for black
@@ -72,11 +72,11 @@ impl State {
             Color::White => RANK_3,
             Color::Black => RANK_6
         };
-        for src_bb in pawn_srcs.iter() {
+        for src_bb in pawn_srcs {
             let src_square = unsafe { Square::from(src_bb.leading_zeros() as u8) };
 
             // single moves
-            let single_move_dst = multi_pawn_moves(*src_bb, self.side_to_move) & !all_occupancy_bb;
+            let single_move_dst = multi_pawn_moves(src_bb, self.side_to_move) & !all_occupancy_bb;
             if single_move_dst == 0 { // if no single moves
                 continue;
             }
@@ -106,21 +106,21 @@ impl State {
     fn add_all_pawn_pseudolegal(&self, moves: &mut Vec<Move>) {
         let same_color_bb = self.board.color_masks[self.side_to_move as usize];
         let pawns_bb = self.board.piece_type_masks[PieceType::Pawn as usize] & same_color_bb;
-        let pawn_srcs = unpack_mask(pawns_bb);
+        let pawn_srcs = get_set_bit_mask_iter(pawns_bb);
 
-        self.add_normal_pawn_captures_pseudolegal(moves, &pawn_srcs);
+        self.add_normal_pawn_captures_pseudolegal(moves, pawn_srcs.clone());
         self.add_en_passant_pseudolegal(moves);
-        self.add_pawn_push_pseudolegal(moves, &pawn_srcs);
+        self.add_pawn_push_pseudolegal(moves, pawn_srcs);
     }
 
     fn add_knight_pseudolegal(&self, moves: &mut Vec<Move>) {
         let same_color_bb = self.board.color_masks[self.side_to_move as usize];
 
         let knights_bb = self.board.piece_type_masks[PieceType::Knight as usize] & same_color_bb;
-        for src_square in get_squares_from_mask(knights_bb).iter() {
-            let knight_moves = single_knight_attacks(*src_square) & !same_color_bb;
-            for dst_square in get_squares_from_mask(knight_moves).iter() {
-                moves.push(Move::new_non_promotion(*dst_square, *src_square, MoveFlag::NormalMove));
+        for src_square in get_squares_from_mask_iter(knights_bb) {
+            let knight_moves = single_knight_attacks(src_square) & !same_color_bb;
+            for dst_square in get_squares_from_mask_iter(knight_moves) {
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -130,10 +130,10 @@ impl State {
         let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
         let bishops_bb = self.board.piece_type_masks[PieceType::Bishop as usize] & same_color_bb;
-        for src_square in get_squares_from_mask(bishops_bb).iter() {
-            let bishop_moves = single_bishop_attacks(*src_square, all_occupancy_bb) & !same_color_bb;
-            for dst_square in get_squares_from_mask(bishop_moves).iter() {
-                moves.push(Move::new_non_promotion(*dst_square, *src_square, MoveFlag::NormalMove));
+        for src_square in get_squares_from_mask_iter(bishops_bb) {
+            let bishop_moves = single_bishop_attacks(src_square, all_occupancy_bb) & !same_color_bb;
+            for dst_square in get_squares_from_mask_iter(bishop_moves) {
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -143,10 +143,10 @@ impl State {
         let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
         let rooks_bb = self.board.piece_type_masks[PieceType::Rook as usize] & same_color_bb;
-        for src_square in get_squares_from_mask(rooks_bb).iter() {
-            let rook_moves = single_rook_attacks(*src_square, all_occupancy_bb) & !same_color_bb;
-            for dst_square in get_squares_from_mask(rook_moves).iter() {
-                moves.push(Move::new_non_promotion(*dst_square, *src_square, MoveFlag::NormalMove));
+        for src_square in get_squares_from_mask_iter(rooks_bb) {
+            let rook_moves = single_rook_attacks(src_square, all_occupancy_bb) & !same_color_bb;
+            for dst_square in get_squares_from_mask_iter(rook_moves) {
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -156,10 +156,10 @@ impl State {
         let all_occupancy_bb = self.board.piece_type_masks[PieceType::AllPieceTypes as usize];
 
         let queens_bb = self.board.piece_type_masks[PieceType::Queen as usize] & same_color_bb;
-        for src_square in get_squares_from_mask(queens_bb).iter() {
-            let queen_moves = (single_rook_attacks(*src_square, all_occupancy_bb) | single_bishop_attacks(*src_square, all_occupancy_bb)) & !same_color_bb;
-            for dst_square in get_squares_from_mask(queen_moves).iter() {
-                moves.push(Move::new_non_promotion(*dst_square, *src_square, MoveFlag::NormalMove));
+        for src_square in get_squares_from_mask_iter(queens_bb) {
+            let queen_moves = (single_rook_attacks(src_square, all_occupancy_bb) | single_bishop_attacks(src_square, all_occupancy_bb)) & !same_color_bb;
+            for dst_square in get_squares_from_mask_iter(queen_moves) {
+                moves.push(Move::new_non_promotion(dst_square, src_square, MoveFlag::NormalMove));
             }
         }
     }
@@ -172,8 +172,8 @@ impl State {
         let king_src_bb = self.board.piece_type_masks[PieceType::King as usize] & same_color_bb;
         let king_src_square = unsafe { Square::from(king_src_bb.leading_zeros() as u8) };
         let king_moves = single_king_attacks(king_src_square) & !same_color_bb;
-        for dst_square in get_squares_from_mask(king_moves).iter() {
-            moves.push(Move::new_non_promotion(*dst_square, king_src_square, MoveFlag::NormalMove));
+        for dst_square in get_squares_from_mask_iter(king_moves) {
+            moves.push(Move::new_non_promotion(dst_square, king_src_square, MoveFlag::NormalMove));
         }
     }
     

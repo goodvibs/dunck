@@ -19,7 +19,7 @@ pub use fen::*;
 
 use crate::utils::masks::{CASTLING_CHECK_MASK_LONG, CASTLING_CHECK_MASK_SHORT, FILES, RANK_4, STARTING_BK, STARTING_KING_ROOK_GAP_LONG, STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_BR, STARTING_KING_SIDE_WR, STARTING_QUEEN_SIDE_BR, STARTING_QUEEN_SIDE_WR, STARTING_WK};
 use crate::utils::*;
-use std::collections::HashMap;
+use hashbrown::HashMap;
 use std::rc::Rc;
 use std::str::FromStr;
 

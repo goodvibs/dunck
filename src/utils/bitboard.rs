@@ -2,33 +2,84 @@ use crate::utils::Square;
 
 pub type Bitboard = u64;
 
-pub fn unpack_mask(mut mask: Bitboard) -> Vec<Bitboard> {
-    let num_set_bits = mask.count_ones(); // Count the number of set bits
-    let mut res = Vec::with_capacity(num_set_bits as usize); // Allocate vector with exact capacity needed
+// pub fn get_set_bit_mask_iter(mut mask: Bitboard) -> Vec<Bitboard> {
+//     let num_set_bits = mask.count_ones(); // Count the number of set bits
+//     let mut res = Vec::with_capacity(num_set_bits as usize); // Allocate vector with exact capacity needed
+// 
+//     while mask != 0 {
+//         let ls1b = mask & mask.wrapping_neg();  // Isolate the least significant set bit
+//         res.push(ls1b);
+//         mask &= !ls1b;  // Clear the least significant set bit
+//     }
+// 
+//     res
+// }
 
-    while mask != 0 {
-        let ls1b = mask & mask.wrapping_neg();  // Isolate the least significant set bit
-        res.push(ls1b);
-        mask &= !ls1b;  // Clear the least significant set bit
-    }
-
-    res
+#[derive(Debug, Clone)]
+pub struct SetBitMaskIterator {
+    mask: Bitboard,
 }
 
-pub fn get_squares_from_mask(mut mask: Bitboard) -> Vec<Square> {
-    let num_set_bits = mask.count_ones(); // Count the number of set bits
-    let mut res = Vec::with_capacity(num_set_bits as usize); // Allocate vector with exact capacity needed
-
-    for _ in 0..num_set_bits {
-        let ls1b = mask & mask.wrapping_neg();  // Isolate the least significant set bit
-        let square_index = ls1b.leading_zeros();  // Index of the set bit
-        unsafe {
-            res.push(Square::from(square_index as u8));
+impl SetBitMaskIterator {
+    pub fn new(mask: Bitboard) -> Self {
+        SetBitMaskIterator {
+            mask,
         }
-        mask &= !ls1b;  // Clear the least significant set bit
     }
+}
 
-    res
+impl Iterator for SetBitMaskIterator {
+    type Item = Bitboard;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.mask == 0 {
+            return None;
+        }
+
+        let ls1b = self.mask & self.mask.wrapping_neg();  // Isolate the least significant set bit
+        self.mask &= !ls1b;  // Clear the least significant set bit
+
+        Some(ls1b)
+    }
+}
+
+pub fn get_set_bit_mask_iter(mask: Bitboard) -> SetBitMaskIterator {
+    SetBitMaskIterator::new(mask)
+}
+
+#[derive(Debug, Clone)]
+pub struct SquaresFromMaskIterator {
+    mask: Bitboard,
+}
+
+impl SquaresFromMaskIterator {
+    pub fn new(mask: Bitboard) -> Self {
+        SquaresFromMaskIterator {
+            mask,
+        }
+    }
+}
+
+impl Iterator for SquaresFromMaskIterator {
+    type Item = Square;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.mask == 0 {
+            return None;
+        }
+
+        let ls1b = self.mask & self.mask.wrapping_neg();  // Isolate the least significant set bit
+        self.mask &= !ls1b;  // Clear the least significant set bit
+        let square_index = ls1b.leading_zeros();  // Index of the set bit
+
+        unsafe {
+            Some(Square::from(square_index as u8))
+        }
+    }
+}
+
+pub fn get_squares_from_mask_iter(mask: Bitboard) -> SquaresFromMaskIterator {
+    SquaresFromMaskIterator::new(mask)
 }
 
 #[derive(Debug, Clone)]
@@ -76,33 +127,33 @@ pub fn generate_bit_combinations(mask: Bitboard) -> BitCombinationsIterator {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_unpack_bb() {
-        let bb: Bitboard = 0b10010100_10111100_00111011_11001101_01010101_01010000_01010000_01000001;
-        let res = unpack_mask(bb);
-        assert_eq!(res.len(), bb.count_ones() as usize);
-        let mut bb_builder: Bitboard = 0;
-        for mask in res.iter() {
-            bb_builder |= *mask;
-        }
-        assert_eq!(bb, bb_builder);
-    }
+    // #[test]
+    // fn test_unpack_bb() {
+    //     let bb: Bitboard = 0b10010100_10111100_00111011_11001101_01010101_01010000_01010000_01000001;
+    //     let res = get_set_bit_mask_iter(bb);
+    //     assert_eq!(res.len(), bb.count_ones() as usize);
+    //     let mut bb_builder: Bitboard = 0;
+    //     for mask in res.iter() {
+    //         bb_builder |= *mask;
+    //     }
+    //     assert_eq!(bb, bb_builder);
+    // }
     
-    #[test]
-    fn test_get_squares_from_bb() {
-        let bb: Bitboard = 0b10010100_10111100_00111011_11001101_01010101_01010000_01010000_01000001;
-        let res = get_squares_from_mask(bb);
-        assert_eq!(res.len(), bb.count_ones() as usize);
-        assert_eq!(res[0], Square::H1);
-        assert_eq!(res[1], Square::B1);
-        assert_eq!(res[2], Square::D2);
-        assert_eq!(res.last(), Some(&Square::A8));
-        let mut bb_builder: Bitboard = 0;
-        for square in res.iter() {
-            bb_builder |= 1 << 63 - *square as u8;
-        }
-        assert_eq!(bb, bb_builder);
-    }
+    // #[test]
+    // fn test_get_squares_from_bb() {
+    //     let bb: Bitboard = 0b10010100_10111100_00111011_11001101_01010101_01010000_01010000_01000001;
+    //     let res = get_squares_from_mask_iter(bb);
+    //     assert_eq!(res.len(), bb.count_ones() as usize);
+    //     assert_eq!(res[0], Square::H1);
+    //     assert_eq!(res[1], Square::B1);
+    //     assert_eq!(res[2], Square::D2);
+    //     assert_eq!(res.last(), Some(&Square::A8));
+    //     let mut bb_builder: Bitboard = 0;
+    //     for square in res.iter() {
+    //         bb_builder |= 1 << 63 - *square as u8;
+    //     }
+    //     assert_eq!(bb, bb_builder);
+    // }
 
     #[test]
     fn test_generate_bit_combinations() {

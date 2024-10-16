@@ -321,7 +321,7 @@ impl State {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::get_squares_from_mask;
+    use crate::utils::get_squares_from_mask_iter;
     use super::*;
     use crate::utils::masks::{RANK_2, RANK_3, RANK_6, RANK_7};
     use crate::state::board::Board;
@@ -575,7 +575,7 @@ mod tests {
             Square::G8.to_mask() | Square::G1.to_mask() |
             RANK_7 | RANK_6 |
             RANK_3 | RANK_2;
-        for square in get_squares_from_mask(clear_mask) {
+        for square in get_squares_from_mask_iter(clear_mask) {
             let colored_piece = expected_state.board.get_colored_piece_at(square);
             if colored_piece != ColoredPiece::NoPiece {
                 expected_state.board.remove_colored_piece_at(colored_piece, square);
