@@ -1,4 +1,4 @@
-use crate::utils::{generate_bit_combinations, Bitboard};
+use crate::utils::{get_bit_combinations_iter, Bitboard};
 use crate::utils::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
 use crate::utils::{SlidingPieceType, Square};
 use lazy_static::lazy_static;
@@ -126,7 +126,7 @@ impl<const N: usize> MagicDict<N> {
 
             let mut failed = false;
 
-            for (_i, occupied_mask) in generate_bit_combinations(relevant_mask).enumerate() {
+            for (_i, occupied_mask) in get_bit_combinations_iter(relevant_mask).enumerate() {
                 let attack_mask = match sliding_piece {
                     SlidingPieceType::Rook => manual_single_rook_attacks(square, occupied_mask),
                     SlidingPieceType::Bishop => manual_single_bishop_attacks(square, occupied_mask),
@@ -196,7 +196,7 @@ fn gen_random_magic_number() -> Bitboard {
 mod tests {
     use crate::attacks::{magic, manual};
     use crate::attacks::magic::{get_bishop_relevant_mask, get_rook_relevant_mask, BISHOP_RELEVANT_MASKS, ROOK_RELEVANT_MASKS};
-    use crate::utils::generate_bit_combinations;
+    use crate::utils::get_bit_combinations_iter;
     use crate::utils::charboard::print_bb_pretty;
     use crate::utils::{SlidingPieceType, Square};
 
@@ -224,7 +224,7 @@ mod tests {
                     SlidingPieceType::Rook => get_rook_relevant_mask(src_square),
                     SlidingPieceType::Bishop => get_bishop_relevant_mask(src_square),
                 };
-                let occupied_masks_iter = generate_bit_combinations(relevant_mask);
+                let occupied_masks_iter = get_bit_combinations_iter(relevant_mask);
                 for occupied_mask in occupied_masks_iter {
                     let magic_attacks = match sliding_piece {
                         SlidingPieceType::Rook => magic::magic_single_rook_attacks(src_square, occupied_mask),

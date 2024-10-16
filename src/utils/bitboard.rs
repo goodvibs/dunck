@@ -2,26 +2,13 @@ use crate::utils::Square;
 
 pub type Bitboard = u64;
 
-// pub fn get_set_bit_mask_iter(mut mask: Bitboard) -> Vec<Bitboard> {
-//     let num_set_bits = mask.count_ones(); // Count the number of set bits
-//     let mut res = Vec::with_capacity(num_set_bits as usize); // Allocate vector with exact capacity needed
-// 
-//     while mask != 0 {
-//         let ls1b = mask & mask.wrapping_neg();  // Isolate the least significant set bit
-//         res.push(ls1b);
-//         mask &= !ls1b;  // Clear the least significant set bit
-//     }
-// 
-//     res
-// }
-
 #[derive(Debug, Clone)]
 pub struct SetBitMaskIterator {
     mask: Bitboard,
 }
 
-impl SetBitMaskIterator {
-    pub fn new(mask: Bitboard) -> Self {
+impl From<Bitboard> for SetBitMaskIterator {
+    fn from(mask: Bitboard) -> Self {
         SetBitMaskIterator {
             mask,
         }
@@ -44,7 +31,7 @@ impl Iterator for SetBitMaskIterator {
 }
 
 pub fn get_set_bit_mask_iter(mask: Bitboard) -> SetBitMaskIterator {
-    SetBitMaskIterator::new(mask)
+    mask.into()
 }
 
 #[derive(Debug, Clone)]
@@ -52,8 +39,8 @@ pub struct SquaresFromMaskIterator {
     mask: Bitboard,
 }
 
-impl SquaresFromMaskIterator {
-    pub fn new(mask: Bitboard) -> Self {
+impl From<Bitboard> for SquaresFromMaskIterator {
+    fn from(mask: Bitboard) -> Self {
         SquaresFromMaskIterator {
             mask,
         }
@@ -79,18 +66,18 @@ impl Iterator for SquaresFromMaskIterator {
 }
 
 pub fn get_squares_from_mask_iter(mask: Bitboard) -> SquaresFromMaskIterator {
-    SquaresFromMaskIterator::new(mask)
+    mask.into()
 }
 
 #[derive(Debug, Clone)]
 pub struct BitCombinationsIterator {
-    set: u64,
-    subset: u64,
+    set: Bitboard,
+    subset: Bitboard,
     finished: bool,
 }
 
-impl BitCombinationsIterator {
-    pub fn new(set: u64) -> Self {
+impl From<Bitboard> for BitCombinationsIterator {
+    fn from(set: Bitboard) -> Self {
         BitCombinationsIterator {
             set,
             subset: 0,
@@ -100,7 +87,7 @@ impl BitCombinationsIterator {
 }
 
 impl Iterator for BitCombinationsIterator {
-    type Item = u64;
+    type Item = Bitboard;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
@@ -119,71 +106,43 @@ impl Iterator for BitCombinationsIterator {
     }
 }
 
-pub fn generate_bit_combinations(mask: Bitboard) -> BitCombinationsIterator {
-    BitCombinationsIterator::new(mask)
+pub fn get_bit_combinations_iter(mask: Bitboard) -> BitCombinationsIterator {
+    mask.into()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // #[test]
-    // fn test_unpack_bb() {
-    //     let bb: Bitboard = 0b10010100_10111100_00111011_11001101_01010101_01010000_01010000_01000001;
-    //     let res = get_set_bit_mask_iter(bb);
-    //     assert_eq!(res.len(), bb.count_ones() as usize);
-    //     let mut bb_builder: Bitboard = 0;
-    //     for mask in res.iter() {
-    //         bb_builder |= *mask;
-    //     }
-    //     assert_eq!(bb, bb_builder);
-    // }
-    
-    // #[test]
-    // fn test_get_squares_from_bb() {
-    //     let bb: Bitboard = 0b10010100_10111100_00111011_11001101_01010101_01010000_01010000_01000001;
-    //     let res = get_squares_from_mask_iter(bb);
-    //     assert_eq!(res.len(), bb.count_ones() as usize);
-    //     assert_eq!(res[0], Square::H1);
-    //     assert_eq!(res[1], Square::B1);
-    //     assert_eq!(res[2], Square::D2);
-    //     assert_eq!(res.last(), Some(&Square::A8));
-    //     let mut bb_builder: Bitboard = 0;
-    //     for square in res.iter() {
-    //         bb_builder |= 1 << 63 - *square as u8;
-    //     }
-    //     assert_eq!(bb, bb_builder);
-    // }
-
     #[test]
     fn test_generate_bit_combinations() {
         // Test with an empty bitmask
         let mask = 0;
-        let expected: Vec<u64> = vec![];
-        let result: Vec<u64> = generate_bit_combinations(mask).collect();
+        let expected: Vec<Bitboard> = vec![];
+        let result: Vec<Bitboard> = get_bit_combinations_iter(mask).collect();
         assert_eq!(result, expected);
 
         // Test with a bitmask that has one bit set
         let mask = 0b0001;
-        let expected: Vec<u64> = vec![0b0000, 0b0001];
-        let result: Vec<u64> = generate_bit_combinations(mask).collect();
+        let expected: Vec<Bitboard> = vec![0b0000, 0b0001];
+        let result: Vec<Bitboard> = get_bit_combinations_iter(mask).collect();
         assert_eq!(result, expected);
 
         // Test with a bitmask that has multiple bits set
         let mask = 0b1010;
-        let expected: Vec<u64> = vec![0b0000, 0b0010, 0b1000, 0b1010];
-        let result: Vec<u64> = generate_bit_combinations(mask).collect();
+        let expected: Vec<Bitboard> = vec![0b0000, 0b0010, 0b1000, 0b1010];
+        let result: Vec<Bitboard> = get_bit_combinations_iter(mask).collect();
         assert_eq!(result, expected);
 
         // Test with a full bitmask (all bits set for a small size)
         let mask = 0b1111;
-        let expected: Vec<u64> = vec![
+        let expected: Vec<Bitboard> = vec![
             0b0000, 0b0001, 0b0010, 0b0011,
             0b0100, 0b0101, 0b0110, 0b0111,
             0b1000, 0b1001, 0b1010, 0b1011,
             0b1100, 0b1101, 0b1110, 0b1111,
         ];
-        let result: Vec<u64> = generate_bit_combinations(mask).collect();
+        let result: Vec<Bitboard> = get_bit_combinations_iter(mask).collect();
         assert_eq!(result, expected);
     }
 }
