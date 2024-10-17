@@ -24,7 +24,7 @@ impl GameState<Move, Color> for State {
 
     fn apply_action(&mut self, action: &Move) {
         self.make_move(*action);
-        self.update_with_tb_if_eligible(&TB);
+        // self.update_with_tb_if_eligible(&TB);
     }
 
     fn get_turn(&self) -> Color {

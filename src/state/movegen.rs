@@ -206,7 +206,7 @@ impl State {
         moves
     }
 
-    pub fn get_legal_moves_legacy(&self) -> Vec<Move> { // todo: filter out illegal moves
+    pub fn get_legal_moves_legacy(&self) -> Vec<Move> {
         if self.termination.is_some() {
             return Vec::new();
         }

@@ -242,8 +242,12 @@ impl Board {
         kings_bb.count_ones() == 2 && (white_bb & kings_bb).count_ones() == 1
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_non_zobrist_valid(&self) -> bool {
         self.is_consistent() && self.has_valid_kings()
+    }
+    
+    pub fn is_valid(&self) -> bool {
+        self.is_non_zobrist_valid() && self.zobrist_hash == self.calc_zobrist_hash()
     }
 
     pub fn print(&self) {

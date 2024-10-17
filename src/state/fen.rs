@@ -58,7 +58,7 @@ fn process_en_passant_target_square(state: &mut State, fen_en_passant_target_squ
     }
 
     let mut chars = fen_en_passant_target_square.chars();
-    return match (chars.next(), chars.next(), chars.next()) {
+    match (chars.next(), chars.next(), chars.next()) {
         (Some(file), Some(rank), None) => {
             if !file.is_ascii_alphabetic() {
                 return false;
@@ -87,12 +87,12 @@ fn process_en_passant_target_square(state: &mut State, fen_en_passant_target_squ
             true
         }
         _ => false,
-    };
+    }
 }
 
 fn process_fen_halfmove_clock(state: &mut State, fen_halfmove_clock: &str) -> bool {
     let halfmove_clock_parsed = fen_halfmove_clock.parse::<u8>();
-    return match halfmove_clock_parsed {
+    match halfmove_clock_parsed {
         Ok(halfmove_clock) => {
             if halfmove_clock > 100 {
                 return false;
@@ -101,12 +101,12 @@ fn process_fen_halfmove_clock(state: &mut State, fen_halfmove_clock: &str) -> bo
             true
         },
         Err(_) => false
-    };
+    }
 }
 
 fn process_fen_fullmove(state: &mut State, fen_fullmove: &str) -> bool {
     let fullmove_parsed = fen_fullmove.parse::<u16>();
-    return match fullmove_parsed {
+    match fullmove_parsed {
         Ok(fullmove) => {
             if fullmove < 1 {
                 return false;
@@ -115,7 +115,7 @@ fn process_fen_fullmove(state: &mut State, fen_fullmove: &str) -> bool {
             true
         },
         Err(_) => false
-    };
+    }
 }
 
 fn process_fen_board_row(state: &mut State, row_from_top: u8, row: &str) -> bool {
@@ -227,7 +227,8 @@ impl State {
             return fen_board_result;
         }
         
-        return if state.is_valid() {
+        if state.is_valid() {
+            state.board.zobrist_hash = state.board.calc_zobrist_hash();
             state.increment_position_count();
             Ok(state)
         } else {

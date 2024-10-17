@@ -43,8 +43,10 @@ impl Board {
 
 impl State {
     pub fn increment_position_count(&mut self) -> u8 {
+        let zobrist_hash = self.board.zobrist_hash;
+        // assert_eq!(self.board.calc_zobrist_hash(), zobrist_hash);
         self.position_counts
-            .entry(self.board.zobrist_hash)
+            .entry(zobrist_hash)
             .and_modify(|count| *count += 1)
             .or_insert(1);
 
@@ -52,7 +54,9 @@ impl State {
     }
     
     pub fn decrement_position_count(&mut self) {
-        let count = self.position_counts.get_mut(&self.board.zobrist_hash).unwrap();
+        let zobrist_hash = self.board.zobrist_hash;
+        // assert_eq!(self.board.calc_zobrist_hash(), zobrist_hash);
+        let count = self.position_counts.get_mut(&zobrist_hash).unwrap();
         *count -= 1;
         if *count == 0 {
             self.position_counts.remove(&self.board.zobrist_hash);
