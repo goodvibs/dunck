@@ -206,7 +206,7 @@ impl State {
         moves
     }
 
-    pub fn get_legal_moves(&self) -> Vec<Move> { // todo: filter out illegal moves
+    pub fn get_legal_moves_legacy(&self) -> Vec<Move> { // todo: filter out illegal moves
         if self.termination.is_some() {
             return Vec::new();
         }
@@ -218,6 +218,27 @@ impl State {
             if new_state.is_valid() && !new_state.board.is_color_in_check(self.side_to_move) {
                 filtered_moves.push(move_);
             }
+        }
+        filtered_moves
+    }
+
+    pub fn get_legal_moves(&self) -> Vec<Move> {
+        if self.termination.is_some() {
+            return Vec::new();
+        }
+        
+        let pseudolegal_moves = self.get_pseudolegal_moves();
+        let mut filtered_moves = Vec::new();
+        // let self_keepsake = self.clone();
+        let mut state = self.clone();
+        for move_ in pseudolegal_moves {
+            state.make_move(move_);
+            if state.is_valid() && !state.board.is_color_in_check(self.side_to_move) {
+                filtered_moves.push(move_);
+            }
+            state.unmake_move(move_);
+            // assert!(state.is_valid());
+            // assert!(self_keepsake.eq(&state));
         }
         filtered_moves
     }

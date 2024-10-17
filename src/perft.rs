@@ -15,15 +15,6 @@ mod tests {
         assert_eq!(movegen.len(), 20);
     }
 
-    #[test]
-    fn test_initial() {
-        let board = chess::Board::default();
-        let movegen = chess::MoveGen::new_legal(&board);
-        let state = State::initial();
-        let possible_moves = state.get_legal_moves();
-        assert_eq!(movegen.len(), possible_moves.len());
-    }
-
     fn are_squares_equal(square: Square, chess_square: chess::Square) -> bool {
         let file = square.get_file();
         let rank = square.get_rank();

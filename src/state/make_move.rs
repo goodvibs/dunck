@@ -23,6 +23,7 @@ impl State {
         self.process_possible_capture(dst_square, new_context);
         
         let moved_piece = self.board.get_piece_type_at(src_square);
+        assert_ne!(moved_piece, PieceType::NoPieceType);
         self.board.move_piece_type(moved_piece, dst_square, src_square);
         new_context.process_normal_disregarding_capture(ColoredPiece::from(self.side_to_move, moved_piece), dst_square, src_square);
     }
@@ -48,7 +49,7 @@ impl State {
             Color::White => unsafe { Square::from(dst_square as u8 - 8) },
             Color::Black => unsafe { Square::from(dst_square as u8 + 8) }
         };
-        
+
         self.board.remove_color_at(opposite_color, en_passant_capture_square);
         self.board.move_piece_type(PieceType::Pawn, dst_square, src_square);
         self.board.remove_piece_type_at(PieceType::Pawn, en_passant_capture_square);

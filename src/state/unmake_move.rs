@@ -21,27 +21,23 @@ impl State {
     }
 
     fn unprocess_possible_capture(&mut self, dst_square: Square) {
-        let opposite_color = self.side_to_move.flip(); // get opposite color
-
         // remove captured piece and get captured piece type
         let captured_piece = self.context.borrow().captured_piece;
         if captured_piece != PieceType::NoPieceType {
             // piece was captured
-            self.board.put_color_at(opposite_color, dst_square); // put captured color back
+            self.board.put_color_at(self.side_to_move, dst_square); // put captured color back
             self.board.put_piece_type_at(captured_piece, dst_square); // put captured piece back
         }
     }
 
     fn unprocess_en_passant(&mut self, dst_square: Square, src_square: Square) {
-        let opposite_color = self.side_to_move.flip(); // get opposite color
-
-        let en_passant_capture_square = match opposite_color {
+        let en_passant_capture_square = match self.side_to_move {
             Color::White => unsafe { Square::from(dst_square as u8 - 8) },
             Color::Black => unsafe { Square::from(dst_square as u8 + 8) }
         };
         
         self.board.move_piece_type(PieceType::Pawn, src_square, dst_square); // move pawn back
-        self.board.put_color_at(opposite_color, en_passant_capture_square); // put captured color back
+        self.board.put_color_at(self.side_to_move, en_passant_capture_square); // put captured color back
         self.board.put_piece_type_at(PieceType::Pawn, en_passant_capture_square); // put captured piece back
     }
 
@@ -50,7 +46,7 @@ impl State {
 
         self.board.move_piece_type(PieceType::King, src_square, dst_square); // move king back
 
-        let is_king_side = dst_mask & STARTING_KING_ROOK_GAP_SHORT[self.side_to_move as usize] != 0;
+        let is_king_side = dst_mask & STARTING_KING_ROOK_GAP_SHORT[self.side_to_move.flip() as usize] != 0;
 
         let rook_src_square = match is_king_side {
             true => unsafe { Square::from(src_square as u8 + 3) },
@@ -61,7 +57,7 @@ impl State {
             false => unsafe { Square::from(src_square as u8 - 1) }
         };
 
-        self.board.move_colored_piece(ColoredPiece::from(self.side_to_move, PieceType::Rook), rook_src_square, rook_dst_square); // move rook back
+        self.board.move_colored_piece(ColoredPiece::from(self.side_to_move.flip(), PieceType::Rook), rook_src_square, rook_dst_square); // move rook back
     }
 
     pub fn unmake_move(&mut self, mv: Move) {
@@ -69,7 +65,7 @@ impl State {
         
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 
-        self.board.move_color(self.side_to_move, src_square, dst_square);
+        self.board.move_color(self.side_to_move.flip(), src_square, dst_square);
 
         match flag {
             MoveFlag::NormalMove => self.unprocess_normal(dst_square, src_square),
@@ -77,7 +73,7 @@ impl State {
             MoveFlag::EnPassant => self.unprocess_en_passant(dst_square, src_square),
             MoveFlag::Castling => self.unprocess_castling(dst_square, src_square)
         }
-
+        
         // update data members
         self.halfmove -= 1;
         self.side_to_move = self.side_to_move.flip();
