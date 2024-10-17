@@ -1,1 +1,0 @@
-// Functions to calculate magic numbers

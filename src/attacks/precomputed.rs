@@ -1,0 +1,52 @@
+use crate::utils::Bitboard;
+use crate::utils::Square;
+use lazy_static::lazy_static;
+use crate::attacks::manual;
+
+lazy_static! {
+    static ref SINGLE_KING_ATTACKS: [Bitboard; 64] = {
+        let mut attacks = [0; 64];
+        for square in Square::iter_all() {
+            let king_mask = square.to_mask();
+            attacks[square as usize] = manual::multi_king_attacks(king_mask);
+        }
+        attacks
+    };
+    
+    static ref SINGLE_KNIGHT_ATTACKS: [Bitboard; 64] = {
+        let mut attacks = [0; 64];
+        for square in Square::iter_all() {
+            let knight_mask = square.to_mask();
+            attacks[square as usize] = manual::multi_knight_attacks(knight_mask);
+        }
+        attacks
+    };
+}
+
+pub fn precomputed_single_king_attacks(src_square: Square) -> Bitboard {
+    SINGLE_KING_ATTACKS[src_square as usize]
+}
+
+pub fn precomputed_single_knight_attacks(src_square: Square) -> Bitboard {
+    SINGLE_KNIGHT_ATTACKS[src_square as usize]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::utils::Square;
+
+    #[test]
+    fn test_single_king_attacks() {
+        for square in Square::iter_all() {
+            assert_eq!(precomputed_single_king_attacks(square), manual::multi_king_attacks(square.to_mask()));
+        }
+    }
+
+    #[test]
+    fn test_single_knight_attacks() {
+        for square in Square::iter_all() {
+            assert_eq!(precomputed_single_knight_attacks(square), manual::multi_knight_attacks(square.to_mask()));
+        }
+    }
+}
