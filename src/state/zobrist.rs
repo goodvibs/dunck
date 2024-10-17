@@ -50,6 +50,14 @@ impl State {
 
         *self.position_counts.get(&self.board.zobrist_hash).unwrap()
     }
+    
+    pub fn decrement_position_count(&mut self) {
+        let count = self.position_counts.get_mut(&self.board.zobrist_hash).unwrap();
+        *count -= 1;
+        if *count == 0 {
+            self.position_counts.remove(&self.board.zobrist_hash);
+        }
+    }
 }
 
 #[cfg(test)]
