@@ -31,12 +31,29 @@ mod tests {
         let created_chess_square = unsafe { chess::Square::new(chess_square_number) };
         created_chess_square == chess_square
     }
+    
+    fn are_promotions_equal(promotion: PieceType, chess_promotion: Option<chess::Piece>) -> bool {
+        match chess_promotion {
+            None => promotion == PieceType::Rook,
+            Some(chess_promotion) => {
+                let promotion_piece = match chess_promotion {
+                    chess::Piece::Queen => PieceType::Queen,
+                    chess::Piece::Rook => PieceType::Rook,
+                    chess::Piece::Bishop => PieceType::Bishop,
+                    chess::Piece::Knight => PieceType::Knight,
+                    _ => panic!()
+                };
+                promotion == promotion_piece
+            }
+        }
+    }
 
     fn are_moves_equal(mv: Move, chess_mv: chess::ChessMove) -> bool {
-        let uci = mv.uci().to_lowercase();
-        let flag = mv.get_flag();
-        let created_chess_mv = chess::ChessMove::from_str(uci.as_str()).unwrap();
-        created_chess_mv == chess_mv
+        let (dst_square, src_square, promotion, _) = mv.unpack();
+        let (chess_dst_square, chess_src_square, chess_promotion) = (chess_mv.get_dest(), chess_mv.get_source(), chess_mv.get_promotion());
+        are_squares_equal(dst_square, chess_dst_square) &&
+            are_squares_equal(src_square, chess_src_square) &&
+            are_promotions_equal(promotion, chess_promotion)
     }
 
     #[test]
