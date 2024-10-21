@@ -77,22 +77,20 @@ impl State {
         let is_black_to_move = self.side_to_move == Color::Black;
 
         // Now wrap only the tablebase probing code, no `self` references inside `catch_unwind`
-        let result = panic::catch_unwind(|| {
-            tablebase.probe_wdl(
-                white_mask,
-                black_mask,
-                king_mask,
-                queen_mask,
-                rook_mask,
-                bishop_mask,
-                knight_mask,
-                pawn_mask,
-                0,
-                is_black_to_move
-            )
-        });
+        let result = tablebase.probe_wdl(
+            white_mask,
+            black_mask,
+            king_mask,
+            queen_mask,
+            rook_mask,
+            bishop_mask,
+            knight_mask,
+            pawn_mask,
+            0,
+            is_black_to_move
+        );
 
-        result.unwrap_or_else(|_| Err(TBError::ProbeFailed))
+        result
     }
     
     pub fn probe_tb_wdl(&self, tablebase: &TableBases<DunckAdapter>) -> Result<WdlProbeResult, TBError> {
