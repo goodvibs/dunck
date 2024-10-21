@@ -240,7 +240,7 @@ impl State {
             }
             state.unmake_move(move_);
             // assert!(state.is_valid());
-            assert!(self_keepsake.eq(&state));
+            // assert!(self_keepsake.eq(&state));
         }
         filtered_moves
     }

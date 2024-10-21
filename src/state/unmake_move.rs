@@ -61,9 +61,7 @@ impl State {
     }
 
     pub fn unmake_move(&mut self, mv: Move) {
-        if self.termination.is_none() {
-            self.decrement_position_count();
-        }
+        self.decrement_position_count();
         
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 

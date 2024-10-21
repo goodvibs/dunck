@@ -105,12 +105,12 @@ impl State {
             self.has_valid_halfmove_clock() &&
             self.is_not_in_illegal_check()
     }
-    
+
     /// Quick check for whether the state is probably valid, should be used after making pseudo-legal moves.
     pub fn is_probably_valid(&self) -> bool {
         self.board.has_valid_kings() && self.is_not_in_illegal_check()
     }
-    
+
     pub fn is_not_in_illegal_check(&self) -> bool {
         !self.board.is_color_in_check(self.side_to_move.flip())
     }
@@ -126,7 +126,7 @@ impl State {
 
     pub fn has_valid_castling_rights(&self) -> bool {
         let context = self.context.borrow();
-        
+
         let kings_bb = self.board.piece_type_masks[PieceType::King as usize];
         let rooks_bb = self.board.piece_type_masks[PieceType::Rook as usize];
 

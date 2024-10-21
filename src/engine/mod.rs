@@ -19,7 +19,7 @@ impl Player for Color {}
 
 impl GameState<Move, Color> for State {
     fn get_actions(&self) -> Vec<Move> {
-        self.get_legal_moves()
+        self.calc_legal_moves()
     }
 
     fn apply_action(&mut self, action: &Move) {

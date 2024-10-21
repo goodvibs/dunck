@@ -19,7 +19,7 @@ fn main() {
         println!();
         println!("{}", state.to_fen());
         state.board.print();
-        let moves = state.get_legal_moves();
+        let moves = state.calc_legal_moves();
         let mut move_sans = Vec::with_capacity(moves.len());
         println!("Moves: ");
         for mv in moves.iter() {
