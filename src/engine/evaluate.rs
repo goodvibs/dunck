@@ -2,7 +2,7 @@ use crate::state::State;
 use crate::utils::{Color, PieceType};
 
 impl State {
-    pub fn evaluate(&self) -> f32 {
+    pub fn evaluate(&self, for_color: Color) -> f32 {
         let mut scores = [0.0, 0.0];
         for color in Color::iter() {
             let color_mask = self.board.color_masks[color as usize];
@@ -13,7 +13,7 @@ impl State {
                 scores[color as usize] += PIECE_VALUES[piece_type as usize - 1] * count;
             }
         }
-        scores[self.side_to_move as usize] - scores[self.side_to_move.flip() as usize]
+        scores[for_color as usize] - scores[for_color.flip() as usize]
     }
 }
 
@@ -33,7 +33,7 @@ mod tests {
     #[test]
     fn test_initial() {
         let state = State::initial();
-        let score = state.evaluate();
+        let score = state.evaluate(Color::White);
         assert_eq!(score, 0.0);
     }
 
@@ -41,10 +41,10 @@ mod tests {
     fn test_foo() {
         let mut state = State::initial();
         state.board.remove_colored_piece_at(ColoredPiece::WhiteBishop, Square::C1);
-        let score = state.evaluate();
+        let score = state.evaluate(Color::White);
         assert!(score < 0.0);
         state.board.put_colored_piece_at(ColoredPiece::WhiteQueen, Square::D4);
-        let score = state.evaluate();
+        let score = state.evaluate(Color::White);
         assert!(score > 0.0);
     }
 }
