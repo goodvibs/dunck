@@ -1,9 +1,6 @@
 use crate::r#move::Move;
 use crate::state::{State, Termination};
 use crate::utils::Color;
-use fastrand;
-use std::cell::RefCell;
-use std::rc::{Rc, Weak};
 
 fn ucb1(node_value: f64, parent_visits: u32, child_visits: u32, exploration_param: f64) -> f64 {
     if child_visits == 0 {
@@ -171,13 +168,14 @@ mod tests {
 
     #[test]
     fn test_mcts() {
-        let mut mcts = MCTS::new(State::initial(), 1.41);
+        let exploration_param = 1.41;
+        let mut mcts = MCTS::new(State::initial(), exploration_param);
         for i in 0..10 {
             println!("Iteration: {}", i);
             mcts.run(100);
             if let Some(best_move) = mcts.select_best_move() {
                 let next_state = unsafe { (*best_move).state.clone() };
-                mcts = MCTS::new(next_state.clone(), 1.41);
+                mcts = MCTS::new(next_state.clone(), exploration_param);
                 next_state.board.print();
             }
             else{
