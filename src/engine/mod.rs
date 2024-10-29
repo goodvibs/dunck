@@ -46,10 +46,7 @@ fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
                 1.0
             }
         }
-        term => {
-            println!("{:?}", term);
-            0.5
-        }
+        _ => 0.5
     }
 }
 
