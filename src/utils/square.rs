@@ -16,6 +16,17 @@ pub enum Square {
     A1=56, B1=57, C1=58, D1=59, E1=60, F1=61, G1=62, H1=63
 }
 
+const ALL: [Square; 64] = [
+    Square::A8, Square::B8, Square::C8, Square::D8, Square::E8, Square::F8, Square::G8, Square::H8,
+    Square::A7, Square::B7, Square::C7, Square::D7, Square::E7, Square::F7, Square::G7, Square::H7,
+    Square::A6, Square::B6, Square::C6, Square::D6, Square::E6, Square::F6, Square::G6, Square::H6,
+    Square::A5, Square::B5, Square::C5, Square::D5, Square::E5, Square::F5, Square::G5, Square::H5,
+    Square::A4, Square::B4, Square::C4, Square::D4, Square::E4, Square::F4, Square::G4, Square::H4,
+    Square::A3, Square::B3, Square::C3, Square::D3, Square::E3, Square::F3, Square::G3, Square::H3,
+    Square::A2, Square::B2, Square::C2, Square::D2, Square::E2, Square::F2, Square::G2, Square::H2,
+    Square::A1, Square::B1, Square::C1, Square::D1, Square::E1, Square::F1, Square::G1, Square::H1
+];
+
 impl Square {
     pub const unsafe fn from(square_number: u8) -> Square {
         assert!(square_number < 64, "Square number out of bounds");
@@ -55,11 +66,11 @@ impl Square {
     }
 
     pub fn iter_all() -> impl Iterator<Item = Square> {
-        Square::iter_between(Square::A8, Square::H1)
+        ALL.iter().copied()
     }
 
     pub fn iter_between(first: Square, last: Square) -> impl Iterator<Item = Square> {
-        (first as u8..=last as u8).map(|n| unsafe { Square::from(n) })
+        ALL[first as usize..=last as usize].iter().copied()
     }
 }
 
