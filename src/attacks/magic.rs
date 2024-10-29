@@ -4,8 +4,10 @@ use crate::utils::{SlidingPieceType, Square};
 use lazy_static::lazy_static;
 use crate::attacks::manual::{manual_single_bishop_attacks, manual_single_rook_attacks};
 
-const ROOK_ATTACK_TABLE_SIZE: usize = 60 * 2usize.pow(11) + 4 * 2usize.pow(12);
+const ROOK_ATTACK_TABLE_SIZE: usize = 36 * 2usize.pow(10) + 28 * 2usize.pow(11) + 4 * 2usize.pow(12);
 const BISHOP_ATTACK_TABLE_SIZE: usize = 4 * 2usize.pow(6) + 44 * 2usize.pow(5) + 12 * 2usize.pow(7) + 4 * 2usize.pow(9);
+
+const RNG_SEED: u64 = 0;
 
 lazy_static! {
     static ref ROOK_RELEVANT_MASKS: [Bitboard; 64] = {
@@ -103,6 +105,8 @@ impl<const N: usize> MagicDict<N> {
     }
 
     unsafe fn fill_magic_numbers_and_attacks_for_square(&mut self, square: Square, sliding_piece: SlidingPieceType, current_offset: &mut u32) -> Bitboard {
+        let mut rng = fastrand::Rng::with_seed(RNG_SEED);
+        
         let relevant_mask = match sliding_piece {
             SlidingPieceType::Rook => get_rook_relevant_mask(square),
             SlidingPieceType::Bishop => get_bishop_relevant_mask(square),
@@ -111,7 +115,7 @@ impl<const N: usize> MagicDict<N> {
         let mut magic_number: Bitboard;
 
         loop {
-            magic_number = gen_random_magic_number();
+            magic_number = gen_random_magic_number(&mut rng);
 
             // Test if the magic number is suitable based on a quick bit-count heuristic
             if (relevant_mask.wrapping_mul(magic_number) & 0xFF_00_00_00_00_00_00_00).count_ones() < 6 {
@@ -189,8 +193,16 @@ pub fn magic_single_bishop_attacks(src_square: Square, occupied_mask: Bitboard) 
     BISHOP_MAGIC_DICT.calc_attack_mask(src_square, occupied_mask)
 }
 
-fn gen_random_magic_number() -> Bitboard {
-    fastrand::u64(..) & fastrand::u64(..) & fastrand::u64(..)
+fn gen_lower_bits_random(rng: &mut fastrand::Rng) -> Bitboard {
+    rng.u64(..) & 0xFFFF
+}
+
+fn gen_uniform_random(rng: &mut fastrand::Rng) -> Bitboard {
+    gen_lower_bits_random(rng) | (gen_lower_bits_random(rng) << 16) | (gen_lower_bits_random(rng) << 32) | (gen_lower_bits_random(rng) << 48)
+}
+
+fn gen_random_magic_number(rng: &mut fastrand::Rng) -> Bitboard {
+    gen_uniform_random(rng) & gen_uniform_random(rng) & gen_uniform_random(rng)
 }
 
 mod tests {

@@ -30,9 +30,9 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
 }
 
 pub fn single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
-    manual::manual_single_rook_attacks(src_square, occupied_mask)
+    magic::magic_single_rook_attacks(src_square, occupied_mask)
 }
 
 pub fn single_bishop_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
-    manual::manual_single_bishop_attacks(src_square, occupied_mask)
+    magic::magic_single_bishop_attacks(src_square, occupied_mask)
 }
