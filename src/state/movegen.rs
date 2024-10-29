@@ -193,7 +193,7 @@ impl State {
         }
     }
 
-    pub fn get_pseudolegal_moves(&self) -> Vec<Move> {
+    pub fn calc_pseudolegal_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
         self.add_all_pawn_pseudolegal(&mut moves);
         self.add_knight_pseudolegal(&mut moves);
@@ -206,11 +206,11 @@ impl State {
         moves
     }
 
-    pub fn get_legal_moves_legacy(&self) -> Vec<Move> {
+    pub fn calc_legal_moves_legacy(&self) -> Vec<Move> {
         if self.termination.is_some() {
             return Vec::new();
         }
-        let pseudolegal_moves = self.get_pseudolegal_moves();
+        let pseudolegal_moves = self.calc_pseudolegal_moves();
         let mut filtered_moves = Vec::new();
         for move_ in pseudolegal_moves {
             let mut new_state = self.clone();
@@ -222,18 +222,20 @@ impl State {
         filtered_moves
     }
 
-    pub fn get_legal_moves(&self) -> Vec<Move> {
+    pub fn calc_legal_moves(&self) -> Vec<Move> {
         if self.termination.is_some() {
             return Vec::new();
         }
         
-        let pseudolegal_moves = self.get_pseudolegal_moves();
+        let pseudolegal_moves = self.calc_pseudolegal_moves();
         let mut filtered_moves = Vec::new();
-        // let self_keepsake = self.clone();
+        
+        let self_keepsake = self.clone();
+        
         let mut state = self.clone();
         for move_ in pseudolegal_moves {
             state.make_move(move_);
-            if state.is_valid() && !state.board.is_color_in_check(self.side_to_move) {
+            if state.is_probably_valid() {
                 filtered_moves.push(move_);
             }
             state.unmake_move(move_);

@@ -56,7 +56,7 @@ impl Move {
 
         let annotation_str;
         if final_state.board.is_color_in_check(final_state.side_to_move) {
-            if final_state.get_legal_moves().is_empty() {
+            if final_state.calc_legal_moves().is_empty() {
                 annotation_str = "#";
             }
             else {

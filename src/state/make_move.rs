@@ -97,22 +97,20 @@ impl State {
         self.side_to_move = self.side_to_move.flip();
         self.context = Rc::new(RefCell::new(new_context));
 
+        // update Zobrist table
+        let position_count = self.increment_position_count();
+        // assert_eq!(self.board.zobrist_hash, self.board.calc_zobrist_hash());
+        // assert!(self.board.is_valid());
+
         if self.board.are_both_sides_insufficient_material() {
             self.termination = Some(Termination::InsufficientMaterial);
         }
         else if self.context.borrow().halfmove_clock == 100 { // fifty move rule
             self.termination = Some(Termination::FiftyMoveRule);
         }
-        else {
-            // update Zobrist table
-            let position_count = self.increment_position_count();
-            // assert_eq!(self.board.zobrist_hash, self.board.calc_zobrist_hash());
-            // assert!(self.board.is_valid());
-
+        else if position_count == 3 {
             // check for repetition
-            if position_count == 3 {
-                self.termination = Some(Termination::ThreefoldRepetition);
-            }
+            self.termination = Some(Termination::ThreefoldRepetition);
         }
     }
 }

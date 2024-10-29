@@ -76,7 +76,7 @@ mod tests {
         let (expected_fen_board, expected_fen_side_to_move, expected_fen_castling_rights) = (expected_fen_split[0], expected_fen_split[1], expected_fen_split[2]);
         assert_eq!(found_fen_split[0..3], expected_fen_split[0..3]); // ensure board, side to move, and castling rights are the same
 
-        let found_moves_unordered = state.get_legal_moves();
+        let found_moves_unordered = state.calc_legal_moves();
         let expected_moves = chess::MoveGen::new_legal(&validation_board);
         let mut found_moves_ordered;
 
@@ -140,7 +140,7 @@ mod tests {
                 (state, validation_board)
             }
         };
-        let possible_moves = state.get_legal_moves();
+        let possible_moves = state.calc_legal_moves();
         let (found_count, known_count) = count_moves_and_test(&state, validation_board, depth);
         assert_eq!(found_count, known_count);
         println!("{} moves", found_count);

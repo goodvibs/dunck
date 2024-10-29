@@ -57,4 +57,8 @@ impl Context {
             previous: None
         }
     }
+
+    pub fn has_valid_halfmove_clock(&self) -> bool {
+        self.halfmove_clock <= 100
+    }
 }

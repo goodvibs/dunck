@@ -178,7 +178,7 @@ impl PgnMoveTree {
                 }
                 PgnToken::Move(mv) => {
                     let initial_state = (*current_node).borrow().state_after_move.clone();
-                    let legal_moves = initial_state.get_legal_moves();
+                    let legal_moves = initial_state.calc_legal_moves();
                     
                     let mut found_match = false;
                     
