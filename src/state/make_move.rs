@@ -78,7 +78,7 @@ impl State {
         new_context.process_castle(self.side_to_move);
     }
     
-    pub fn make_move(&mut self, mv: Move) { // todo: split into smaller functions for unit testing
+    pub fn make_move(&mut self, mv: Move) {
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 
         let mut new_context = Context::new_from(Rc::clone(&self.context));

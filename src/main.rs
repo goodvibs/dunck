@@ -62,14 +62,14 @@ fn main() {
                     }
                 }
             }
-            "b" | "BEST" => {
-                let tree_policy = engine::UctPolicy::new(2.0);
-                let mut search_tree = engine::SearchTree::new(state.clone(), tree_policy);
-                search_tree.run(500);
-                let best_action = search_tree.get_best_action();
-                println!("Best action: {}", best_action.unwrap());
-                state.make_move(best_action.unwrap());
-            }
+            // "b" | "BEST" => {
+            //     let tree_policy = engine::UctPolicy::new(2.0);
+            //     let mut search_tree = engine::SearchTree::new(state.clone(), tree_policy);
+            //     search_tree.run(500);
+            //     let best_action = search_tree.get_best_action();
+            //     println!("Best action: {}", best_action.unwrap());
+            //     state.make_move(best_action.unwrap());
+            // }
             _ => {
                 let mut found = false;
                 for i in 0..moves.len() {

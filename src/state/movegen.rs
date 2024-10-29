@@ -230,7 +230,7 @@ impl State {
         let pseudolegal_moves = self.calc_pseudolegal_moves();
         let mut filtered_moves = Vec::new();
         
-        let self_keepsake = self.clone();
+        // let self_keepsake = self.clone();
         
         let mut state = self.clone();
         for move_ in pseudolegal_moves {
