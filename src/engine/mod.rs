@@ -30,6 +30,12 @@ fn simulate_rollout(mut state: State) -> f64 {
 }
 
 fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
+    state.board.print();
+    println!("{:?}", state.termination);
+    println!("{:?}", state.side_to_move);
+    println!("{:?}", state.halfmove);
+    println!("{:?}", state.context.borrow().halfmove_clock);
+    println!();
     let termination = match &state.termination {
         Some(termination) => termination,
         None => &match state.board.is_color_in_check(state.side_to_move) {
@@ -37,16 +43,17 @@ fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
             false => Termination::Stalemate,
         }
     };
+    // println!("{:?}", termination);
     match termination {
         Termination::Checkmate => {
             let checkmated_side = state.side_to_move;
             if checkmated_side == for_color {
-                0.0
+                -1.
             } else {
-                1.0
+                1.
             }
         }
-        _ => 0.5
+        _ => 0.
     }
 }
 
@@ -55,7 +62,6 @@ struct MCTSNode {
     visits: u32,
     value: f64,
     children: Vec<*mut MCTSNode>,
-    parent: Option<*mut MCTSNode>,
 }
 
 impl MCTSNode {
@@ -65,37 +71,41 @@ impl MCTSNode {
             visits: 0,
             value: 0.0,
             children: Vec::new(),
-            parent: None,
         }
     }
 
-    fn run(&mut self, exploration_param: f64, self_ptr: *mut MCTSNode) {
-        let possible_selected_node = self.select_child_with_ucb1(exploration_param);
+    fn run(&mut self, exploration_param: f64) -> f64 {
+        let possible_selected_child = self.select_child_with_ucb1(exploration_param);
+        let value;
 
-        match possible_selected_node {
-            Some(selected_node) => unsafe {
-                (*selected_node).run(exploration_param, selected_node);
+        match possible_selected_child {
+            Some(selected_child) => unsafe {
+                value = (*selected_child).run(exploration_param);
             }
             None => unsafe {
                 if self.visits == 0 {
-                    let value = simulate_rollout(self.state.clone());
-                    self.backpropagate(value);
+                    value = simulate_rollout(self.state.clone());
                 } else {
                     let legal_moves = self.state.calc_legal_moves();
                     for legal_move in legal_moves {
                         let mut new_state = self.state.clone();
                         new_state.make_move(legal_move);
-                        let mut new_node = MCTSNode::new(new_state);
-                        new_node.parent = Some(self_ptr);
+                        let new_node = MCTSNode::new(new_state);
                         self.children.push(Box::into_raw(Box::new(new_node)));
                     }
                     if !self.children.is_empty() {
-                        let random_child = self.children[fastrand::usize(..self.children.len())].clone();
-                        (*random_child).run(exploration_param, random_child);
+                        let random_child = self.children[0].clone();
+                        value = (*random_child).run(exploration_param);
+                    }
+                    else { // terminal state
+                        value = evaluate_terminal_state(&self.state, self.state.side_to_move);
                     }
                 }
             }
         }
+        self.visits += 1;
+        self.value += value;
+        value
     }
 
     fn select_child_with_ucb1(&mut self, exploration_param: f64) -> Option<*mut MCTSNode> {
@@ -105,15 +115,6 @@ impl MCTSNode {
                 let b_ucb1 = ucb1((***b).value, self.visits, (***b).visits, exploration_param);
                 a_ucb1.partial_cmp(&b_ucb1).expect("Failed to compare UCB1 values")
             }).cloned()
-        }
-    }
-
-    fn backpropagate(&mut self, value: f64) {
-        self.visits += 1;
-        self.value += value;
-
-        if let Some(parent_ptr) = &self.parent {
-            unsafe { (**parent_ptr).backpropagate(value) };
         }
     }
 }
@@ -143,7 +144,7 @@ impl MCTS {
 
     fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
-            unsafe { (*self.root).run(self.exploration_param, self.root) };
+            unsafe { (*self.root).run(self.exploration_param) };
         }
     }
 
