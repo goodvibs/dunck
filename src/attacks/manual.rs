@@ -29,43 +29,46 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
 }
 
 pub fn manual_single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
-    let mut attacks: Bitboard = 0;
-    let leading_zeros = src_square as u32;
-    let n_distance: u32 = leading_zeros / 8;
-    let s_distance: u32 = 7 - n_distance;
-    let w_distance: u32 = leading_zeros % 8;
-    let e_distance: u32 = 7 - w_distance;
-    let src_mask = src_square.to_mask();
-    let (mut pos_n, mut pos_s, mut pos_w, mut pos_e): (Bitboard, Bitboard, Bitboard, Bitboard) = (src_mask, src_mask, src_mask, src_mask);
-    for _ in 0..n_distance {
-        pos_n <<= 8;
-        attacks |= pos_n;
-        if occupied_mask & pos_n != 0 {
+    let src_square_mask = src_square.to_mask();
+    let mut result: Bitboard = 0;
+
+    let mut mask = src_square_mask << 1;
+    while mask != 0 && mask & FILE_H == 0 {
+        result |= mask;
+        if occupied_mask & mask != 0 {
             break;
         }
+        mask <<= 1;
     }
-    for _ in 0..s_distance {
-        pos_s >>= 8;
-        attacks |= pos_s;
-        if occupied_mask & pos_s != 0 {
+
+    let mut mask = src_square_mask << 8;
+    while mask != 0 {
+        result |= mask;
+        if occupied_mask & mask != 0 {
             break;
         }
+        mask <<= 8;
     }
-    for _ in 0..w_distance {
-        pos_w <<= 1;
-        attacks |= pos_w;
-        if occupied_mask & pos_w != 0 {
+
+    let mut mask = src_square_mask >> 1;
+    while mask != 0 && mask & FILE_A == 0 {
+        result |= mask;
+        if occupied_mask & mask != 0 {
             break;
         }
+        mask >>= 1;
     }
-    for _ in 0..e_distance {
-        pos_e >>= 1;
-        attacks |= pos_e;
-        if occupied_mask & pos_e != 0 {
+
+    let mut mask = src_square_mask >> 8;
+    while mask != 0 {
+        result |= mask;
+        if occupied_mask & mask != 0 {
             break;
         }
+        mask >>= 8;
     }
-    attacks
+    
+    result
 }
 
 pub fn manual_single_bishop_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {

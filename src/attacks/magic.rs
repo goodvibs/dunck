@@ -106,7 +106,7 @@ impl<const N: usize> MagicDict<N> {
 
     unsafe fn fill_magic_numbers_and_attacks_for_square(&mut self, square: Square, sliding_piece: SlidingPieceType, current_offset: &mut u32) -> Bitboard {
         let mut rng = fastrand::Rng::with_seed(RNG_SEED);
-        
+
         let relevant_mask = match sliding_piece {
             SlidingPieceType::Rook => get_rook_relevant_mask(square),
             SlidingPieceType::Bishop => get_bishop_relevant_mask(square),

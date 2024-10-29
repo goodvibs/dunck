@@ -32,6 +32,11 @@ impl Square {
         assert!(square_number < 64, "Square number out of bounds");
         std::mem::transmute::<u8, Square>(square_number)
     }
+    
+    pub const unsafe fn from_rank_file(rank: u8, file: u8) -> Square {
+        assert!(rank < 8 && file < 8, "Rank or file out of bounds");
+        std::mem::transmute::<u8, Square>((7 - rank) * 8 + file)
+    }
 
     pub const fn to_mask(&self) -> Bitboard {
         1 << (63 - *self as u8)
