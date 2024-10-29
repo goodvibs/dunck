@@ -107,13 +107,17 @@ impl MCTSNode {
         self.value += value;
         value
     }
+    
+    fn calc_ucb1(&self, parent_visits: u32, exploration_param: f64) -> f64 {
+        ucb1(self.value, parent_visits, self.visits, exploration_param)
+    }
 
     fn select_child_with_ucb1(&mut self, exploration_param: f64) -> Option<*mut MCTSNode> {
         unsafe {
             self.children.iter().max_by(|a, b| {
-                let a_ucb1 = ucb1((***a).value, self.visits, (***a).visits, exploration_param);
-                let b_ucb1 = ucb1((***b).value, self.visits, (***b).visits, exploration_param);
-                a_ucb1.partial_cmp(&b_ucb1).expect("Failed to compare UCB1 values")
+                let a_ucb1 = (***a).calc_ucb1(self.visits, exploration_param);
+                let b_ucb1 = (***b).calc_ucb1(self.visits, exploration_param);
+                a_ucb1.partial_cmp(&b_ucb1).unwrap()
             }).cloned()
         }
     }
