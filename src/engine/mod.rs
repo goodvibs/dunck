@@ -4,7 +4,6 @@ use crate::state::{State, Termination};
 use crate::utils::Color;
 
 pub use mocats::*;
-use pyrrhic_rs::TableBases;
 
 impl GameAction for Move {}
 
