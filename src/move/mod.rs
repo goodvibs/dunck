@@ -88,7 +88,7 @@ mod tests {
     fn test_move() {
         for dst_square in Square::iter_all() {
             for src_square in Square::iter_all() {
-                for promotion_piece in PieceType::iter_between(PieceType::Knight, PieceType::Queen) {
+                for promotion_piece in PieceType::iter_middle_pieces() {
                     for flag_int in 0..4 {
                         let flag = unsafe { MoveFlag::from(flag_int) };
 

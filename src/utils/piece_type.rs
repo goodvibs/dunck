@@ -16,12 +16,66 @@ pub enum PieceType {
     King=6
 }
 
+const ALL: [PieceType; 7] = [
+    PieceType::NoPieceType,
+    PieceType::Pawn,
+    PieceType::Knight,
+    PieceType::Bishop,
+    PieceType::Rook,
+    PieceType::Queen,
+    PieceType::King
+];
+
+const ALL_PIECES: [PieceType; 6] = [
+    PieceType::Pawn,
+    PieceType::Knight,
+    PieceType::Bishop,
+    PieceType::Rook,
+    PieceType::Queen,
+    PieceType::King
+];
+
+const ALL_NON_KING_PIECES: [PieceType; 5] = [
+    PieceType::Pawn,
+    PieceType::Knight,
+    PieceType::Bishop,
+    PieceType::Rook,
+    PieceType::Queen
+];
+
+const ALL_SLIDING_PIECES: [PieceType; 3] = [
+    PieceType::Bishop,
+    PieceType::Rook,
+    PieceType::Queen
+];
+
+const ALL_NON_SLIDING_PIECES: [PieceType; 3] = [
+    PieceType::Pawn,
+    PieceType::Knight,
+    PieceType::King
+];
+
+const ALL_NON_PAWN_PIECES: [PieceType; 5] = [
+    PieceType::Knight,
+    PieceType::Bishop,
+    PieceType::Rook,
+    PieceType::Queen,
+    PieceType::King
+];
+
+const ALL_MIDDLE_PIECES: [PieceType; 4] = [
+    PieceType::Knight,
+    PieceType::Bishop,
+    PieceType::Rook,
+    PieceType::Queen
+];
+
 impl PieceType {
     pub const LIMIT: u8 = 7;
     pub const AllPieceTypes: PieceType = PieceType::NoPieceType;
 
     pub const unsafe fn from(piece_type_number: u8) -> PieceType {
-        assert!(piece_type_number < PieceType::LIMIT as u8, "Piece type number out of bounds");
+        assert!(piece_type_number < PieceType::LIMIT, "Piece type number out of bounds");
         std::mem::transmute::<u8, PieceType>(piece_type_number)
     }
 
@@ -30,15 +84,35 @@ impl PieceType {
     }
 
     pub fn iter_all() -> impl Iterator<Item = PieceType> {
-        PieceType::iter_between(PieceType::NoPieceType, PieceType::King)
+        ALL.iter().copied()
     }
 
     pub fn iter_pieces() -> impl Iterator<Item = PieceType> {
-        PieceType::iter_between(PieceType::Pawn, PieceType::King)
+        ALL_PIECES.iter().copied()
     }
-
+    
+    pub fn iter_non_king_pieces() -> impl Iterator<Item = PieceType> {
+        ALL_NON_KING_PIECES.iter().copied()
+    }
+    
+    pub fn iter_sliding_pieces() -> impl Iterator<Item = PieceType> {
+        ALL_SLIDING_PIECES.iter().copied()
+    }
+    
+    pub fn iter_non_sliding_pieces() -> impl Iterator<Item = PieceType> {
+        ALL_NON_SLIDING_PIECES.iter().copied()
+    }
+    
+    pub fn iter_non_pawn_pieces() -> impl Iterator<Item = PieceType> {
+        ALL_NON_PAWN_PIECES.iter().copied()
+    }
+    
+    pub fn iter_middle_pieces() -> impl Iterator<Item = PieceType> {
+        ALL_MIDDLE_PIECES.iter().copied()
+    }
+    
     pub fn iter_between(first: PieceType, last: PieceType) -> impl Iterator<Item = PieceType> {
-        (first as u8..=last as u8).map(|n| unsafe { PieceType::from(n) })
+        ALL[first as usize..=last as usize].iter().copied()
     }
 }
 
