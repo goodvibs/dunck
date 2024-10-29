@@ -1,5 +1,3 @@
-mod syzygy;
-
 use lazy_static::lazy_static;
 use crate::r#move::Move;
 use crate::state::{State, Termination};
@@ -7,11 +5,6 @@ use crate::utils::Color;
 
 pub use mocats::*;
 use pyrrhic_rs::TableBases;
-use crate::engine::syzygy::DunckAdapter;
-
-lazy_static! {
-    pub static ref TB: TableBases<DunckAdapter> = TableBases::<DunckAdapter>::new("src/engine/syzygy/3-4-5").unwrap();
-}
 
 impl GameAction for Move {}
 
@@ -24,7 +17,6 @@ impl GameState<Move, Color> for State {
 
     fn apply_action(&mut self, action: &Move) {
         self.make_move(*action);
-        self.update_with_tb_if_eligible(&TB);
     }
 
     fn get_turn(&self) -> Color {
