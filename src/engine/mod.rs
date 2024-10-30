@@ -7,10 +7,9 @@ use crate::r#move::Move;
 use crate::state::{Context, State, Termination};
 use crate::utils::Color;
 
-const MAX_ROLLOUT_DEPTH: u32 = 10;
+const MAX_ROLLOUT_DEPTH: u32 = 100;
 
-fn simulate_rollout(mut state: State) -> f64 {
-    let for_color = state.side_to_move;
+fn simulate_rollout(for_color: Color, mut state: State) -> f64 {
     let mut rng = fastrand::Rng::new();
     let mut i = 0;
     loop {
@@ -71,18 +70,17 @@ impl MCTSNode {
         }
     }
 
-    fn run(&mut self, exploration_param: f64) -> f64 {
-        let for_color = self.state_after_move.side_to_move;
+    fn run(&mut self, for_color: Color, exploration_param: f64) -> f64 {
         let possible_selected_child = self.select_child_with_ucb1(exploration_param);
         let value;
 
         match possible_selected_child {
             Some(selected_child) => unsafe {
-                value = 1. - (*selected_child).run(exploration_param);
+                value = (*selected_child).run(for_color, exploration_param);
             }
             None => unsafe {
                 if self.visits == 0 {
-                    value = simulate_rollout(self.state_after_move.clone());
+                    value = simulate_rollout(for_color, self.state_after_move.clone());
                 } else {
                     let legal_moves = self.state_after_move.calc_legal_moves();
                     for legal_move in legal_moves {
@@ -95,7 +93,7 @@ impl MCTSNode {
                         // Select a random child for first expansion
                         let random_idx = fastrand::usize(..self.children.len());
                         let random_child = self.children[random_idx].clone();
-                        value = 1. - (*random_child).run(exploration_param);
+                        value = (*random_child).run(for_color, exploration_param);
                     }
                     else {
                         value = evaluate_terminal_state(&self.state_after_move, for_color);
@@ -153,7 +151,7 @@ impl MCTS {
 
     pub(crate) fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
-            unsafe { (*self.root).run(self.exploration_param) };
+            unsafe { (*self.root).run((*self.root).state_after_move.side_to_move, self.exploration_param) };
         }
     }
 
