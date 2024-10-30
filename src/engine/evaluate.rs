@@ -16,7 +16,7 @@ pub fn evaluate_non_terminal_state(state: &State, for_color: Color) -> f64 {
     // Calculate score difference from perspective of for_color
     let score_diff = scores[for_color as usize] - scores[for_color.flip() as usize];
 
-    1.0 / (1.0 + (-0.2 * score_diff).exp())
+    1.0 / (1.0 + (-0.5 * score_diff).exp())
 }
 
 const PIECE_VALUES: [f64; 5] = [
