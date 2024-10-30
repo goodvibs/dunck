@@ -9,7 +9,7 @@ use crate::r#move::Move;
 use crate::state::{Context, State, Termination};
 use crate::utils::Color;
 
-const MAX_ROLLOUT_DEPTH: u32 = 100;
+const MAX_ROLLOUT_DEPTH: u32 = 500;
 
 fn simulate_rollout(mut state: State) -> f64 {
     let for_color = state.side_to_move;
@@ -37,12 +37,12 @@ fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
         Termination::Checkmate => {
             let checkmated_side = state.side_to_move;
             if checkmated_side == for_color {
-                0.
+                -1.
             } else {
                 1.
             }
         }
-        _ => 0.5
+        _ => 0.
     }
 }
 
@@ -81,9 +81,10 @@ impl MCTSNode {
         }
         self.visits += 1;
         self.value += value;
+        // println!("{}", self.metadata());
         value
     }
-    
+
     fn expand(&mut self) {
         let legal_moves = self.state_after_move.calc_legal_moves();
         if legal_moves.is_empty() {
@@ -122,10 +123,12 @@ impl MCTSNode {
         format!("MCTSNode(move: {:?}, visits: {}, value: {})", self.mv, self.visits, self.value)
     }
 
-    fn fmt_helper(&self, depth: usize) -> String {
+    fn fmt_helper(&self, depth: usize, depth_limit: usize) -> String {
         let mut s = format!("{}{}\n", "| ".repeat(depth), self.metadata());
-        for child in &self.children {
-            s += &child.borrow().fmt_helper(depth + 1);
+        if depth < depth_limit {
+            for child in &self.children {
+                s += &child.borrow().fmt_helper(depth + 1, depth_limit);
+            }
         }
         s
     }
@@ -133,7 +136,7 @@ impl MCTSNode {
 
 impl Display for MCTSNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.fmt_helper(0))
+        write!(f, "{}", self.fmt_helper(0, 2))
     }
 }
 
@@ -178,8 +181,8 @@ mod tests {
         let mut mcts = MCTS::new(State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 3 6").unwrap(), exploration_param);
         for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(500);
-            // println!("{}", mcts);
+            mcts.run(10000);
+            println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = best_move_node.borrow().mv.clone();
                 let next_state = best_move_node.borrow().state_after_move.clone();

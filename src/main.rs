@@ -70,6 +70,7 @@ fn main() {
                 if let Some(best_move_node) = mcts.select_best_move() {
                     let best_move = best_move_node.borrow().mv.clone();
                     let new_state = best_move_node.borrow().state_after_move.clone();
+                    println!("{}", mcts);
                     println!("Playing best move: {:?}", best_move.unwrap().san(&state, &new_state, &state.calc_legal_moves()));
                     state = new_state;
                     mcts = MCTS::new(state.clone(), exploration_constant);
