@@ -3,6 +3,7 @@
 #![allow(unused_imports)]
 #![allow(non_upper_case_globals)]
 
+use crate::engine::MCTS;
 use crate::state::State;
 
 pub mod attacks;
@@ -62,14 +63,17 @@ fn main() {
                     }
                 }
             }
-            // "b" | "BEST" => {
-            //     let tree_policy = engine::UctPolicy::new(2.0);
-            //     let mut search_tree = engine::SearchTree::new(state.clone(), tree_policy);
-            //     search_tree.run(500);
-            //     let best_action = search_tree.get_best_action();
-            //     println!("Best action: {}", best_action.unwrap());
-            //     state.make_move(best_action.unwrap());
-            // }
+            "b" | "BEST" => {
+                let exploration_constant = 2.0;
+                let mut mcts = MCTS::new(state.clone(), exploration_constant);
+                mcts.run(5000);
+                if let Some(best_move_node) = mcts.select_best_move() {
+                    let best_move = unsafe { (*best_move_node).mv.clone() };
+                    state = unsafe { (*best_move_node).state_after_move.clone() };
+                    mcts = MCTS::new(state.clone(), exploration_constant);
+                    println!("Best move: {:?}", best_move.unwrap().uci());
+                }
+            }
             _ => {
                 let mut found = false;
                 for i in 0..moves.len() {

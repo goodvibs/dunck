@@ -52,9 +52,9 @@ fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
 }
 
 #[derive(Debug)]
-struct MCTSNode {
-    state_after_move: State,
-    mv: Option<Move>,
+pub struct MCTSNode {
+    pub state_after_move: State,
+    pub mv: Option<Move>,
     visits: u32,
     value: f64,
     children: Vec<*mut MCTSNode>,
@@ -138,26 +138,26 @@ impl Drop for MCTSNode {
     }
 }
 
-struct MCTS {
+pub struct MCTS {
     root: *mut MCTSNode,
     exploration_param: f64,
 }
 
 impl MCTS {
-    fn new(state: State, exploration_param: f64) -> Self {
+    pub(crate) fn new(state: State, exploration_param: f64) -> Self {
         Self {
             root: Box::into_raw(Box::new(MCTSNode::new(None, state))),
             exploration_param,
         }
     }
 
-    fn run(&mut self, iterations: u32) {
+    pub(crate) fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
             unsafe { (*self.root).run(self.exploration_param) };
         }
     }
 
-    fn select_best_move(&self) -> Option<*mut MCTSNode> {
+    pub(crate) fn select_best_move(&self) -> Option<*mut MCTSNode> {
         unsafe {
             (*self.root).children.iter().max_by(|a, b| {
                 let a_score = (***a).value / (***a).visits as f64;
