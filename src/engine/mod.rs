@@ -10,13 +10,13 @@ use crate::utils::Color;
 const MAX_ROLLOUT_DEPTH: u32 = 10;
 
 fn simulate_rollout(mut state: State) -> f64 {
-    let maximize_for = state.side_to_move;
+    let for_color = state.side_to_move;
     let mut rng = fastrand::Rng::new();
     let mut i = 0;
     loop {
         let moves = state.calc_legal_moves();
         if moves.is_empty() {
-            return evaluate_terminal_state(&state, maximize_for);
+            return evaluate_terminal_state(&state, for_color);
         } else {
             let rand_idx = rng.usize(..moves.len());
             let mv = moves[rand_idx];
@@ -24,7 +24,7 @@ fn simulate_rollout(mut state: State) -> f64 {
         }
         i += 1;
         if i >= MAX_ROLLOUT_DEPTH {
-            return evaluate_non_terminal_state(&state, maximize_for);
+            return evaluate_non_terminal_state(&state, for_color);
         }
     }
 }
@@ -42,12 +42,12 @@ fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
         Termination::Checkmate => {
             let checkmated_side = state.side_to_move;
             if checkmated_side == for_color {
-                -1.0
+                0.
             } else {
-                1.0
+                1.
             }
         }
-        _ => 0.0
+        _ => 0.5
     }
 }
 
@@ -72,14 +72,13 @@ impl MCTSNode {
     }
 
     fn run(&mut self, exploration_param: f64) -> f64 {
-        let maximize_for = self.state_after_move.side_to_move;
+        let for_color = self.state_after_move.side_to_move;
         let possible_selected_child = self.select_child_with_ucb1(exploration_param);
         let value;
 
         match possible_selected_child {
             Some(selected_child) => unsafe {
-                // Negate the child's value since it's from opponent's perspective
-                value = (*selected_child).run(exploration_param);
+                value = 1. - (*selected_child).run(exploration_param);
             }
             None => unsafe {
                 if self.visits == 0 {
@@ -96,10 +95,10 @@ impl MCTSNode {
                         // Select a random child for first expansion
                         let random_idx = fastrand::usize(..self.children.len());
                         let random_child = self.children[random_idx].clone();
-                        value = (*random_child).run(exploration_param);
+                        value = 1. - (*random_child).run(exploration_param);
                     }
                     else {
-                        value = evaluate_terminal_state(&self.state_after_move, maximize_for);
+                        value = evaluate_terminal_state(&self.state_after_move, for_color);
                     }
                 }
             }
@@ -163,7 +162,7 @@ impl MCTS {
             (*self.root).children.iter().max_by(|a, b| {
                 let a_score = (***a).value / (***a).visits as f64;
                 let b_score = (***b).value / (***b).visits as f64;
-                a_score.partial_cmp(&b_score).unwrap()
+                b_score.partial_cmp(&a_score).unwrap()
             }).cloned()
         }
     }
@@ -184,11 +183,11 @@ mod tests {
 
     #[test]
     fn test_mcts() {
-        let exploration_param = 1.41;
+        let exploration_param = 2.;
         let mut mcts = MCTS::new(State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 3 6").unwrap(), exploration_param);
-        for i in 0..10 {
+        for i in 0..3 {
             println!("Move: {}", i);
-            mcts.run(500);
+            mcts.run(5000);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = unsafe { (*best_move_node).mv.clone() };
                 let next_state = unsafe { (*best_move_node).state_after_move.clone() };
