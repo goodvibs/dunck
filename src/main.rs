@@ -66,7 +66,7 @@ fn main() {
             "b" | "BEST" => {
                 let exploration_constant = 2.0;
                 let mut mcts = MCTS::new(state.clone(), exploration_constant);
-                mcts.run(5000);
+                mcts.run(1000);
                 if let Some(best_move_node) = mcts.select_best_move() {
                     let best_move = unsafe { (*best_move_node).mv.clone() };
                     state = unsafe { (*best_move_node).state_after_move.clone() };
