@@ -72,7 +72,7 @@ impl MCTSNode {
 
         match possible_selected_child {
             Some(best_child) => {
-                value = 1. - best_child.borrow_mut().run(exploration_param);
+                value = -best_child.borrow_mut().run(exploration_param);
             }
             None => { // self is a leaf node
                 value = simulate_rollout(self.state_after_move.clone());
@@ -106,8 +106,9 @@ impl MCTSNode {
         if self.visits == 0 {
             f64::INFINITY
         } else {
-            self.value / self.visits as f64
-                + exploration_param * ((parent_visits as f64).ln() / self.visits as f64).sqrt()
+            let exploitation = self.value / self.visits as f64;
+            let exploration = exploration_param * ((parent_visits as f64).ln() / self.visits as f64).sqrt();
+            exploitation + exploration
         }
     }
 
