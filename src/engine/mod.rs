@@ -1,19 +1,17 @@
-mod evaluate;
-
 use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-use crate::engine::evaluate::evaluate_non_terminal_state;
+use rand::prelude::SliceRandom;
 use crate::r#move::Move;
 use crate::state::{Context, State, Termination};
-use crate::utils::Color;
+use crate::utils::{Color, PieceType};
 
 const MAX_ROLLOUT_DEPTH: u32 = 500;
 
-fn simulate_rollout(mut state: State) -> f64 {
-    let for_color = state.side_to_move;
-    let mut rng = fastrand::Rng::new();
+fn simulate_rollout(mut state: State, for_color: Color) -> f64 {
+    // let mut rng = fastrand::Rng::new();
+    let mut rng = rand::thread_rng();
     let mut i = 0;
     loop {
         let moves = state.calc_legal_moves();
@@ -21,9 +19,10 @@ fn simulate_rollout(mut state: State) -> f64 {
             state.assume_and_update_termination();
             return evaluate_terminal_state(&state, for_color);
         } else {
-            let rand_idx = rng.usize(..moves.len());
-            let mv = moves[rand_idx];
-            state.make_move(mv);
+            // let rand_idx = rng.usize(..moves.len());
+            // let mv = moves[rand_idx];
+            let mv = moves.choose(&mut rng).unwrap();
+            state.make_move(*mv);
         }
         i += 1;
         if i >= MAX_ROLLOUT_DEPTH {
@@ -46,6 +45,36 @@ fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
     }
 }
 
+pub fn evaluate_non_terminal_state(state: &State, for_color: Color) -> f64 {
+    let mut scores = [0.0, 0.0];
+    for color in Color::iter() {
+        let color_mask = state.board.color_masks[color as usize];
+        for piece_type in PieceType::iter_between(PieceType::Pawn, PieceType::Queen) {
+            let piece_mask = state.board.piece_type_masks[piece_type as usize];
+            let mask = color_mask & piece_mask;
+            let count = mask.count_ones() as f64;
+            scores[color as usize] += PIECE_VALUES[piece_type as usize - 1] * count;
+        }
+    }
+
+    // Calculate score difference from perspective of for_color
+    let score_diff = scores[for_color as usize] - scores[for_color.flip() as usize];
+
+    2. * sigmoid(score_diff, 0.5) - 1. // Normalize to [-1, 1]
+}
+
+fn sigmoid(x: f64, a: f64) -> f64 {
+    1.0 / (1.0 + (-a * x).exp())
+}
+
+const PIECE_VALUES: [f64; 5] = [
+    1.0,  // Pawn
+    3.0,  // Knight
+    3.0,  // Bishop
+    5.0,  // Rook
+    9.0   // Queen
+];
+
 #[derive(Debug)]
 pub struct MCTSNode {
     pub state_after_move: State,
@@ -53,16 +82,18 @@ pub struct MCTSNode {
     visits: u32,
     value: f64,
     children: Vec<Rc<RefCell<MCTSNode>>>,
+    for_color: Color,
 }
 
 impl MCTSNode {
-    fn new(mv: Option<Move>, state_after_move: State) -> Self {
+    fn new(mv: Option<Move>, state_after_move: State, for_color: Color) -> Self {
         Self {
             state_after_move,
             mv,
             visits: 0,
             value: 0.0,
             children: Vec::new(),
+            for_color,
         }
     }
 
@@ -72,10 +103,10 @@ impl MCTSNode {
 
         match possible_selected_child {
             Some(best_child) => {
-                value = -best_child.borrow_mut().run(exploration_param);
+                value = -1. * best_child.borrow_mut().run(exploration_param);
             }
             None => { // self is a leaf node
-                value = simulate_rollout(self.state_after_move.clone());
+                value = simulate_rollout(self.state_after_move.clone(), self.for_color);
                 self.expand();
             }
         }
@@ -96,7 +127,7 @@ impl MCTSNode {
             for legal_move in legal_moves {
                 let mut new_state = self.state_after_move.clone();
                 new_state.make_move(legal_move);
-                let new_node = MCTSNode::new(Some(legal_move), new_state);
+                let new_node = MCTSNode::new(Some(legal_move), new_state, self.for_color);
                 self.children.push(Rc::new(RefCell::new(new_node)));
             }
         }
@@ -148,8 +179,9 @@ pub struct MCTS {
 
 impl MCTS {
     pub fn new(state: State, exploration_param: f64) -> Self {
+        let side_to_move = state.side_to_move;
         Self {
-            root: Rc::new(RefCell::new(MCTSNode::new(None, state))),
+            root: Rc::new(RefCell::new(MCTSNode::new(None, state, side_to_move))),
             exploration_param,
         }
     }
@@ -179,10 +211,10 @@ mod tests {
     #[test]
     fn test_mcts() {
         let exploration_param = 2.;
-        let mut mcts = MCTS::new(State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 3 6").unwrap(), exploration_param);
+        let mut mcts = MCTS::new(State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(), exploration_param);
         for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(10000);
+            mcts.run(1000);
             println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = best_move_node.borrow().mv.clone();

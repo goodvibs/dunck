@@ -63,7 +63,7 @@ impl State {
     pub const fn get_fullmove(&self) -> u16 {
         self.halfmove / 2 + 1
     }
-    
+
     pub fn assume_and_update_termination(&mut self) {
         self.termination = Some(
             match self.termination {
