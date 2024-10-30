@@ -8,17 +8,21 @@ pub fn evaluate_non_terminal_state(state: &State, for_color: Color) -> f64 {
         for piece_type in PieceType::iter_between(PieceType::Pawn, PieceType::Queen) {
             let piece_mask = state.board.piece_type_masks[piece_type as usize];
             let mask = color_mask & piece_mask;
-            let count = mask.count_ones() as f32;
+            let count = mask.count_ones() as f64;
             scores[color as usize] += PIECE_VALUES[piece_type as usize - 1] * count;
         }
     }
-    match scores[for_color as usize] - scores[for_color.flip() as usize] {
-        x if x > 0.0 => 0.5,
-        x if x < 0.0 => -0.5,
-        _ => 0.
-    }
+
+    // Calculate score difference from perspective of for_color
+    let score_diff = scores[for_color as usize] - scores[for_color.flip() as usize];
+    
+    1.0 / (1.0 + (-0.2 * score_diff).exp()) - 0.5
 }
 
-const PIECE_VALUES: [f32; 5] = [
-    1.0, 3.0, 3.0, 5.0, 9.0
+const PIECE_VALUES: [f64; 5] = [
+    1.0,  // Pawn
+    3.0,  // Knight
+    3.0,  // Bishop
+    5.0,  // Rook
+    9.0   // Queen
 ];
