@@ -1,4 +1,4 @@
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 pub enum Termination {
     Checkmate,
     Stalemate,

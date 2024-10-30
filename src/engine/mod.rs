@@ -18,6 +18,7 @@ fn simulate_rollout(mut state: State) -> f64 {
     loop {
         let moves = state.calc_legal_moves();
         if moves.is_empty() {
+            state.assume_and_update_termination();
             return evaluate_terminal_state(&state, for_color);
         } else {
             let rand_idx = rng.usize(..moves.len());
@@ -32,15 +33,7 @@ fn simulate_rollout(mut state: State) -> f64 {
 }
 
 fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
-    let termination = match &state.termination {
-        Some(termination) => termination,
-        None => &match state.board.is_color_in_check(state.side_to_move) {
-            true => Termination::Checkmate,
-            false => Termination::Stalemate,
-        }
-    };
-
-    match termination {
+    match state.termination.unwrap() {
         Termination::Checkmate => {
             let checkmated_side = state.side_to_move;
             if checkmated_side == for_color {
@@ -81,32 +74,31 @@ impl MCTSNode {
             Some(best_child) => {
                 value = 1. - best_child.borrow_mut().run(exploration_param);
             }
-            None => {
-                if self.visits == 0 {
-                    value = simulate_rollout(self.state_after_move.clone());
-                } else {
-                    let legal_moves = self.state_after_move.calc_legal_moves();
-                    for legal_move in legal_moves {
-                        let mut new_state = self.state_after_move.clone();
-                        new_state.make_move(legal_move);
-                        let new_node = MCTSNode::new(Some(legal_move), new_state);
-                        self.children.push(Rc::new(RefCell::new(new_node)));
-                    }
-                    if !self.children.is_empty() {
-                        // Select a random child for first expansion
-                        let random_idx = fastrand::usize(..self.children.len());
-                        let random_child = self.children[random_idx].clone();
-                        value = 1. - random_child.borrow_mut().run(exploration_param);
-                    }
-                    else {
-                        value = evaluate_terminal_state(&self.state_after_move, self.state_after_move.side_to_move);
-                    }
-                }
+            None => { // self is a leaf node
+                value = simulate_rollout(self.state_after_move.clone());
+                self.expand();
             }
         }
         self.visits += 1;
         self.value += value;
         value
+    }
+    
+    fn expand(&mut self) {
+        let legal_moves = self.state_after_move.calc_legal_moves();
+        if legal_moves.is_empty() {
+            if self.state_after_move.termination.is_none() {
+                self.state_after_move.assume_and_update_termination();
+            }
+        }
+        else {
+            for legal_move in legal_moves {
+                let mut new_state = self.state_after_move.clone();
+                new_state.make_move(legal_move);
+                let new_node = MCTSNode::new(Some(legal_move), new_state);
+                self.children.push(Rc::new(RefCell::new(new_node)));
+            }
+        }
     }
 
     fn calc_ucb1(&self, parent_visits: u32, exploration_param: f64) -> f64 {
@@ -120,9 +112,9 @@ impl MCTSNode {
 
     fn select_best_child(&mut self, exploration_param: f64) -> Option<Rc<RefCell<MCTSNode>>> {
         self.children.iter().max_by(|a, b| {
-            let a_ucb1 = a.borrow_mut().calc_ucb1(self.visits, exploration_param);
-            let b_ucb1 = b.borrow_mut().calc_ucb1(self.visits, exploration_param);
-            a_ucb1.partial_cmp(&b_ucb1).unwrap()
+            let a_score = a.borrow().calc_ucb1(self.visits, exploration_param);
+            let b_score = b.borrow().calc_ucb1(self.visits, exploration_param);
+            a_score.partial_cmp(&b_score).unwrap()
         }).cloned()
     }
 
@@ -165,11 +157,7 @@ impl MCTS {
     }
 
     pub fn select_best_move(&self) -> Option<Rc<RefCell<MCTSNode>>> {
-        self.root.borrow().children.iter().max_by(|a, b| {
-            let a_score = a.borrow().value / a.borrow().visits as f64;
-            let b_score = b.borrow().value / b.borrow().visits as f64;
-            b_score.partial_cmp(&a_score).unwrap()
-        }).cloned()
+        self.root.borrow_mut().select_best_child(0.)
     }
 }
 
@@ -191,7 +179,7 @@ mod tests {
         for i in 0..1 {
             println!("Move: {}", i);
             mcts.run(500);
-            println!("{}", mcts);
+            // println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = best_move_node.borrow().mv.clone();
                 let next_state = best_move_node.borrow().state_after_move.clone();

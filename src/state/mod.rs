@@ -63,6 +63,18 @@ impl State {
     pub const fn get_fullmove(&self) -> u16 {
         self.halfmove / 2 + 1
     }
+    
+    pub fn assume_and_update_termination(&mut self) {
+        self.termination = Some(
+            match self.termination {
+                Some(termination) => termination,
+                None => match self.board.is_color_in_check(self.side_to_move) {
+                    true => Termination::Checkmate,
+                    false => Termination::Stalemate,
+                }
+            }
+        );
+    }
 
     pub fn has_castling_rights_short(&self, color: Color) -> bool {
         self.context.borrow().castling_rights & (0b00001000 >> (color as u8 * 2)) != 0
