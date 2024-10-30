@@ -68,8 +68,8 @@ fn main() {
                 let mut mcts = MCTS::new(state.clone(), exploration_constant);
                 mcts.run(1000);
                 if let Some(best_move_node) = mcts.select_best_move() {
-                    let best_move = unsafe { (*best_move_node).mv.clone() };
-                    let new_state = unsafe { (*best_move_node).state_after_move.clone() };
+                    let best_move = best_move_node.borrow().mv.clone();
+                    let new_state = best_move_node.borrow().state_after_move.clone();
                     println!("Playing best move: {:?}", best_move.unwrap().san(&state, &new_state, &state.calc_legal_moves()));
                     state = new_state;
                     mcts = MCTS::new(state.clone(), exploration_constant);

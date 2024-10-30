@@ -1,6 +1,8 @@
 mod evaluate;
 
 use std::cell::RefCell;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use crate::engine::evaluate::evaluate_non_terminal_state;
 use crate::r#move::Move;
@@ -57,7 +59,7 @@ pub struct MCTSNode {
     pub mv: Option<Move>,
     visits: u32,
     value: f64,
-    children: Vec<*mut MCTSNode>,
+    children: Vec<Rc<RefCell<MCTSNode>>>,
 }
 
 impl MCTSNode {
@@ -72,14 +74,14 @@ impl MCTSNode {
     }
 
     fn run(&mut self, exploration_param: f64) -> f64 {
-        let possible_selected_child = self.select_child_with_ucb1(exploration_param);
+        let possible_selected_child = self.select_best_child(exploration_param);
         let value;
 
         match possible_selected_child {
-            Some(selected_child) => unsafe {
-                value = 1. - (*selected_child).run(exploration_param);
+            Some(best_child) => {
+                value = 1. - best_child.borrow_mut().run(exploration_param);
             }
-            None => unsafe {
+            None => {
                 if self.visits == 0 {
                     value = simulate_rollout(self.state_after_move.clone());
                 } else {
@@ -88,13 +90,13 @@ impl MCTSNode {
                         let mut new_state = self.state_after_move.clone();
                         new_state.make_move(legal_move);
                         let new_node = MCTSNode::new(Some(legal_move), new_state);
-                        self.children.push(Box::into_raw(Box::new(new_node)));
+                        self.children.push(Rc::new(RefCell::new(new_node)));
                     }
                     if !self.children.is_empty() {
                         // Select a random child for first expansion
                         let random_idx = fastrand::usize(..self.children.len());
                         let random_child = self.children[random_idx].clone();
-                        value = 1. - (*random_child).run(exploration_param);
+                        value = 1. - random_child.borrow_mut().run(exploration_param);
                     }
                     else {
                         value = evaluate_terminal_state(&self.state_after_move, self.state_after_move.side_to_move);
@@ -116,62 +118,64 @@ impl MCTSNode {
         }
     }
 
-    fn select_child_with_ucb1(&mut self, exploration_param: f64) -> Option<*mut MCTSNode> {
-        unsafe {
-            self.children.iter().max_by(|a, b| {
-                let a_ucb1 = (***a).calc_ucb1(self.visits, exploration_param);
-                let b_ucb1 = (***b).calc_ucb1(self.visits, exploration_param);
-                a_ucb1.partial_cmp(&b_ucb1).unwrap()
-            }).cloned()
+    fn select_best_child(&mut self, exploration_param: f64) -> Option<Rc<RefCell<MCTSNode>>> {
+        self.children.iter().max_by(|a, b| {
+            let a_ucb1 = a.borrow_mut().calc_ucb1(self.visits, exploration_param);
+            let b_ucb1 = b.borrow_mut().calc_ucb1(self.visits, exploration_param);
+            a_ucb1.partial_cmp(&b_ucb1).unwrap()
+        }).cloned()
+    }
+
+    fn metadata(&self) -> String {
+        format!("MCTSNode(move: {:?}, visits: {}, value: {})", self.mv, self.visits, self.value)
+    }
+
+    fn fmt_helper(&self, depth: usize) -> String {
+        let mut s = format!("{}{}\n", "| ".repeat(depth), self.metadata());
+        for child in &self.children {
+            s += &child.borrow().fmt_helper(depth + 1);
         }
+        s
     }
 }
 
-impl Drop for MCTSNode {
-    fn drop(&mut self) {
-        for child in self.children.iter() {
-            unsafe {
-                let _ = Box::from_raw(*child);
-            }
-        }
+impl Display for MCTSNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.fmt_helper(0))
     }
 }
 
 pub struct MCTS {
-    root: *mut MCTSNode,
+    root: Rc<RefCell<MCTSNode>>,
     exploration_param: f64,
 }
 
 impl MCTS {
-    pub(crate) fn new(state: State, exploration_param: f64) -> Self {
+    pub fn new(state: State, exploration_param: f64) -> Self {
         Self {
-            root: Box::into_raw(Box::new(MCTSNode::new(None, state))),
+            root: Rc::new(RefCell::new(MCTSNode::new(None, state))),
             exploration_param,
         }
     }
 
-    pub(crate) fn run(&mut self, iterations: u32) {
+    pub fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
-            unsafe { (*self.root).run(self.exploration_param) };
+            self.root.borrow_mut().run(self.exploration_param);
         }
     }
 
-    pub(crate) fn select_best_move(&self) -> Option<*mut MCTSNode> {
-        unsafe {
-            (*self.root).children.iter().max_by(|a, b| {
-                let a_score = (***a).value / (***a).visits as f64;
-                let b_score = (***b).value / (***b).visits as f64;
-                b_score.partial_cmp(&a_score).unwrap()
-            }).cloned()
-        }
+    pub fn select_best_move(&self) -> Option<Rc<RefCell<MCTSNode>>> {
+        self.root.borrow().children.iter().max_by(|a, b| {
+            let a_score = a.borrow().value / a.borrow().visits as f64;
+            let b_score = b.borrow().value / b.borrow().visits as f64;
+            b_score.partial_cmp(&a_score).unwrap()
+        }).cloned()
     }
 }
 
-impl Drop for MCTS {
-    fn drop(&mut self) {
-        unsafe {
-            let _ = Box::from_raw(self.root);
-        }
+impl Display for MCTS {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.root.borrow())
     }
 }
 
@@ -184,12 +188,13 @@ mod tests {
     fn test_mcts() {
         let exploration_param = 2.;
         let mut mcts = MCTS::new(State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 3 6").unwrap(), exploration_param);
-        for i in 0..3 {
+        for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(5000);
+            mcts.run(500);
+            println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
-                let best_move = unsafe { (*best_move_node).mv.clone() };
-                let next_state = unsafe { (*best_move_node).state_after_move.clone() };
+                let best_move = best_move_node.borrow().mv.clone();
+                let next_state = best_move_node.borrow().state_after_move.clone();
                 mcts = MCTS::new(next_state.clone(), exploration_param);
                 next_state.board.print();
                 println!("Best move: {:?}", best_move.unwrap().uci());
