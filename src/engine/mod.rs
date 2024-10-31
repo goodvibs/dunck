@@ -7,7 +7,7 @@ use crate::r#move::Move;
 use crate::state::{Context, State, Termination};
 use crate::utils::{Color, PieceType};
 
-const MAX_ROLLOUT_DEPTH: u32 = 500;
+const MAX_ROLLOUT_DEPTH: u32 = 10;
 
 fn simulate_rollout(mut state: State, for_color: Color) -> f64 {
     // let mut rng = fastrand::Rng::new();
@@ -36,12 +36,12 @@ fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
         Termination::Checkmate => {
             let checkmated_side = state.side_to_move;
             if checkmated_side == for_color {
-                -1.
+                0.
             } else {
                 1.
             }
         }
-        _ => 0.
+        _ => 0.5
     }
 }
 
@@ -60,7 +60,7 @@ pub fn evaluate_non_terminal_state(state: &State, for_color: Color) -> f64 {
     // Calculate score difference from perspective of for_color
     let score_diff = scores[for_color as usize] - scores[for_color.flip() as usize];
 
-    2. * sigmoid(score_diff, 0.5) - 1. // Normalize to [-1, 1]
+    sigmoid(score_diff, 0.5) // Normalize to [0, 1]
 }
 
 fn sigmoid(x: f64, a: f64) -> f64 {
@@ -103,10 +103,10 @@ impl MCTSNode {
 
         match possible_selected_child {
             Some(best_child) => {
-                value = -1. * best_child.borrow_mut().run(exploration_param);
+                value = 1. - best_child.borrow_mut().run(exploration_param);
             }
             None => { // self is a leaf node
-                value = simulate_rollout(self.state_after_move.clone(), self.for_color);
+                value = simulate_rollout(self.state_after_move.clone(), self.state_after_move.side_to_move.flip());
                 self.expand();
             }
         }
@@ -214,7 +214,7 @@ mod tests {
         let mut mcts = MCTS::new(State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(), exploration_param);
         for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(1000);
+            mcts.run(10000);
             println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = best_move_node.borrow().mv.clone();
