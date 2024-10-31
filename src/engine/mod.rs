@@ -7,7 +7,7 @@ use crate::r#move::Move;
 use crate::state::{Context, State, Termination};
 use crate::utils::{Color, PieceType};
 
-const MAX_ROLLOUT_DEPTH: u32 = 10;
+const MAX_ROLLOUT_DEPTH: u32 = 50;
 
 fn simulate_rollout(mut state: State, for_color: Color) -> f64 {
     // let mut rng = fastrand::Rng::new();
@@ -82,18 +82,16 @@ pub struct MCTSNode {
     visits: u32,
     value: f64,
     children: Vec<Rc<RefCell<MCTSNode>>>,
-    for_color: Color,
 }
 
 impl MCTSNode {
-    fn new(mv: Option<Move>, state_after_move: State, for_color: Color) -> Self {
+    fn new(mv: Option<Move>, state_after_move: State) -> Self {
         Self {
             state_after_move,
             mv,
             visits: 0,
             value: 0.0,
             children: Vec::new(),
-            for_color,
         }
     }
 
@@ -127,7 +125,7 @@ impl MCTSNode {
             for legal_move in legal_moves {
                 let mut new_state = self.state_after_move.clone();
                 new_state.make_move(legal_move);
-                let new_node = MCTSNode::new(Some(legal_move), new_state, self.for_color);
+                let new_node = MCTSNode::new(Some(legal_move), new_state);
                 self.children.push(Rc::new(RefCell::new(new_node)));
             }
         }
@@ -179,9 +177,8 @@ pub struct MCTS {
 
 impl MCTS {
     pub fn new(state: State, exploration_param: f64) -> Self {
-        let side_to_move = state.side_to_move;
         Self {
-            root: Rc::new(RefCell::new(MCTSNode::new(None, state, side_to_move))),
+            root: Rc::new(RefCell::new(MCTSNode::new(None, state))),
             exploration_param,
         }
     }
