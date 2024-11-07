@@ -26,7 +26,6 @@ use std::str::FromStr;
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct State {
     pub board: Board,
-    pub position_counts: HashMap<Bitboard, u8>,
     pub side_to_move: Color,
     pub halfmove: u16,
     pub termination: Option<Termination>,
@@ -35,28 +34,26 @@ pub struct State {
 
 impl State {
     pub fn blank() -> State {
-        let position_count: HashMap<Bitboard, u8> = HashMap::new();
+        let board = Board::blank();
+        let zobrist_hash = board.zobrist_hash;
         State {
-            board: Board::blank(),
-            position_counts: position_count,
+            board,
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Rc::new(RefCell::new(Context::initial_no_castling())),
+            context: Rc::new(RefCell::new(Context::initial_no_castling(zobrist_hash))),
         }
     }
 
     pub fn initial() -> State {
         let board = Board::initial();
-        let zobrist_hash = board.calc_zobrist_hash();
-        let position_count: HashMap<Bitboard, u8> = HashMap::from([(zobrist_hash, 1)]);
+        let zobrist_hash = board.zobrist_hash;
         State {
             board,
-            position_counts: position_count,
             side_to_move: Color::White,
             halfmove: 0,
             termination: None,
-            context: Rc::new(RefCell::new(Context::initial())),
+            context: Rc::new(RefCell::new(Context::initial(zobrist_hash))),
         }
     }
 

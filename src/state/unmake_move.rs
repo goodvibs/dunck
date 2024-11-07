@@ -61,8 +61,6 @@ impl State {
     }
 
     pub fn unmake_move(&mut self, mv: Move) {
-        self.decrement_position_count();
-        
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 
         self.board.move_color(self.side_to_move.flip(), src_square, dst_square);

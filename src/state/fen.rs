@@ -229,7 +229,7 @@ impl State {
         
         if state.is_valid() {
             state.board.zobrist_hash = state.board.calc_zobrist_hash();
-            state.increment_position_count();
+            state.context.borrow_mut().zobrist_hash = state.board.zobrist_hash;
             Ok(state)
         } else {
             Err(FenParseError::InvalidState(fen.to_string()))
@@ -495,7 +495,6 @@ mod tests {
         assert!(is_valid);
         assert!(state.board.is_valid());
         state.context.borrow_mut().castling_rights = 0b00001111;
-        state.increment_position_count();
         assert_eq!(state, State::initial());
     }
     
@@ -506,7 +505,6 @@ mod tests {
         let result = process_fen_board(&mut state, fen_board);
         assert!(result.is_ok());
         assert!(state.board.is_valid());
-        state.increment_position_count();
         state.context.borrow_mut().castling_rights = 0b00001111;
         assert_eq!(state, State::initial());
         
@@ -561,7 +559,6 @@ mod tests {
         expected_state.halfmove = 175;
         expected_state.side_to_move = Color::Black;
         expected_state.context.borrow_mut().halfmove_clock = 99;
-        expected_state.increment_position_count();
         assert_eq!(state, expected_state);
         
         let fen = "r2qk2r/8/8/7p/8/8/8/R2QK2R w KQkq h6 0 6";
@@ -585,8 +582,6 @@ mod tests {
         expected_state.board.put_colored_piece_at(ColoredPiece::BlackPawn, Square::H5);
         expected_state.halfmove = 10;
         expected_state.context.borrow_mut().double_pawn_push = 7;
-        expected_state.position_counts.clear();
-        expected_state.increment_position_count();
         assert_eq!(state, expected_state);
     }
     

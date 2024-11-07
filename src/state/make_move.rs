@@ -75,13 +75,13 @@ impl State {
 
         self.board.move_colored_piece(ColoredPiece::from(self.side_to_move, PieceType::Rook), rook_dst_square, rook_src_square);
 
-        new_context.process_castle(self.side_to_move);
+        new_context.process_castling(self.side_to_move);
     }
     
     pub fn make_move(&mut self, mv: Move) {
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 
-        let mut new_context = Context::new_from(Rc::clone(&self.context));
+        let mut new_context = Context::new_from(Rc::clone(&self.context), 0);
 
         self.board.move_color(self.side_to_move, dst_square, src_square);
 
@@ -92,15 +92,12 @@ impl State {
             MoveFlag::Castling => self.process_castling(dst_square, src_square, &mut new_context)
         }
 
+        new_context.zobrist_hash = self.board.zobrist_hash;
+        
         // update data members
         self.halfmove += 1;
         self.side_to_move = self.side_to_move.flip();
         self.context = Rc::new(RefCell::new(new_context));
-
-        // update Zobrist table
-        let position_count = self.increment_position_count();
-        // assert_eq!(self.board.zobrist_hash, self.board.calc_zobrist_hash());
-        // assert!(self.board.is_valid());
 
         if self.board.are_both_sides_insufficient_material() {
             self.termination = Some(Termination::InsufficientMaterial);
@@ -108,7 +105,7 @@ impl State {
         else if self.context.borrow().halfmove_clock == 100 { // fifty move rule
             self.termination = Some(Termination::FiftyMoveRule);
         }
-        else if position_count == 3 {
+        else if self.context.borrow().has_threefold_repetition_occurred() {
             // check for repetition
             self.termination = Some(Termination::ThreefoldRepetition);
         }
@@ -161,7 +158,7 @@ impl Context {
         self.captured_piece = PieceType::Pawn;
     }
 
-    fn process_castle(&mut self, color: Color) {
+    fn process_castling(&mut self, color: Color) {
         let right_shift = calc_castling_color_adjustment(color) as u8;
         self.halfmove_clock = 0;
         self.castling_rights &= !(0b00001100 >> right_shift);
