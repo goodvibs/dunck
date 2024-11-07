@@ -174,19 +174,19 @@ mod tests {
     fn test_chess_model() {
         let vs = nn::VarStore::new(*DEVICE);
         let model = ChessModel::new(&vs.root());
-        
+
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
 
         assert_eq!(policy.size(), [1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES]);
         assert_eq!(value.size(), [1, 1]);
     }
-    
+
     #[test]
     fn test_training() {
         let vs = nn::VarStore::new(*DEVICE);
         let model = ChessModel::new(&vs.root());
-        
+
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
 
@@ -201,12 +201,12 @@ mod tests {
         let mut optimizer = nn::Adam::default().build(&vs, 1e-3).unwrap();
         optimizer.backward_step(&loss);
     }
-    
+
     #[test]
     fn test_train_100_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
         let model = ChessModel::new(&vs.root());
-        
+
         for _ in 0..100 {
             let input_tensor = state_to_tensor(&State::initial());
             let (policy, value) = model.forward(&input_tensor);
