@@ -1,15 +1,50 @@
+mod neural_network;
+
 use std::cell::RefCell;
+use std::cmp::max_by;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use rand::prelude::SliceRandom;
+use rand::Rng;
 use crate::r#move::Move;
 use crate::state::{Context, State, Termination};
 use crate::utils::{Color, PieceType};
 
-const MAX_ROLLOUT_DEPTH: u32 = 50;
+pub struct Evaluation {
+    pub policy: Vec<(Move, f64)>,
+    pub value: f64,
+}
+
+fn evaluate_state(state: &State, for_color: Color) -> Evaluation {
+    let mut state = state.clone();
+    let legal_moves = state.calc_legal_moves();
+
+    let mut policy = Vec::with_capacity(legal_moves.len());
+    let mut rng = rand::thread_rng();
+    for mv in legal_moves {
+        state.make_move(mv);
+        let prior = evaluate_non_terminal_state(&state, for_color.flip()) + rng.gen_range(0.0..0.0001);
+        policy.push((mv, prior));
+        state.unmake_move(mv);
+    }
+
+    let value = if policy.is_empty() {
+        state.assume_and_update_termination();
+        evaluate_terminal_state(&state, for_color)
+    } else {
+        let max = policy.iter().map(|(_, prior)| *prior).fold(f64::NEG_INFINITY, f64::max);
+        1. - max
+    };
+
+    Evaluation {
+        policy,
+        value,
+    }
+}
 
 fn simulate_rollout(mut state: State, for_color: Color) -> f64 {
+    const MAX_ROLLOUT_DEPTH: u32 = 50;
     // let mut rng = fastrand::Rng::new();
     let mut rng = rand::thread_rng();
     let mut i = 0;
@@ -81,6 +116,7 @@ pub struct MCTSNode {
     pub mv: Option<Move>,
     visits: u32,
     value: f64,
+    prior: f64,
     children: Vec<Rc<RefCell<MCTSNode>>>,
 }
 
@@ -91,6 +127,7 @@ impl MCTSNode {
             mv,
             visits: 0,
             value: 0.0,
+            prior: 0.0,
             children: Vec::new(),
         }
     }
@@ -104,8 +141,10 @@ impl MCTSNode {
                 value = 1. - best_child.borrow_mut().run(exploration_param);
             }
             None => { // self is a leaf node
-                value = simulate_rollout(self.state_after_move.clone(), self.state_after_move.side_to_move.flip());
-                self.expand();
+                // value = simulate_rollout(self.state_after_move.clone(), self.state_after_move.side_to_move.flip());
+                let evaluation = evaluate_state(&self.state_after_move, self.state_after_move.side_to_move.flip());
+                self.expand(evaluation.policy);
+                value = evaluation.value;
             }
         }
         self.visits += 1;
@@ -114,18 +153,19 @@ impl MCTSNode {
         value
     }
 
-    fn expand(&mut self) {
-        let legal_moves = self.state_after_move.calc_legal_moves();
-        if legal_moves.is_empty() {
-            if self.state_after_move.termination.is_none() {
-                self.state_after_move.assume_and_update_termination();
-            }
-        }
-        else {
-            for legal_move in legal_moves {
+    fn expand(&mut self, policy: Vec<(Move, f64)>) {
+        if !policy.is_empty() {
+            for (legal_move, prior) in policy {
                 let mut new_state = self.state_after_move.clone();
                 new_state.make_move(legal_move);
-                let new_node = MCTSNode::new(Some(legal_move), new_state);
+                let new_node = MCTSNode {
+                    state_after_move: new_state,
+                    mv: Some(legal_move),
+                    visits: 0,
+                    value: 0.0,
+                    prior,
+                    children: Vec::new(),
+                };
                 self.children.push(Rc::new(RefCell::new(new_node)));
             }
         }
@@ -136,7 +176,7 @@ impl MCTSNode {
             f64::INFINITY
         } else {
             let exploitation = self.value / self.visits as f64;
-            let exploration = exploration_param * ((parent_visits as f64).ln() / self.visits as f64).sqrt();
+            let exploration = exploration_param * ((parent_visits as f64).ln() / self.visits as f64).sqrt() * self.prior;
             exploitation + exploration
         }
     }
