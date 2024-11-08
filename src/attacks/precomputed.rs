@@ -1,9 +1,12 @@
+///! Precomputed attack tables for non-sliding pieces.
+
 use crate::utils::Bitboard;
 use crate::utils::Square;
 use lazy_static::lazy_static;
 use crate::attacks::manual;
 
 lazy_static! {
+    /// Precomputed attacks table for kings.
     static ref SINGLE_KING_ATTACKS: [Bitboard; 64] = {
         let mut attacks = [0; 64];
         for square in Square::iter_all() {
@@ -13,6 +16,7 @@ lazy_static! {
         attacks
     };
     
+    /// Precomputed attacks table for knights.
     static ref SINGLE_KNIGHT_ATTACKS: [Bitboard; 64] = {
         let mut attacks = [0; 64];
         for square in Square::iter_all() {
@@ -23,10 +27,12 @@ lazy_static! {
     };
 }
 
+/// Returns a precomputed bitboard with all squares attacked by a knight on `src_square`
 pub fn precomputed_single_king_attacks(src_square: Square) -> Bitboard {
     SINGLE_KING_ATTACKS[src_square as usize]
 }
 
+/// Returns a precomputed bitboard with all squares attacked by a knight on `src_square`
 pub fn precomputed_single_knight_attacks(src_square: Square) -> Bitboard {
     SINGLE_KNIGHT_ATTACKS[src_square as usize]
 }

@@ -1,9 +1,10 @@
+///! Contains the implementation of the `State::make_move` method.
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::utils::masks::{STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
 use crate::utils::{Bitboard, Color, ColoredPiece, PieceType, Square};
-use crate::r#move::MoveFlag;
-use crate::r#move::Move;
+use crate::r#move::{Move, MoveFlag};
 use crate::state::context::Context;
 use crate::state::termination::Termination;
 use crate::state::zobrist::get_piece_zobrist_hash;
@@ -78,6 +79,9 @@ impl State {
         new_context.process_castling(self.side_to_move);
     }
     
+    /// Applies a move without checking if it is valid or legal.
+    /// All make_move calls with valid (not malformed) moves
+    /// should be fully able to be undone by unmake_move.
     pub fn make_move(&mut self, mv: Move) {
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 

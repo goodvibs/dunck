@@ -1,3 +1,5 @@
+///! Contains the implementation of the `State::unmake_move` method.
+
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::r#move::{Move, MoveFlag};
@@ -60,6 +62,9 @@ impl State {
         self.board.move_colored_piece(ColoredPiece::from(self.side_to_move.flip(), PieceType::Rook), rook_src_square, rook_dst_square); // move rook back
     }
 
+    /// Undoes a move from State without checking if it is valid, legal, or even applied to the current position.
+    /// This method is used to undo a move that was previously made with `State::make_move`, regardless of
+    /// whether the move was legal. However, the move must have been valid (not malformed).
     pub fn unmake_move(&mut self, mv: Move) {
         let (dst_square, src_square, promotion, flag) = mv.unpack();
 
