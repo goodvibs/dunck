@@ -7,7 +7,7 @@ use std::fmt::{Display, Formatter};
 use std::rc::Rc;
 use rand::prelude::SliceRandom;
 use rand::Rng;
-use crate::r#move::r#move;
+use crate::r#move::Move;
 use crate::state::{Context, State, Termination};
 use crate::utils::{Color, PieceType};
 

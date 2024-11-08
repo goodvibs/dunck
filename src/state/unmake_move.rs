@@ -1,6 +1,6 @@
 use std::cell::RefCell;
 use std::rc::Rc;
-use crate::r#move::{r#move, MoveFlag};
+use crate::r#move::{Move, MoveFlag};
 use crate::state::{Context, State, Termination};
 use crate::utils::{Bitboard, Color, ColoredPiece, PieceType, Square};
 use crate::utils::masks::{STARTING_KING_ROOK_GAP_SHORT, STARTING_KING_SIDE_ROOK, STARTING_QUEEN_SIDE_ROOK};
