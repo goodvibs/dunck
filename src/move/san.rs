@@ -1,10 +1,13 @@
 use crate::utils::PieceType;
-use crate::r#move::Move;
+use crate::r#move::{r#move, Move};
 use crate::r#move::move_flag::MoveFlag;
 use crate::state::State;
 
 impl Move {
+    /// Returns the SAN (Standard Algebraic Notation) representation of the move.
     pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
+        // TODO: Break this function into smaller functions.
+        
         let (dst_square, src_square, promotion, flag) = self.unpack();
 
         let dst_str = dst_square.readable();
@@ -110,4 +113,9 @@ impl Move {
 
         format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    // TODO: Add tests.
 }

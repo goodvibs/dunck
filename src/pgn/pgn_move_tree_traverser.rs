@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use crate::pgn::PgnMoveTree;
 use crate::pgn::pgn_move_tree_node::{PgnMoveTreeNode, PgnMoveTreeNodePtr};
-use crate::r#move::Move;
+use crate::r#move::r#move;
 use crate::state::State;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]

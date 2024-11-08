@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 use crate::utils::Color;
-use crate::r#move::Move;
+use crate::r#move::r#move;
 use crate::state::State;
 
 pub type PgnMoveTreeNodePtr = Rc<RefCell<PgnMoveTreeNode>>;

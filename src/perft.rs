@@ -5,7 +5,7 @@ mod tests {
     use std::str::FromStr;
     use chess;
     use crate::utils::{PieceType, Square};
-    use crate::r#move::{Move, MoveFlag};
+    use crate::r#move::{r#move, MoveFlag};
     use crate::state::State;
 
     #[test]
@@ -49,15 +49,15 @@ mod tests {
 
     #[test]
     fn test_are_moves_equal() {
-        let mv = Move::new(Square::E4, Square::E2, Move::DEFAULT_PROMOTION_VALUE, MoveFlag::NormalMove);
+        let mv = r#move::new(Square::E4, Square::E2, r#move::DEFAULT_PROMOTION_VALUE, MoveFlag::NormalMove);
         let chess_mv = chess::ChessMove::from_str("e2e4").unwrap();
         assert!(are_moves_equal(mv, chess_mv));
 
-        let mv = Move::new(Square::H8, Square::G7, PieceType::Knight, MoveFlag::Promotion);
+        let mv = r#move::new(Square::H8, Square::G7, PieceType::Knight, MoveFlag::Promotion);
         let chess_mv = chess::ChessMove::from_str("g7h8n").unwrap();
         assert!(are_moves_equal(mv, chess_mv));
 
-        let mv = Move::new(Square::F1, Square::F2, PieceType::Bishop, MoveFlag::Promotion);
+        let mv = r#move::new(Square::F1, Square::F2, PieceType::Bishop, MoveFlag::Promotion);
         let chess_mv = chess::ChessMove::from_str("f2f1b").unwrap();
         assert!(are_moves_equal(mv, chess_mv));
     }

@@ -1,19 +1,24 @@
+///! Contains functions that manually calculate attacks for all pieces
+
 use std::cmp;
 use crate::utils::{Bitboard, Square};
 use crate::utils::Color;
 use crate::utils::masks::*;
 
+/// Returns a bitboard with all squares attacked by knights indicated by the bits in `knights_mask`
 pub fn multi_knight_attacks(knights_mask: Bitboard) -> Bitboard {
     (knights_mask << 17 & !FILE_H) | (knights_mask << 15 & !FILE_A) | (knights_mask << 10 & !FILES_GH) | (knights_mask << 6 & !FILES_AB) |
         (knights_mask >> 17 & !FILE_A) | (knights_mask >> 15 & !FILE_H) | (knights_mask >> 10 & !FILES_AB) | (knights_mask >> 6 & !FILES_GH)
 }
 
+/// Returns a bitboard with all squares attacked by kings indicated by the bits in `kings_mask`
 pub fn multi_king_attacks(kings_mask: Bitboard) -> Bitboard {
     (kings_mask << 9 & !FILE_H) | (kings_mask << 8) | (kings_mask << 7 & !FILE_A) |
         (kings_mask >> 9 & !FILE_A) | (kings_mask >> 8) | (kings_mask >> 7 & !FILE_H) |
         (kings_mask << 1 & !FILE_H) | (kings_mask >> 1 & !FILE_A)
 }
 
+/// Returns a bitboard with all squares attacked by pawns indicated by the bits in `pawns_mask`
 pub fn multi_pawn_attacks(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
     match by_color {
         Color::White => (pawns_mask << 9 & !FILE_H) | (pawns_mask << 7 & !FILE_A),
@@ -21,6 +26,7 @@ pub fn multi_pawn_attacks(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
     }
 }
 
+/// Returns a bitboard with all squares that pawns indicated by the bits in `pawns_mask` can move to
 pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
     match by_color {
         Color::White => pawns_mask << 8,
@@ -28,6 +34,8 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
     }
 }
 
+/// Returns a bitboard with all squares attacked by a rook on `src_square` 
+/// with `occupied_mask` as the mask of occupied squares
 pub fn manual_single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
     let src_square_mask = src_square.to_mask();
     let mut result: Bitboard = 0;
@@ -71,6 +79,8 @@ pub fn manual_single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -
     result
 }
 
+/// Returns a bitboard with all squares attacked by a bishop on `src_square` 
+/// with `occupied_mask` as the mask of occupied squares
 pub fn manual_single_bishop_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
     let mut attacks: Bitboard = 0;
     let leading_zeros = src_square as u32;

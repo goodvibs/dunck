@@ -1,15 +1,20 @@
+///! Magic bitboard generation and attack calculation for sliding pieces
+
 use crate::utils::{get_bit_combinations_iter, Bitboard};
 use crate::utils::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
 use crate::utils::{SlidingPieceType, Square};
 use lazy_static::lazy_static;
 use crate::attacks::manual::{manual_single_bishop_attacks, manual_single_rook_attacks};
 
+/// The size of the attack table for rooks
 const ROOK_ATTACK_TABLE_SIZE: usize = 36 * 2usize.pow(10) + 28 * 2usize.pow(11) + 4 * 2usize.pow(12);
+/// The size of the attack table for bishops
 const BISHOP_ATTACK_TABLE_SIZE: usize = 4 * 2usize.pow(6) + 44 * 2usize.pow(5) + 12 * 2usize.pow(7) + 4 * 2usize.pow(9);
 
 const RNG_SEED: u64 = 0;
 
 lazy_static! {
+    /// Precomputed masks for rook relevant squares
     static ref ROOK_RELEVANT_MASKS: [Bitboard; 64] = {
         let mut masks = [0; 64];
         for (i, square) in Square::iter_all().enumerate() {
@@ -18,6 +23,7 @@ lazy_static! {
         masks
     };
 
+    /// Precomputed masks for bishop relevant squares
     static ref BISHOP_RELEVANT_MASKS: [Bitboard; 64] = {
         let mut masks = [0; 64];
         for (i, square) in Square::iter_all().enumerate() {
@@ -26,11 +32,14 @@ lazy_static! {
         masks
     };
 
+    /// Magic dictionaries for rooks
     static ref ROOK_MAGIC_DICT: MagicDict<ROOK_ATTACK_TABLE_SIZE> = MagicDict::new(SlidingPieceType::Rook);
 
+    /// Magic dictionaries for bishops
     static ref BISHOP_MAGIC_DICT: MagicDict<BISHOP_ATTACK_TABLE_SIZE> = MagicDict::new(SlidingPieceType::Bishop);
 }
 
+/// Calculate the relevant mask for a rook on a given square
 fn calc_rook_relevant_mask(square: Square) -> Bitboard {
     let file_mask = square.get_file_mask();
     let rank_mask = square.get_rank_mask();
@@ -44,10 +53,12 @@ fn calc_rook_relevant_mask(square: Square) -> Bitboard {
     res
 }
 
+/// Get the precomputed relevant mask for a rook on a given square
 pub fn get_rook_relevant_mask(square: Square) -> Bitboard {
     ROOK_RELEVANT_MASKS[square as usize]
 }
 
+/// Calculate the relevant mask for a bishop on a given square
 fn calc_bishop_relevant_mask(square: Square) -> Bitboard {
     let square_mask = square.to_mask();
     let mut res = 0 as Bitboard;
@@ -64,16 +75,19 @@ fn calc_bishop_relevant_mask(square: Square) -> Bitboard {
     res & !square_mask & !(FILE_A | FILE_H | RANK_1 | RANK_8)
 }
 
+/// Get the precomputed relevant mask for a bishop on a given square
 pub fn get_bishop_relevant_mask(square: Square) -> Bitboard {
     BISHOP_RELEVANT_MASKS[square as usize]
 }
 
+/// A magic dictionary for a sliding piece
 pub struct MagicDict<const N: usize> {
     attacks: [Bitboard; N],
     magic_info_for_squares: [MagicInfo; 64],
 }
 
 impl<const N: usize> MagicDict<N> {
+    /// Initialize an empty magic dictionary
     fn init_empty() -> Self {
         MagicDict {
             attacks: [0; N],
@@ -81,22 +95,26 @@ impl<const N: usize> MagicDict<N> {
         }
     }
 
+    /// Create a new magic dictionary for a sliding piece
     pub fn new(sliding_piece: SlidingPieceType) -> Self {
         let mut res = Self::init_empty();
         res.fill_magic_numbers_and_attacks(sliding_piece);
         res
     }
 
+    /// Get the magic info for a square
     pub fn get_magic_info_for_square(&self, square: Square) -> MagicInfo {
         self.magic_info_for_squares[square as usize]
     }
 
+    /// Calculate the attack mask for a square with a given occupied mask
     pub fn calc_attack_mask(&self, square: Square, occupied_mask: Bitboard) -> Bitboard {
         let magic_info = self.get_magic_info_for_square(square);
         let magic_index = calc_magic_index(&magic_info, occupied_mask);
         self.attacks[magic_index]
     }
 
+    /// Fill the magic numbers and attack tables for all squares
     pub fn fill_magic_numbers_and_attacks(&mut self, sliding_piece: SlidingPieceType) {
         let mut current_offset = 0;
         for square in Square::iter_all() {
@@ -104,6 +122,7 @@ impl<const N: usize> MagicDict<N> {
         }
     }
 
+    /// Fill the magic numbers and attack tables for a single square
     unsafe fn fill_magic_numbers_and_attacks_for_square(&mut self, square: Square, sliding_piece: SlidingPieceType, current_offset: &mut u32) -> Bitboard {
         let mut rng = fastrand::Rng::with_seed(RNG_SEED);
 
@@ -166,6 +185,7 @@ impl<const N: usize> MagicDict<N> {
     }
 }
 
+/// Struct to store all magic-related information for a square
 #[derive(Copy, Clone)]
 pub struct MagicInfo {
     relevant_mask: Bitboard,
@@ -174,6 +194,7 @@ pub struct MagicInfo {
     offset: u32
 }
 
+/// Calculate the magic index for a square and an occupied mask
 pub fn calc_magic_index_without_offset(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usize {
     let blockers = occupied_mask & magic_info.relevant_mask;
     let mut hash = blockers.wrapping_mul(magic_info.magic_number);
@@ -181,26 +202,32 @@ pub fn calc_magic_index_without_offset(magic_info: &MagicInfo, occupied_mask: Bi
     hash as usize
 }
 
+/// Calculate the magic index for a square and an occupied mask
 pub fn calc_magic_index(magic_info: &MagicInfo, occupied_mask: Bitboard) -> usize {
     calc_magic_index_without_offset(magic_info, occupied_mask) + magic_info.offset as usize
 }
 
+/// Calculate the attack mask for a rook on a given square with a given occupied mask
 pub fn magic_single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
     ROOK_MAGIC_DICT.calc_attack_mask(src_square, occupied_mask)
 }
 
+/// Calculate the attack mask for a bishop on a given square with a given occupied mask
 pub fn magic_single_bishop_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
     BISHOP_MAGIC_DICT.calc_attack_mask(src_square, occupied_mask)
 }
 
+/// Generate a 64-bit random number with all zeros in the upper 60 bits
 fn gen_lower_bits_random(rng: &mut fastrand::Rng) -> Bitboard {
     rng.u64(..) & 0xFFFF
 }
 
+/// Generate a 64-bit random number with a generally uniform distribution of set bits
 fn gen_uniform_random(rng: &mut fastrand::Rng) -> Bitboard {
     gen_lower_bits_random(rng) | (gen_lower_bits_random(rng) << 16) | (gen_lower_bits_random(rng) << 32) | (gen_lower_bits_random(rng) << 48)
 }
 
+/// Generate a 64-bit random number likely to be suitable as a magic number
 fn gen_random_magic_number(rng: &mut fastrand::Rng) -> Bitboard {
     gen_uniform_random(rng) & gen_uniform_random(rng) & gen_uniform_random(rng)
 }
