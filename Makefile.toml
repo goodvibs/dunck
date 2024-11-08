@@ -1,0 +1,13 @@
+[env]
+DYLD_LIBRARY_PATH = "target/debug/build/torch-sys-75b15cc0f94af562/out/libtorch/libtorch/lib"
+RUST_MIN_STACK = "8388608"
+
+[tasks.run]
+description = "Run the Rust project with necessary environment variables"
+command = "cargo"
+args = ["run"]
+
+[tasks.build]
+description = "Build the Rust project with necessary environment variables"
+command = "cargo"
+args = ["build"]
