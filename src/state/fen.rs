@@ -461,28 +461,28 @@ mod tests {
         assert!(is_valid);
         let is_valid = process_fen_board_row(&mut state, 1, "4K3");
         assert!(is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let is_valid = process_fen_board_row(&mut state, 2, "8");
         assert!(is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let is_valid = process_fen_board_row(&mut state, 3, "9");
         assert!(!is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let is_valid = process_fen_board_row(&mut state, 3, "12R4");
         assert!(is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let is_valid = process_fen_board_row(&mut state, 4, "1Qrrrrrr");
         assert!(is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let is_valid = process_fen_board_row(&mut state, 5, "bnbNbNb");
         assert!(!is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let is_valid = process_fen_board_row(&mut state, 8, "8");
         assert!(!is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let is_valid = process_fen_board_row(&mut state, 7, "7 ");
         assert!(!is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         
         let mut state = State::blank();
         
@@ -495,7 +495,7 @@ mod tests {
         assert!(is_valid);
         let is_valid = process_fen_board_row(&mut state, 7, "RNBQKBNR");
         assert!(is_valid);
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         state.context.borrow_mut().castling_rights = 0b00001111;
         state.context.borrow_mut().zobrist_hash = state.board.zobrist_hash;
         assert_eq!(state, State::initial());
@@ -507,7 +507,7 @@ mod tests {
         let fen_board = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
         let result = process_fen_board(&mut state, fen_board);
         assert!(result.is_ok());
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         state.context.borrow_mut().castling_rights = 0b00001111;
         state.context.borrow_mut().zobrist_hash = state.board.zobrist_hash;
         assert_eq!(state, State::initial());
@@ -516,7 +516,7 @@ mod tests {
         let fen_board = "8/8/8/8/8/8/k7/7K";
         let result = process_fen_board(&mut state, fen_board);
         assert!(result.is_ok());
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let mut expected_board = Board::blank();
         expected_board.put_colored_piece_at(ColoredPiece::BlackKing, Square::A2);
         expected_board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::H1);
@@ -549,7 +549,7 @@ mod tests {
         let state = State::from_fen(fen);
         assert!(state.is_ok());
         let state = state.unwrap();
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         assert_eq!(state, State::initial());
         
         let fen = "8/8/8/8/8/8/k7/7K b - - 99 88";
@@ -570,7 +570,7 @@ mod tests {
         let state = State::from_fen(fen);
         assert!(state.is_ok());
         let state = state.unwrap();
-        assert!(state.board.is_valid());
+        assert!(state.board.is_unequivocally_valid());
         let mut expected_state = State::initial();
         let clear_mask = Square::B8.to_mask() | Square::B1.to_mask() |
             Square::C8.to_mask() | Square::C1.to_mask() |

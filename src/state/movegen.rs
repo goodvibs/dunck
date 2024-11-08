@@ -1,3 +1,5 @@
+///! Move generation functions for the state struct
+
 use crate::attacks::{multi_pawn_attacks, multi_pawn_moves, single_bishop_attacks, single_king_attacks, single_knight_attacks, single_rook_attacks};
 use crate::utils::{get_squares_from_mask_iter, get_set_bit_mask_iter, SetBitMaskIterator};
 use crate::utils::masks::{FILE_A, RANK_1, RANK_3, RANK_4, RANK_5, RANK_6, RANK_8};
@@ -192,6 +194,7 @@ impl State {
         }
     }
 
+    /// Returns a vector of pseudolegal moves.
     pub fn calc_pseudolegal_moves(&self) -> Vec<Move> {
         let mut moves: Vec<Move> = Vec::new();
         self.add_all_pawn_pseudolegal(&mut moves);
@@ -205,6 +208,11 @@ impl State {
         moves
     }
 
+    /// Returns a vector of legal moves.
+    /// For each pseudolegal move, it clones the state,
+    /// makes the move, checks if the state is unequivocally valid, 
+    /// and if so, adds the move to the vector.
+    /// This is the legacy version of `calc_legal_moves`, which is far more efficient.
     pub fn calc_legal_moves_legacy(&self) -> Vec<Move> {
         if self.termination.is_some() {
             return Vec::new();
@@ -221,6 +229,11 @@ impl State {
         filtered_moves
     }
 
+    /// Returns a vector of legal moves.
+    /// For each pseudolegal move, it makes the move, checks if the state is probably valid,
+    /// and if so, adds the move to the vector.
+    /// The state then unmakes the move before moving on to the next move.
+    /// This is the more efficient version of `calc_legal_moves_legacy`.
     pub fn calc_legal_moves(&self) -> Vec<Move> {
         if self.termination.is_some() {
             return Vec::new();
@@ -242,18 +255,5 @@ impl State {
             // assert!(self_keepsake.eq(&state));
         }
         filtered_moves
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn test_pawn_normal_captures_pseudolegal() {
-        // let mut state = State::initial();
-        // state.board.set_piece_at(Square::D4, ColoredPiece::WhitePawn);
-        // state.board.set_piece_at(Square::E5, ColoredPiece::BlackPawn);
-        // let moves = state.get_pseudolegal_moves();
-        // assert_eq!(moves.len(), 1);
-        // assert_eq!(moves[0], Move::new(Square::D4, Square::E5, MoveFlag::PawnMove));
     }
 }
