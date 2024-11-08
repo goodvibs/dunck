@@ -106,18 +106,23 @@ impl State {
     }
 
     /// Rigorous check for whether the state is valid.
-    pub fn is_valid(&self) -> bool {
+    pub fn is_unequivocally_valid(&self) -> bool {
         self.board.is_valid() &&
             self.has_valid_side_to_move() &&
             self.has_valid_castling_rights() &&
             self.has_valid_double_pawn_push() &&
             self.has_valid_halfmove_clock() &&
-            self.is_not_in_illegal_check()
+            self.is_not_in_illegal_check() &&
+            self.is_zobrist_consistent()
     }
 
     /// Quick check for whether the state is probably valid, should be used after making pseudo-legal moves.
     pub fn is_probably_valid(&self) -> bool {
         self.board.has_valid_kings() && self.is_not_in_illegal_check()
+    }
+    
+    pub fn is_zobrist_consistent(&self) -> bool {
+        self.board.zobrist_hash == self.context.borrow().zobrist_hash
     }
 
     pub fn is_not_in_illegal_check(&self) -> bool {

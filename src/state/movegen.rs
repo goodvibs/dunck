@@ -215,7 +215,7 @@ impl State {
         for move_ in pseudolegal_moves {
             let mut new_state = self.clone();
             new_state.make_move(move_);
-            if new_state.is_valid() && !new_state.board.is_color_in_check(self.side_to_move) {
+            if new_state.is_unequivocally_valid() && !new_state.board.is_color_in_check(self.side_to_move) {
                 filtered_moves.push(move_);
             }
         }

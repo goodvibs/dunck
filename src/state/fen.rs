@@ -26,7 +26,7 @@ fn process_fen_side_to_move(state: &mut State, fen_side_to_move: &str) -> bool {
     else {
         return false;
     }
-    return true;
+    true
 }
 
 fn process_fen_castle(state: &mut State, fen_castle: &str) -> bool {
@@ -49,7 +49,7 @@ fn process_fen_castle(state: &mut State, fen_castle: &str) -> bool {
         already_seen[index] = true;
         state.context.borrow_mut().castling_rights |= 1 << (3 - index);
     }
-    return true;
+    true
 }
 
 fn process_en_passant_target_square(state: &mut State, fen_en_passant_target_square: &str) -> bool {
@@ -170,7 +170,7 @@ fn process_fen_board(state: &mut State, fen_board: &str) -> Result<State, FenPar
 }
 
 impl State {
-    pub fn from_fen(fen: &str) -> Result<State, FenParseError> { // todo: clean up
+    pub fn from_fen(fen: &str) -> Result<State, FenParseError> {
         let mut state = State::blank();
         
         let fen_parts: Vec<&str> = fen.split_ascii_whitespace().collect();
@@ -226,10 +226,12 @@ impl State {
         if fen_board_result.is_err() {
             return fen_board_result;
         }
+
+        let zobrist_hash = state.board.calc_zobrist_hash();
+        state.board.zobrist_hash = zobrist_hash;
+        state.context.borrow_mut().zobrist_hash = zobrist_hash;
         
-        if state.is_valid() {
-            state.board.zobrist_hash = state.board.calc_zobrist_hash();
-            state.context.borrow_mut().zobrist_hash = state.board.zobrist_hash;
+        if state.is_unequivocally_valid() {
             Ok(state)
         } else {
             Err(FenParseError::InvalidState(fen.to_string()))
@@ -495,6 +497,7 @@ mod tests {
         assert!(is_valid);
         assert!(state.board.is_valid());
         state.context.borrow_mut().castling_rights = 0b00001111;
+        state.context.borrow_mut().zobrist_hash = state.board.zobrist_hash;
         assert_eq!(state, State::initial());
     }
     
@@ -506,6 +509,7 @@ mod tests {
         assert!(result.is_ok());
         assert!(state.board.is_valid());
         state.context.borrow_mut().castling_rights = 0b00001111;
+        state.context.borrow_mut().zobrist_hash = state.board.zobrist_hash;
         assert_eq!(state, State::initial());
         
         let mut state = State::blank();
@@ -552,13 +556,14 @@ mod tests {
         let state = State::from_fen(fen);
         assert!(state.is_ok());
         let state = state.unwrap();
-        assert!(state.board.is_valid());
+        assert!(state.is_unequivocally_valid());
         let mut expected_state = State::blank();
         expected_state.board.put_colored_piece_at(ColoredPiece::BlackKing, Square::A2);
         expected_state.board.put_colored_piece_at(ColoredPiece::WhiteKing, Square::H1);
         expected_state.halfmove = 175;
         expected_state.side_to_move = Color::Black;
         expected_state.context.borrow_mut().halfmove_clock = 99;
+        expected_state.context.borrow_mut().zobrist_hash = expected_state.board.zobrist_hash;
         assert_eq!(state, expected_state);
         
         let fen = "r2qk2r/8/8/7p/8/8/8/R2QK2R w KQkq h6 0 6";
@@ -582,6 +587,7 @@ mod tests {
         expected_state.board.put_colored_piece_at(ColoredPiece::BlackPawn, Square::H5);
         expected_state.halfmove = 10;
         expected_state.context.borrow_mut().double_pawn_push = 7;
+        expected_state.context.borrow_mut().zobrist_hash = expected_state.board.zobrist_hash;
         assert_eq!(state, expected_state);
     }
     

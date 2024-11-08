@@ -27,7 +27,7 @@ fn main() {
             let initial_state = state.clone();
             let mut final_state = state.clone();
             final_state.make_move(*mv);
-            assert!(final_state.is_valid());
+            assert!(final_state.is_unequivocally_valid());
             let san = mv.san(&initial_state, &final_state, &moves);
             move_sans.push(san.clone());
             print!("{}, ", san);
@@ -54,7 +54,7 @@ fn main() {
                     match state_result {
                         Ok(s) => {
                             state = s;
-                            assert!(state.is_valid());
+                            assert!(state.is_unequivocally_valid());
                             break;
                         }
                         Err(e) => {
