@@ -53,6 +53,35 @@ impl QueenMoveDirection {
             positive_direction
         }
     }
+
+    pub fn calc_and_measure_distance(src_square: Square, dst_square: Square, distance: &mut usize) -> QueenMoveDirection {
+        let value_change = dst_square as i8 - src_square as i8;
+
+        let positive_direction;
+        let distance_temp;
+
+        if value_change % 8 == 0 {
+            positive_direction = QueenMoveDirection::Down;
+            distance_temp = value_change / 8;
+        } else if value_change % 9 == 0 {
+            positive_direction = QueenMoveDirection::DownRight;
+            distance_temp = value_change / 9;
+        } else if src_square.get_rank() == dst_square.get_rank() {
+            positive_direction = QueenMoveDirection::Right;
+            distance_temp = value_change;
+        } else {
+            positive_direction = QueenMoveDirection::DownLeft;
+            distance_temp = value_change / 7;
+        }
+
+        if value_change < 0 {
+            *distance = -distance_temp as usize;
+            positive_direction.flip()
+        } else {
+            *distance = distance_temp as usize;
+            positive_direction
+        }
+    }
 }
 
 #[repr(u8)]
@@ -113,6 +142,7 @@ mod tests {
     
     fn test_queen_direction_for_square(square: Square, direction: QueenMoveDirection) {
         let mut current_square = square;
+        let mut distance = 0;
         loop {
             let next_square = match direction {
                 QueenMoveDirection::Up => current_square.up(),
@@ -126,7 +156,11 @@ mod tests {
             };
 
             if let Some(next_square) = next_square {
+                distance += 1;
+                let mut test_distance = distance;
                 assert_eq!(QueenMoveDirection::calc(square, next_square), direction);
+                assert_eq!(QueenMoveDirection::calc_and_measure_distance(square, next_square, &mut test_distance), direction);
+                assert_eq!(distance, test_distance);
                 current_square = next_square;
             } else {
                 break;
