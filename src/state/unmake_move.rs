@@ -1,4 +1,4 @@
-///! Contains the implementation of the `State::unmake_move` method.
+//! Contains the implementation of the `State::unmake_move` method.
 
 use std::cell::RefCell;
 use std::rc::Rc;

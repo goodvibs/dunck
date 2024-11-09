@@ -1,4 +1,4 @@
-///! Contains the Termination enum and its implementation.
+//! Contains the Termination enum and its implementation.
 
 /// Represents the different ways a game can end.
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]

@@ -1,4 +1,4 @@
-///! Move generation functions for the state struct
+//! Move generation functions for the state struct
 
 use crate::attacks::{multi_pawn_attacks, multi_pawn_moves, single_bishop_attacks, single_king_attacks, single_knight_attacks, single_rook_attacks};
 use crate::utils::{get_squares_from_mask_iter, get_set_bit_mask_iter, SetBitMaskIterator};

@@ -1,4 +1,4 @@
-///! Contains the State struct, which is the main struct for representing a position in a chess game.
+//! Contains the State struct, which is the main struct for representing a position in a chess game.
 
 use std::cell::RefCell;
 use std::rc::Rc;

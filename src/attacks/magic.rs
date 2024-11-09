@@ -1,4 +1,4 @@
-///! Magic bitboard generation and attack calculation for sliding pieces
+//! Magic bitboard generation and attack calculation for sliding pieces
 
 use crate::utils::{get_bit_combinations_iter, Bitboard};
 use crate::utils::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};

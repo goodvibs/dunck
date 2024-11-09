@@ -1,4 +1,4 @@
-///! This module contains game state related code.
+//! This module contains game state related code.
 
 mod board;
 mod context;

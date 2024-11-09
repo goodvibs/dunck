@@ -57,6 +57,70 @@ impl Square {
     pub const fn get_rank_mask(&self) -> Bitboard {
         RANKS[self.get_rank() as usize]
     }
+    
+    pub const fn up(&self) -> Option<Square> {
+        if self.get_rank() == 7 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 - 8) })
+        }
+    }
+    
+    pub const fn down(&self) -> Option<Square> {
+        if self.get_rank() == 0 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 + 8) })
+        }
+    }
+    
+    pub const fn left(&self) -> Option<Square> {
+        if self.get_file() == 0 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 - 1) })
+        }
+    }
+    
+    pub const fn right(&self) -> Option<Square> {
+        if self.get_file() == 7 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 + 1) })
+        }
+    }
+    
+    pub const fn up_left(&self) -> Option<Square> {
+        if self.get_rank() == 7 || self.get_file() == 0 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 - 9) })
+        }
+    }
+    
+    pub const fn up_right(&self) -> Option<Square> {
+        if self.get_rank() == 7 || self.get_file() == 7 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 - 7) })
+        }
+    }
+    
+    pub const fn down_left(&self) -> Option<Square> {
+        if self.get_rank() == 0 || self.get_file() == 0 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 + 7) })
+        }
+    }
+    
+    pub const fn down_right(&self) -> Option<Square> {
+        if self.get_rank() == 0 || self.get_file() == 7 {
+            None
+        } else {
+            Some(unsafe { Square::from(*self as u8 + 9) })
+        }
+    }
 
     pub const fn get_file_char(&self) -> char {
         (b'a' + self.get_file()) as char

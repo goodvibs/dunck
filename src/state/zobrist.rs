@@ -1,4 +1,4 @@
-///! All Zobrist hashing-related code.
+//! All Zobrist hashing-related code.
 
 use lazy_static::lazy_static;
 use rand::Rng;

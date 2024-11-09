@@ -1,4 +1,4 @@
-///! Board struct and methods
+//! Board struct and methods
 
 use crate::utils::*;
 use crate::attacks::*;

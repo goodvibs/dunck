@@ -1,10 +1,13 @@
 use lazy_static::lazy_static;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor, Device, Kind};
+use crate::r#move::Move;
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, PieceType};
 
 lazy_static! {
     static ref DEVICE: Device = Device::cuda_if_available();
+    static ref VS: nn::VarStore = nn::VarStore::new(*DEVICE);
+    static ref MODEL: ChessModel = ChessModel::new(&VS.root());
 }
 
 // Constants for the input tensor
@@ -71,6 +74,47 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     );
 
     tensor
+}
+
+
+pub fn get_move_mask(moves: &Vec<Move>) -> Tensor {
+    // Initialize a mask tensor with shape [8, 8, 73] (8x8 board, 73 possible moves)
+    let mut mask = Tensor::zeros(&[8, 8, NUM_TARGET_SQUARE_POSSIBILITIES], (Kind::Float, *DEVICE));
+
+    // Set the mask to 1 for each legal move
+    for mv in moves {
+        let source_square = mv.get_source();
+        let destination_square = mv.get_destination();
+        
+        let src_rank = source_square.get_rank() as i64;
+        let src_file = source_square.get_file() as i64;
+        let dst_rank = destination_square.get_rank() as i64;
+        let dst_file = destination_square.get_file() as i64;
+        
+        let target_square_index = dst_rank * 8 + dst_file;
+        let _ = mask.get(src_rank).get(src_file).get(target_square_index).fill_(1.);
+    }
+
+    mask
+}
+
+
+pub fn renormalize_policy(policy_output: Tensor, legal_move_mask: Tensor) -> Tensor {
+    // Apply the mask to zero out illegal moves
+    let masked_policy = policy_output * &legal_move_mask;
+
+    // Sum the masked probabilities to get the total probability of legal moves
+    let sum_legal_probs_tensor = masked_policy.sum(Kind::Float);
+    let sum_legal_probs = sum_legal_probs_tensor.double_value(&[]);
+
+    // Avoid division by zero in case all moves are illegal
+    if sum_legal_probs > 0. {
+        // Renormalize the masked probabilities by dividing by the total sum
+        masked_policy / sum_legal_probs
+    } else {
+        // If there are no legal moves, return the mask itself as probabilities (all zero)
+        legal_move_mask
+    }
 }
 
 // Define a Residual Block
@@ -157,6 +201,8 @@ impl ChessModel {
         (policy, value)
     }
 }
+
+unsafe impl Sync for ChessModel {}
 
 #[cfg(test)]
 mod tests {

@@ -1,4 +1,4 @@
-///! This module contains functions to calculate attack bitboards for different pieces.
+//! This module contains functions to calculate attack bitboards for different pieces.
 
 mod magic;
 mod manual;

@@ -1,4 +1,4 @@
-///! Contains functions that manually calculate attacks for all pieces
+//! Contains functions that manually calculate attacks for all pieces
 
 use std::cmp;
 use crate::utils::{Bitboard, Square};

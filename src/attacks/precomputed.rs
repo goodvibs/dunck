@@ -1,4 +1,4 @@
-///! Precomputed attack tables for non-sliding pieces.
+//! Precomputed attack tables for non-sliding pieces.
 
 use crate::utils::Bitboard;
 use crate::utils::Square;

@@ -1,4 +1,4 @@
-///! Context struct and methods
+//! Context struct and methods
 
 use std::cell::RefCell;
 use std::rc::Rc;
