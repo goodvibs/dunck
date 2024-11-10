@@ -4,7 +4,7 @@ use crate::engine::conv_net_evaluator::constants::*;
 use crate::engine::conv_net_evaluator::utils::{is_knight_jump, DEVICE};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
-use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenMoveDirection, Square};
+use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 // Define a Residual Block
 #[derive(Debug)]

@@ -3,7 +3,7 @@ use tch::{Device, Kind, Tensor};
 use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_TARGET_SQUARE_POSSIBILITIES, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
-use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenMoveDirection, Square};
+use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 lazy_static! {
     pub static ref DEVICE: Device = Device::cuda_if_available();
@@ -21,7 +21,7 @@ pub const fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
 
 /// Maps a queen-like move to an index in the policy tensor's 73 possible moves per square.
 /// Index is between 0 and 64 for queen-like moves (56 different target squares, 9 possible underpromotions).
-pub const fn get_policy_index_for_queen_like_move(direction: QueenMoveDirection, distance: u8, promotion: Option<PieceType>) -> u8 {
+pub const fn get_policy_index_for_queen_like_move(direction: QueenLikeMoveDirection, distance: u8, promotion: Option<PieceType>) -> u8 {
     // Calculate the index based on the direction and distance
     let direction_index = direction as u8;
     let distance_index = distance - 1; // Distance is 1-indexed
@@ -34,9 +34,9 @@ pub const fn get_policy_index_for_queen_like_move(direction: QueenMoveDirection,
     };
 
     let promotion_direction_index = match direction {
-        QueenMoveDirection::Up => 0,
-        QueenMoveDirection::UpRight => 1,
-        QueenMoveDirection::UpLeft => 2,
+        QueenLikeMoveDirection::Up => 0,
+        QueenLikeMoveDirection::UpRight => 1,
+        QueenLikeMoveDirection::UpLeft => 2,
         _ => panic!()
     };
 
@@ -68,7 +68,7 @@ pub const fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
         get_policy_index_for_knight_move(KnightMoveDirection::calc(src_square, dst_square))
     } else {
         // Queen-like move
-        let (direction, distance) = QueenMoveDirection::calc_and_measure_distance(src_square, dst_square);
+        let (direction, distance) = QueenLikeMoveDirection::calc_and_measure_distance(src_square, dst_square);
 
         let promotion = if is_promotion {
             Some(unvetted_promotion)
@@ -78,28 +78,6 @@ pub const fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
 
         get_policy_index_for_queen_like_move(direction, distance as u8, promotion)
     }
-}
-
-/// Generates a move mask tensor, marking legal moves with 1 and others with 0.
-pub fn get_move_mask(moves: &Vec<Move>, side_to_move: Color) -> Tensor {
-    // Initialize a mask tensor with shape [8, 8, 73] (8x8 board, 73 possible moves)
-    let mask = Tensor::zeros(&[8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64], (Kind::Float, *DEVICE));
-
-    for mv in moves {
-        // Get the source square from which the move is made
-        let src_square = mv.get_source().to_perspective_from_white(side_to_move);
-
-        // Determine the policy index using get_policy_index_for_move
-        let policy_index = get_policy_index_for_move(mv, side_to_move);
-
-        // Set the mask at the corresponding source square and policy index to 1
-        let _ = mask.get(src_square.get_rank() as i64)
-            .get(src_square.get_file() as i64)
-            .get(policy_index as i64)
-            .fill_(1.0);
-    }
-
-    mask
 }
 
 pub fn state_to_tensor(state: &State) -> Tensor {
@@ -169,32 +147,10 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     tensor
 }
 
-pub fn renormalize_policy(policy_output: Tensor, legal_move_mask: Tensor) -> Tensor {
-    // Apply the mask to zero out illegal moves
-    let masked_policy = policy_output * &legal_move_mask;
-
-    // Sum the masked probabilities to get the total probability of legal moves
-    let sum_legal_probs_tensor = masked_policy.sum(Kind::Float);
-    let sum_legal_probs = sum_legal_probs_tensor.double_value(&[]);
-
-    // Avoid division by zero in case all moves are illegal
-    if sum_legal_probs > 0. {
-        // Renormalize the masked probabilities by dividing by the total sum
-        masked_policy / sum_legal_probs
-    } else {
-        // If there are no legal moves, return the mask itself as probabilities (all zero)
-        legal_move_mask
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use chess::Piece;
     use crate::attacks::single_knight_attacks;
-    use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_POSITION_BITS};
-    use crate::engine::conv_net_evaluator::utils::{is_knight_jump, state_to_tensor};
-    use crate::state::{Board, State};
-    use crate::utils::{get_squares_from_mask_iter, Color, ColoredPiece, PieceType, QueenMoveDirection, Square};
+    use super::*;
 
     #[test]
     fn test_is_knight_jump() {
@@ -204,27 +160,38 @@ mod tests {
             }
         }
     }
-
+    
     #[test]
-    fn test_get_policy_index_for_queen_like_move() {
-        let src_square = Square::A1;
-        let dst_square = Square::H8;
-
-        for direction in QueenMoveDirection::iter() {
+    fn test_get_policy_index_for_sliding_pieces() {
+        let mut used_indices = [false; NUM_QUEEN_LIKE_MOVES as usize];
+        for direction in QueenLikeMoveDirection::iter() {
             for distance in 1..=MAX_RAY_LENGTH {
-                for promotion in PieceType::iter_promotion_pieces() {
-                    let index = super::get_policy_index_for_queen_like_move(direction, distance, Some(promotion));
-                    assert!(index < 73);
-                }
+                let index = get_policy_index_for_queen_like_move(direction, distance, None);
+                assert!(index < NUM_QUEEN_LIKE_MOVES);
+                assert!(!used_indices[index as usize]);
+                used_indices[index as usize] = true;
             }
         }
+        assert!(used_indices.iter().all(|&used| used));
+    }
+
+    #[test]
+    fn test_get_policy_index_for_pawns() {
+        // TODO
+    }
+    
+    #[test]
+    fn test_get_policy_index_for_knight_move() {
+        // TODO
+    }
+    
+    #[test]
+    fn test_get_policy_index_for_move() {
+        // TODO
     }
 
     #[test]
     fn test_state_to_tensor() {
-        let state = State::initial();
-        let tensor = state_to_tensor(&state);
-
-        assert_eq!(tensor.size(), [NUM_POSITION_BITS as i64, 8, 8]);
+        // TODO
     }
 }

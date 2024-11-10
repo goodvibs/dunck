@@ -6,7 +6,7 @@ use crate::engine::conv_net_evaluator::utils::{get_policy_index_for_move, state_
 use crate::engine::mcts::{Evaluation, Evaluator};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
-use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenMoveDirection, Square};
+use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 pub struct ConvNetEvaluator {
     model: ConvNet,
