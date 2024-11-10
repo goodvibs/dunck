@@ -67,7 +67,7 @@ fn main() {
                 let exploration_constant = 2.0;
                 let evaluator = engine::material_evaluator::MaterialEvaluator {};
                 let mut mcts = MCTS::new(state.clone(), exploration_constant, Box::new(evaluator.clone()));
-                mcts.run(10000);
+                mcts.run(800);
                 if let Some(best_move_node) = mcts.select_best_move() {
                     let best_move = best_move_node.borrow().mv.clone();
                     let new_state = best_move_node.borrow().state_after_move.clone();

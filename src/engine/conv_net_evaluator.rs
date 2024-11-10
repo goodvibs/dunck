@@ -40,16 +40,16 @@ const NUM_TARGET_SQUARE_POSSIBILITIES: u8 = NUM_QUEEN_LIKE_MOVES + MAX_NUM_KNIGH
 const NUM_OUTPUT_POLICY_MOVES: usize = 64 * NUM_TARGET_SQUARE_POSSIBILITIES as usize; // 4672 possible moves for policy head
 const NUM_INITIAL_CONV_OUTPUT_CHANNELS: usize = 32; // Output channels for initial conv layer
 
-pub struct ResNetEvaluator {
-    model: ResNet,
+pub struct ConvNetEvaluator {
+    model: ConvNet,
 }
 
-impl ResNetEvaluator {
-    pub fn new() -> ResNetEvaluator {
+impl ConvNetEvaluator {
+    pub fn new() -> ConvNetEvaluator {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ResNet::new(&vs.root(), 4);
+        let model = ConvNet::new(&vs.root(), 4);
 
-        ResNetEvaluator {
+        ConvNetEvaluator {
             model
         }
     }
@@ -323,7 +323,7 @@ impl ResidualBlock {
 
 // Define the main model structure
 #[derive(Debug)]
-struct ResNet {
+struct ConvNet {
     conv1: nn::Conv2D,
     bn1: nn::BatchNorm,
     residual_blocks: Vec<ResidualBlock>,
@@ -331,8 +331,8 @@ struct ResNet {
     fc_value: nn::Linear,
 }
 
-impl ResNet {
-    fn new(vs: &nn::Path, num_residual_blocks: usize) -> ResNet {
+impl ConvNet {
+    fn new(vs: &nn::Path, num_residual_blocks: usize) -> ConvNet {
         // Initial convolutional layer
         let conv1 = nn::conv2d(vs, NUM_POSITION_BITS as i64, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64, 3, nn::ConvConfig { padding: 1, ..Default::default() }); // 17 input channels, 32 output channels
 
@@ -359,7 +359,7 @@ impl ResNet {
             Default::default(),
         );
 
-        ResNet {
+        ConvNet {
             conv1,
             bn1,
             residual_blocks,
@@ -396,7 +396,7 @@ impl ResNet {
     }
 }
 
-unsafe impl Sync for ResNet {}
+unsafe impl Sync for ConvNet {}
 
 #[cfg(test)]
 mod tests {
@@ -413,7 +413,7 @@ mod tests {
     #[test]
     fn test_chess_model() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ResNet::new(&vs.root(), 4);
+        let model = ConvNet::new(&vs.root(), 4);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
@@ -425,7 +425,7 @@ mod tests {
     #[test]
     fn test_training() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ResNet::new(&vs.root(), 4);
+        let model = ConvNet::new(&vs.root(), 4);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
@@ -445,7 +445,7 @@ mod tests {
     #[test]
     fn test_train_100_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ResNet::new(&vs.root(), 4);
+        let model = ConvNet::new(&vs.root(), 4);
 
         for _ in 0..100 {
             let input_tensor = state_to_tensor(&State::initial());

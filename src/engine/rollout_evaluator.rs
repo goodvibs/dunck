@@ -1,6 +1,5 @@
 use rand::prelude::SliceRandom;
-use crate::engine::evaluate_terminal_state;
-use crate::engine::mcts::{Evaluation, Evaluator};
+use crate::engine::mcts::{evaluate_terminal_state, Evaluation, Evaluator};
 use crate::state::State;
 use crate::utils::Color;
 

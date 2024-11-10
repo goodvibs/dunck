@@ -2,10 +2,23 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
-use crate::engine::{evaluate_terminal_state};
 use crate::r#move::Move;
 use crate::state::{State, Termination};
 use crate::utils::Color;
+
+pub fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
+    match state.termination.unwrap() {
+        Termination::Checkmate => {
+            let checkmated_side = state.side_to_move;
+            if checkmated_side == for_color {
+                -1.
+            } else {
+                1.
+            }
+        }
+        _ => 0.
+    }
+}
 
 pub struct Evaluation {
     pub policy: Vec<(Move, f64)>,
@@ -182,8 +195,8 @@ mod tests {
     #[test]
     fn test_mcts() {
         let exploration_param = 1.5;
-        // let evaluator = Box::new(RolloutEvaluator::new(200));
-        let evaluator = Box::new(MaterialEvaluator {});
+        let evaluator = Box::new(RolloutEvaluator::new(200));
+        // let evaluator = Box::new(MaterialEvaluator {});
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
@@ -192,7 +205,7 @@ mod tests {
         );
         for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(8000);
+            mcts.run(800);
             println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = best_move_node.borrow().mv.clone();
