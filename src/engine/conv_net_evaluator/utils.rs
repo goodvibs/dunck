@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 use tch::{Device, Kind, Tensor};
-use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_TARGET_SQUARE_POSSIBILITIES, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
+use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_BITS_PER_BOARD, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_SIDE_TO_MOVE_BITS, NUM_TARGET_SQUARE_POSSIBILITIES, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
@@ -66,7 +66,7 @@ pub const fn get_policy_index_for_move(src_square: Square, dst_square: Square, v
 
 /// Fills the tensor channels for a given color's pieces.
 /// `offset` determines the starting channel for this color's pieces in the tensor.
-fn fill_piece_channel(tensor: &Tensor, state: &State, color: Color, offset: i64) {
+fn fill_pieces_for_color(tensor: &mut Tensor, state: &State, color: Color, offset: i64) {
     for piece_type in PieceType::iter_pieces() {
         let mask = state.board.color_masks[color as usize] & state.board.piece_type_masks[piece_type as usize];
         for square in get_squares_from_mask_iter(mask) {
@@ -81,28 +81,42 @@ fn fill_piece_channel(tensor: &Tensor, state: &State, color: Color, offset: i64)
     }
 }
 
+fn fill_pieces(tensor: &mut Tensor, state: &State) {
+    // Channels 0-5: Player's pieces
+    fill_pieces_for_color(tensor, state, state.side_to_move, 0);
+
+    // Channels 6-11: Opponent's pieces
+    fill_pieces_for_color(tensor, state, state.side_to_move.flip(), NUM_PIECE_TYPE_BITS as i64);
+}
+
+fn fill_side_to_move(tensor: &mut Tensor, side_to_move: Color) {
+    let _ = tensor.get(NUM_BITS_PER_BOARD as i64).fill_(
+        if side_to_move == Color::White { 1. } else { 0. }
+    );
+}
+
+fn fill_castling_rights(tensor: &mut Tensor, castling_rights: u8) {
+    for (i, bit) in [0b1000, 0b0100, 0b0010, 0b0001].iter().enumerate() {
+        let _ = tensor.get((NUM_BITS_PER_BOARD + NUM_SIDE_TO_MOVE_BITS + i as u8) as i64).fill_(
+            if castling_rights & bit != 0 { 1. } else { 0. }
+        );
+    }
+}
+
 pub fn state_to_tensor(state: &State) -> Tensor {
     // Initialize a tensor with shape [17, 8, 8], where:
     // - 17 is the number of channels
     // - 8x8 is the board size
     let mut tensor = Tensor::zeros(&[NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
     
-    // Channels 0-5: Player's pieces
-    fill_piece_channel(&mut tensor, state, state.side_to_move, 0);
-    
-    // Channels 6-11: Opponent's pieces
-    fill_piece_channel(&mut tensor, state, state.side_to_move.flip(), NUM_PIECE_TYPE_BITS as i64);
+    // Channels 0-11: Pieces
+    fill_pieces(&mut tensor, state);
 
     // Channel 12: Side to move (1 if white to move, 0 if black to move)
-    let _ = tensor.get(12).fill_(
-        if state.side_to_move == Color::White { 1. } else { 0. }
-    );
+    fill_side_to_move(&mut tensor, state.side_to_move);
 
     // Channel 13-16: Castling rights
-    let castling_rights = state.context.borrow().castling_rights;
-    for (i, bit) in [0b1000, 0b0100, 0b0010, 0b0001].iter().enumerate() {
-        let _ = tensor.get(13 + i as i64).fill_(if castling_rights & bit != 0 { 1. } else { 0. });
-    }
+    fill_castling_rights(&mut tensor, state.context.borrow().castling_rights);
 
     tensor
 }
