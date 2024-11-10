@@ -193,9 +193,24 @@ pub fn renormalize_policy(policy_output: Tensor, legal_move_mask: Tensor) -> Ten
 
 #[cfg(test)]
 mod tests {
+    use chess::Piece;
+    use crate::attacks::single_knight_attacks;
     use crate::engine::conv_net_evaluator::constants::NUM_POSITION_BITS;
-    use crate::engine::conv_net_evaluator::utils::state_to_tensor;
-    use crate::state::State;
+    use crate::engine::conv_net_evaluator::utils::{is_knight_jump, state_to_tensor};
+    use crate::state::{Board, State};
+    use crate::utils::{get_squares_from_mask_iter, Color, ColoredPiece, PieceType, Square};
+
+    #[test]
+    fn test_is_knight_jump() {
+        for src_square in Square::iter_all() {
+            for dst_square in get_squares_from_mask_iter(single_knight_attacks(src_square)) {
+                assert!(is_knight_jump(src_square, dst_square));
+            }
+        }
+    }
+    
+    #[test]
+    
 
     #[test]
     fn test_state_to_tensor() {

@@ -43,7 +43,7 @@ lazy_static! {
 fn calc_rook_relevant_mask(square: Square) -> Bitboard {
     let file_mask = square.get_file_mask();
     let rank_mask = square.get_rank_mask();
-    let mut res = (file_mask | rank_mask) & !square.to_mask();
+    let mut res = (file_mask | rank_mask) & !square.get_mask();
     let edge_masks = [FILE_A, FILE_H, RANK_1, RANK_8];
     for edge_mask in edge_masks {
         if file_mask != edge_mask && rank_mask != edge_mask {
@@ -60,7 +60,7 @@ pub fn get_rook_relevant_mask(square: Square) -> Bitboard {
 
 /// Calculate the relevant mask for a bishop on a given square
 fn calc_bishop_relevant_mask(square: Square) -> Bitboard {
-    let square_mask = square.to_mask();
+    let square_mask = square.get_mask();
     let mut res = 0 as Bitboard;
     for &diagonal in DIAGONALS.iter() {
         if diagonal & square_mask != 0 {
@@ -275,7 +275,7 @@ mod tests {
                     };
                     if magic_attacks != manual_attacks {
                         println!("Square mask:");
-                        print_bb_pretty(src_square.to_mask());
+                        print_bb_pretty(src_square.get_mask());
                         println!("\nOccupied mask:");
                         print_bb_pretty(occupied_mask);
                         println!("\nMagic attacks:");

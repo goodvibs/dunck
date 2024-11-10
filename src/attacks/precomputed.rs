@@ -10,7 +10,7 @@ lazy_static! {
     static ref SINGLE_KING_ATTACKS: [Bitboard; 64] = {
         let mut attacks = [0; 64];
         for square in Square::iter_all() {
-            let king_mask = square.to_mask();
+            let king_mask = square.get_mask();
             attacks[square as usize] = manual::multi_king_attacks(king_mask);
         }
         attacks
@@ -20,7 +20,7 @@ lazy_static! {
     static ref SINGLE_KNIGHT_ATTACKS: [Bitboard; 64] = {
         let mut attacks = [0; 64];
         for square in Square::iter_all() {
-            let knight_mask = square.to_mask();
+            let knight_mask = square.get_mask();
             attacks[square as usize] = manual::multi_knight_attacks(knight_mask);
         }
         attacks
@@ -45,14 +45,14 @@ mod tests {
     #[test]
     fn test_single_king_attacks() {
         for square in Square::iter_all() {
-            assert_eq!(precomputed_single_king_attacks(square), manual::multi_king_attacks(square.to_mask()));
+            assert_eq!(precomputed_single_king_attacks(square), manual::multi_king_attacks(square.get_mask()));
         }
     }
 
     #[test]
     fn test_single_knight_attacks() {
         for square in Square::iter_all() {
-            assert_eq!(precomputed_single_knight_attacks(square), manual::multi_knight_attacks(square.to_mask()));
+            assert_eq!(precomputed_single_knight_attacks(square), manual::multi_knight_attacks(square.get_mask()));
         }
     }
 }

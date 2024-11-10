@@ -37,7 +37,7 @@ pub fn multi_pawn_moves(pawns_mask: Bitboard, by_color: Color) -> Bitboard {
 /// Returns a bitboard with all squares attacked by a rook on `src_square` 
 /// with `occupied_mask` as the mask of occupied squares
 pub fn manual_single_rook_attacks(src_square: Square, occupied_mask: Bitboard) -> Bitboard {
-    let src_square_mask = src_square.to_mask();
+    let src_square_mask = src_square.get_mask();
     let mut result: Bitboard = 0;
 
     let mut mask = src_square_mask << 1;
@@ -88,7 +88,7 @@ pub fn manual_single_bishop_attacks(src_square: Square, occupied_mask: Bitboard)
     let s_distance: u32 = 7 - n_distance;
     let w_distance: u32 = leading_zeros % 8;
     let e_distance: u32 = 7 - w_distance;
-    let src_mask = src_square.to_mask();
+    let src_mask = src_square.get_mask();
     let (mut pos_nw, mut pos_ne, mut pos_sw, mut pos_se): (Bitboard, Bitboard, Bitboard, Bitboard) = (src_mask, src_mask, src_mask, src_mask);
     for _ in 0..cmp::min(n_distance, w_distance) {
         pos_nw <<= 9;

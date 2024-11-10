@@ -253,7 +253,7 @@ impl State {
                         fen_board.push_str(&empty_count.to_string());
                         empty_count = 0;
                     }
-                    let is_black = self.board.color_masks[Color::Black as usize] & square.to_mask() != 0;
+                    let is_black = self.board.color_masks[Color::Black as usize] & square.get_mask() != 0;
                     let colored_piece = ColoredPiece::from(Color::from(is_black), piece_type);
                     fen_board.push(colored_piece.to_char());
                 }
@@ -572,10 +572,10 @@ mod tests {
         let state = state.unwrap();
         assert!(state.board.is_unequivocally_valid());
         let mut expected_state = State::initial();
-        let clear_mask = Square::B8.to_mask() | Square::B1.to_mask() |
-            Square::C8.to_mask() | Square::C1.to_mask() |
-            Square::F8.to_mask() | Square::F1.to_mask() |
-            Square::G8.to_mask() | Square::G1.to_mask() |
+        let clear_mask = Square::B8.get_mask() | Square::B1.get_mask() |
+            Square::C8.get_mask() | Square::C1.get_mask() |
+            Square::F8.get_mask() | Square::F1.get_mask() |
+            Square::G8.get_mask() | Square::G1.get_mask() |
             RANK_7 | RANK_6 |
             RANK_3 | RANK_2;
         for square in get_squares_from_mask_iter(clear_mask) {

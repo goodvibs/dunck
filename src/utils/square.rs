@@ -38,7 +38,7 @@ impl Square {
         std::mem::transmute::<u8, Square>((7 - rank) * 8 + file)
     }
 
-    pub const fn to_mask(&self) -> Bitboard {
+    pub const fn get_mask(&self) -> Bitboard {
         1 << (63 - *self as u8)
     }
 
