@@ -54,7 +54,7 @@ impl QueenMoveDirection {
         }
     }
 
-    pub fn calc_and_measure_distance(src_square: Square, dst_square: Square, distance: &mut usize) -> QueenMoveDirection {
+    pub const fn calc_and_measure_distance(src_square: Square, dst_square: Square) -> (QueenMoveDirection, usize) {
         let value_change = dst_square as i8 - src_square as i8;
 
         let positive_direction;
@@ -75,11 +75,9 @@ impl QueenMoveDirection {
         }
 
         if value_change < 0 {
-            *distance = -distance_temp as usize;
-            positive_direction.flip()
+            (positive_direction.flip(), -distance_temp as usize)
         } else {
-            *distance = distance_temp as usize;
-            positive_direction
+            (positive_direction, distance_temp as usize)
         }
     }
 }
@@ -157,10 +155,8 @@ mod tests {
 
             if let Some(next_square) = next_square {
                 distance += 1;
-                let mut test_distance = distance;
                 assert_eq!(QueenMoveDirection::calc(square, next_square), direction);
-                assert_eq!(QueenMoveDirection::calc_and_measure_distance(square, next_square, &mut test_distance), direction);
-                assert_eq!(distance, test_distance);
+                assert_eq!(QueenMoveDirection::calc_and_measure_distance(square, next_square), (direction, distance));
                 current_square = next_square;
             } else {
                 break;

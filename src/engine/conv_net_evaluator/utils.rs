@@ -50,7 +50,7 @@ pub const fn get_policy_index_for_knight_move(direction: KnightMoveDirection) ->
 }
 
 /// Maps a move to an index in the policy tensor's 73 possible moves per square.
-pub fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
+pub const fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
     // Extract destination, source, promotion, and flag from the move
     let dst_square = match side_to_move {
         Color::White => mv.get_destination(),
@@ -62,16 +62,21 @@ pub fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
     };
     let unvetted_promotion = mv.get_promotion();
     let flag = mv.get_flag();
+    
+    let (is_normal_move, is_promotion) = match flag {
+        MoveFlag::NormalMove => (true, false),
+        MoveFlag::Promotion => (false, true),
+        _ => (false, false)
+    };
 
-    if flag == MoveFlag::NormalMove && is_knight_jump(src_square, dst_square) {
+    if is_normal_move && is_knight_jump(src_square, dst_square) {
         // Knight move
         get_policy_index_for_knight_move(KnightMoveDirection::calc(src_square, dst_square))
     } else {
         // Queen-like move
-        let mut distance = 0;
-        let direction = QueenMoveDirection::calc_and_measure_distance(src_square, dst_square, &mut distance);
+        let (direction, distance) = QueenMoveDirection::calc_and_measure_distance(src_square, dst_square);
 
-        let promotion = if flag == MoveFlag::Promotion {
+        let promotion = if is_promotion {
             Some(unvetted_promotion)
         } else {
             None
@@ -195,10 +200,10 @@ pub fn renormalize_policy(policy_output: Tensor, legal_move_mask: Tensor) -> Ten
 mod tests {
     use chess::Piece;
     use crate::attacks::single_knight_attacks;
-    use crate::engine::conv_net_evaluator::constants::NUM_POSITION_BITS;
+    use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_POSITION_BITS};
     use crate::engine::conv_net_evaluator::utils::{is_knight_jump, state_to_tensor};
     use crate::state::{Board, State};
-    use crate::utils::{get_squares_from_mask_iter, Color, ColoredPiece, PieceType, Square};
+    use crate::utils::{get_squares_from_mask_iter, Color, ColoredPiece, PieceType, QueenMoveDirection, Square};
 
     #[test]
     fn test_is_knight_jump() {
@@ -210,7 +215,19 @@ mod tests {
     }
     
     #[test]
-    
+    fn test_get_policy_index_for_queen_like_move() {
+        let src_square = Square::A1;
+        let dst_square = Square::H8;
+
+        for direction in QueenMoveDirection::iter() {
+            for distance in 1..=MAX_RAY_LENGTH {
+                for promotion in PieceType::iter_promotion_pieces() {
+                    let index = super::get_policy_index_for_queen_like_move(direction, distance, Some(promotion));
+                    assert!(index < 73);
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_state_to_tensor() {

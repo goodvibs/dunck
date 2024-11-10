@@ -63,7 +63,7 @@ const ALL_NON_PAWN_PIECES: [PieceType; 5] = [
     PieceType::King
 ];
 
-const ALL_MIDDLE_PIECES: [PieceType; 4] = [
+const ALL_PROMOTION_PIECES: [PieceType; 4] = [
     PieceType::Knight,
     PieceType::Bishop,
     PieceType::Rook,
@@ -107,8 +107,8 @@ impl PieceType {
         ALL_NON_PAWN_PIECES.iter().copied()
     }
     
-    pub fn iter_middle_pieces() -> impl Iterator<Item = PieceType> {
-        ALL_MIDDLE_PIECES.iter().copied()
+    pub fn iter_promotion_pieces() -> impl Iterator<Item = PieceType> {
+        ALL_PROMOTION_PIECES.iter().copied()
     }
     
     pub fn iter_between(first: PieceType, last: PieceType) -> impl Iterator<Item = PieceType> {
