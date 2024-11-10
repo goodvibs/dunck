@@ -202,7 +202,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_mcts() {
+    fn 
+    test_mcts() {
         let exploration_param = 1.5;
         // let evaluator = Box::new(RolloutEvaluator::new(200));
         // let evaluator = Box::new(MaterialEvaluator {});
