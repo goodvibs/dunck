@@ -1,7 +1,7 @@
 use std::iter::zip;
 use lazy_static::lazy_static;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor, Device, Kind};
-use crate::engine::Evaluation;
+use crate::engine::mcts::Evaluation;
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenMoveDirection, Square};

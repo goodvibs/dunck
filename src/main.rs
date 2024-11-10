@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 #![allow(non_upper_case_globals)]
 
-use crate::engine::MCTS;
+use crate::engine::mcts::MCTS;
 use crate::state::State;
 
 pub mod attacks;
@@ -65,7 +65,8 @@ fn main() {
             }
             "b" | "BEST" => {
                 let exploration_constant = 2.0;
-                let mut mcts = MCTS::new(state.clone(), exploration_constant);
+                let evaluator = engine::material_evaluator::MaterialEvaluator {};
+                let mut mcts = MCTS::new(state.clone(), exploration_constant, Box::new(evaluator.clone()));
                 mcts.run(10000);
                 if let Some(best_move_node) = mcts.select_best_move() {
                     let best_move = best_move_node.borrow().mv.clone();
@@ -73,7 +74,7 @@ fn main() {
                     println!("{}", mcts);
                     println!("Playing best move: {:?}", best_move.unwrap().san(&state, &new_state, &state.calc_legal_moves()));
                     state = new_state;
-                    mcts = MCTS::new(state.clone(), exploration_constant);
+                    mcts = MCTS::new(state.clone(), exploration_constant, Box::new(evaluator.clone()));
                 }
             }
             _ => {
