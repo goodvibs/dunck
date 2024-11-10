@@ -6,8 +6,6 @@ use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, Piece
 
 lazy_static! {
     static ref DEVICE: Device = Device::cuda_if_available();
-    static ref VS: nn::VarStore = nn::VarStore::new(*DEVICE);
-    static ref MODEL: ChessModel = ChessModel::new(&VS.root());
 }
 
 // Constants for the input tensor
@@ -147,7 +145,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     let rotate = state.side_to_move == Color::Black;
 
     // Channels 0-11: Piece types for both colors
-    for (i, piece_type) in PieceType::iter_pieces().enumerate() {
+    for piece_type in PieceType::iter_pieces() {
         // Get the bitboard mask for the specific piece type and color
         let player_piece_type_mask = state.board.color_masks[state.side_to_move as usize] & state.board.piece_type_masks[piece_type as usize];
         let opponent_piece_type_mask = state.board.color_masks[state.side_to_move.flip() as usize] & state.board.piece_type_masks[piece_type as usize];
@@ -226,24 +224,48 @@ pub fn renormalize_policy(policy_output: Tensor, legal_move_mask: Tensor) -> Ten
 #[derive(Debug)]
 struct ResidualBlock {
     conv1: nn::Conv2D,
+    bn1: nn::BatchNorm,
     conv2: nn::Conv2D,
+    bn2: nn::BatchNorm,
 }
 
 impl ResidualBlock {
     fn new(vs: &nn::Path, channels: i64) -> ResidualBlock {
         // Initialize two convolutional layers with ReLU activations
-        let conv1 = nn::conv2d(vs, channels, channels, 3, nn::ConvConfig { padding: 1, ..Default::default() });
-        let conv2 = nn::conv2d(vs, channels, channels, 3, nn::ConvConfig { padding: 1, ..Default::default() });
+        let conv1 = nn::conv2d(
+            vs, 
+            channels, 
+            channels, 
+            3, 
+            nn::ConvConfig { padding: 1, ..Default::default() }
+        );
 
-        ResidualBlock { conv1, conv2 }
+        let bn1 = nn::batch_norm2d(vs, channels, Default::default());
+
+        let conv2 = nn::conv2d(
+            vs, 
+            channels, 
+            channels, 
+            3, 
+            nn::ConvConfig { padding: 1, ..Default::default() }
+        );
+
+        let bn2 = nn::batch_norm2d(vs, channels, Default::default());
+
+        ResidualBlock {
+            conv1,
+            bn1,
+            conv2,
+            bn2,
+        }
     }
 
     // Forward pass for the residual block
     fn forward(&self, x: &Tensor) -> Tensor {
-        let residual = x; // Save input for skip connection
-        let x = x.relu().apply(&self.conv1);
-        let x = x.relu().apply(&self.conv2);
-        x + residual // Add skip connection
+        let residual = x;  // Save the input for the skip connection
+        let x = x.apply(&self.conv1).apply_t(&self.bn1, true).relu();
+        let x = x.apply(&self.conv2).apply_t(&self.bn2, true);
+        x + residual  // Skip connection
     }
 }
 
@@ -251,33 +273,44 @@ impl ResidualBlock {
 #[derive(Debug)]
 struct ChessModel {
     conv1: nn::Conv2D,
-    residual_block1: ResidualBlock,
-    residual_block2: ResidualBlock,
+    bn1: nn::BatchNorm,
+    residual_blocks: Vec<ResidualBlock>,
     fc_policy: nn::Linear,
     fc_value: nn::Linear,
 }
 
 impl ChessModel {
-    fn new(vs: &nn::Path) -> ChessModel {
+    fn new(vs: &nn::Path, num_residual_blocks: usize) -> ChessModel {
         // Initial convolutional layer
         let conv1 = nn::conv2d(vs, NUM_POSITION_BITS as i64, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64, 3, nn::ConvConfig { padding: 1, ..Default::default() }); // 17 input channels, 32 output channels
 
-        // Two residual blocks with 32 channels each
-        let residual_block1 = ResidualBlock::new(&vs, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64);
-        let residual_block2 = ResidualBlock::new(&vs, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64);
+        // Batch normalization for initial convolution layer
+        let bn1 = nn::batch_norm2d(vs, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64, Default::default());
+
+        // Residual blocks
+        let mut residual_blocks = Vec::new();
+        for _ in 0..num_residual_blocks {
+            residual_blocks.push(ResidualBlock::new(&vs, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64));
+        }
 
         // Fully connected layers for policy and value heads
         let fc_policy = nn::linear(
-            vs, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 8 * 8, NUM_OUTPUT_POLICY_MOVES as i64, Default::default()
-        ); // Map to 4672 possible moves
+            vs,
+            NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 64,
+            NUM_OUTPUT_POLICY_MOVES as i64,
+            Default::default(),
+        );
         let fc_value = nn::linear(
-            vs, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 8 * 8, 1, Default::default()
-        ); // Map to a single scalar value
+            vs,
+            NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 64,
+            1,
+            Default::default(),
+        );
 
         ChessModel {
             conv1,
-            residual_block1,
-            residual_block2,
+            bn1,
+            residual_blocks,
             fc_policy,
             fc_value,
         }
@@ -285,20 +318,24 @@ impl ChessModel {
 
     // Forward pass
     fn forward(&self, x: &Tensor) -> (Tensor, Tensor) {
-        // Apply the initial convolutional layer with ReLU activation
-        let x = x.view([-1, NUM_POSITION_BITS as i64, 8, 8]).apply(&self.conv1).relu();
+        // Apply initial convolution, batch normalization, and ReLU activation
+        let mut x = x.view([-1, NUM_POSITION_BITS as i64, 8, 8]).apply(&self.conv1);
+        x = x.apply_t(&self.bn1, true).relu();
 
-        // Pass through residual blocks
-        let x = self.residual_block1.forward(&x);
-        let x = self.residual_block2.forward(&x);
+        // Pass through the residual blocks
+        for block in &self.residual_blocks {
+            x = block.forward(&x);
+        }
 
         // Flatten for fully connected layers
-        let x = x.view([-1, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 8 * 8]);
+        x = x.view([-1, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 8 * 8]);
 
         // Policy head: Softmax over 4672 possible moves
-        let policy = self.fc_policy.forward(&x).view(
-            [-1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64]
-        ).softmax(-1, Kind::Float); // Softmax for move probabilities
+        let policy = self
+            .fc_policy
+            .forward(&x)
+            .view([-1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64])
+            .softmax(-1, Kind::Float); // Softmax for move probabilities
 
         // Value head: Tanh for output between -1 and 1
         let value = self.fc_value.forward(&x).tanh();
@@ -324,7 +361,7 @@ mod tests {
     #[test]
     fn test_chess_model() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ChessModel::new(&vs.root());
+        let model = ChessModel::new(&vs.root(), 4);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
@@ -336,7 +373,7 @@ mod tests {
     #[test]
     fn test_training() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ChessModel::new(&vs.root());
+        let model = ChessModel::new(&vs.root(), 4);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
@@ -356,7 +393,7 @@ mod tests {
     #[test]
     fn test_train_100_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ChessModel::new(&vs.root());
+        let model = ChessModel::new(&vs.root(), 4);
 
         for _ in 0..100 {
             let input_tensor = state_to_tensor(&State::initial());
