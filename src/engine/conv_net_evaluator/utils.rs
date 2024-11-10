@@ -53,19 +53,14 @@ pub const fn get_policy_index_for_knight_move(direction: KnightMoveDirection) ->
 
 /// Maps a move to an index in the policy tensor's 73 possible moves per square.
 /// Assumes that the move is from the perspective of the current player.
-pub const fn get_policy_index_for_move(src_square: Square, dst_square: Square, vetted_promotion: Option<PieceType>, flag: MoveFlag) -> u8 {
-    let is_normal_move = match flag {
-        MoveFlag::NormalMove => true,
-        _ => false
-    };
-
-    if is_normal_move && is_knight_jump(src_square, dst_square) {
+pub const fn get_policy_index_for_move(src_square: Square, dst_square: Square, vetted_promotion: Option<PieceType>) -> u8 {
+    if is_knight_jump(src_square, dst_square) {
         // Knight move
         get_policy_index_for_knight_move(KnightMoveDirection::calc(src_square, dst_square))
     } else {
         // Queen-like move
         let (direction, distance) = QueenLikeMoveDirection::calc_and_measure_distance(src_square, dst_square);
-        get_policy_index_for_queen_like_move(direction, distance as u8, vetted_promotion)
+        get_policy_index_for_queen_like_move(direction, distance, vetted_promotion)
     }
 }
 
