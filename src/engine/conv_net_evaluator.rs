@@ -1,7 +1,7 @@
 use std::iter::zip;
 use lazy_static::lazy_static;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor, Device, Kind};
-use crate::engine::mcts::Evaluation;
+use crate::engine::mcts::{Evaluation, Evaluator};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenMoveDirection, Square};
@@ -53,11 +53,13 @@ impl ConvNetEvaluator {
             model
         }
     }
+}
 
-    pub fn evaluate_state(&self, state: &State, for_color: Color) -> Evaluation {
+impl Evaluator for ConvNetEvaluator {
+    fn evaluate(&self, state: &State) -> Evaluation {
         let input_tensor = state_to_tensor(state);
         let (policy, value) = self.model.forward(&input_tensor);
-        
+
         let legal_moves = state.calc_legal_moves();
         let mut priors = Vec::with_capacity(legal_moves.len());
         let mut sum = 0.;
@@ -72,16 +74,10 @@ impl ConvNetEvaluator {
             priors.push(prior);
             sum += prior;
         }
-        
-        let policy = if for_color == state.side_to_move {
-            zip(legal_moves, priors)
-                .map(|(mv, prior)| (mv, prior / sum))
-                .collect()
-        } else {
-            zip(legal_moves, priors)
-                .map(|(mv, prior)| (mv, 1. - prior / sum))
-                .collect()
-        };
+
+        let policy = zip(legal_moves, priors)
+            .map(|(mv, prior)| (mv, prior / sum))
+            .collect();
 
         Evaluation {
             policy,
@@ -235,7 +231,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     let _ = tensor.get(12).fill_(
         if state.side_to_move == Color::White { 1. } else { 0. }
     );
-    
+
     // Channel 13-16: Castling rights
     let castling_rights = state.context.borrow().castling_rights;
     let _ = tensor.get(13).fill_(
@@ -285,20 +281,20 @@ impl ResidualBlock {
     fn new(vs: &nn::Path, channels: i64) -> ResidualBlock {
         // Initialize two convolutional layers with ReLU activations
         let conv1 = nn::conv2d(
-            vs, 
-            channels, 
-            channels, 
-            3, 
+            vs,
+            channels,
+            channels,
+            3,
             nn::ConvConfig { padding: 1, ..Default::default() }
         );
 
         let bn1 = nn::batch_norm2d(vs, channels, Default::default());
 
         let conv2 = nn::conv2d(
-            vs, 
-            channels, 
-            channels, 
-            3, 
+            vs,
+            channels,
+            channels,
+            3,
             nn::ConvConfig { padding: 1, ..Default::default() }
         );
 

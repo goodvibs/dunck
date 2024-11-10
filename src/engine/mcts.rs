@@ -173,9 +173,17 @@ impl MCTS {
             leaf.borrow_mut().backup(evaluation.value);
         }
     }
-
-    pub fn select_best_move(&self) -> Option<Rc<RefCell<MCTSNode>>> {
+    
+    pub fn get_best_child_by_score(&self) -> Option<Rc<RefCell<MCTSNode>>> {
         self.root.borrow_mut().select_best_child(0.)
+    }
+
+    pub fn get_best_child_by_visits(&self) -> Option<Rc<RefCell<MCTSNode>>> {
+        self.root.borrow_mut().children.iter().max_by(|a, b| {
+            let a_score = a.borrow().visits;
+            let b_score = b.borrow().visits;
+            a_score.cmp(&b_score)
+        }).cloned()
     }
 }
 
@@ -188,6 +196,7 @@ impl Display for MCTS {
 #[cfg(test)]
 mod tests {
     use std::thread;
+    use crate::engine::conv_net_evaluator::ConvNetEvaluator;
     use crate::engine::material_evaluator::MaterialEvaluator;
     use crate::engine::rollout_evaluator::RolloutEvaluator;
     use super::*;
@@ -195,25 +204,25 @@ mod tests {
     #[test]
     fn test_mcts() {
         let exploration_param = 1.5;
-        let evaluator = Box::new(RolloutEvaluator::new(200));
+        // let evaluator = Box::new(RolloutEvaluator::new(200));
         // let evaluator = Box::new(MaterialEvaluator {});
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
             exploration_param,
-            evaluator.clone()
+            Box::new(ConvNetEvaluator::new())
         );
         for i in 0..1 {
             println!("Move: {}", i);
             mcts.run(800);
             println!("{}", mcts);
-            if let Some(best_move_node) = mcts.select_best_move() {
+            if let Some(best_move_node) = mcts.get_best_child_by_visits() {
                 let best_move = best_move_node.borrow().mv.clone();
                 let next_state = best_move_node.borrow().state_after_move.clone();
                 mcts = MCTS::new(
                     next_state.clone(),
                     exploration_param,
-                    evaluator.clone()
+                    Box::new(ConvNetEvaluator::new())
                 );
                 next_state.board.print();
                 println!("Best move: {:?}", best_move.unwrap().uci());
