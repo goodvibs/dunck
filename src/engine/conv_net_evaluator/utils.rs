@@ -21,6 +21,7 @@ pub const fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
 
 /// Maps a queen-like move to an index in the policy tensor's 73 possible moves per square.
 /// Index is between 0 and 64 for queen-like moves (56 different target squares, 9 possible underpromotions).
+/// Assumes that the direction is from the perspective of the current player.
 pub const fn get_policy_index_for_queen_like_move(direction: QueenLikeMoveDirection, distance: u8, promotion: Option<PieceType>) -> u8 {
     // Calculate the index based on the direction and distance
     let direction_index = direction as u8;
@@ -45,6 +46,7 @@ pub const fn get_policy_index_for_queen_like_move(direction: QueenLikeMoveDirect
 
 /// Maps a knight move to an index in the policy tensor's 73 possible moves per square.
 /// Index is between 65 and 72 for knight moves (8 possible moves).
+/// Assumes that the direction is from the perspective of the current player.
 pub const fn get_policy_index_for_knight_move(direction: KnightMoveDirection) -> u8 {
     direction as u8 + NUM_QUEEN_LIKE_MOVES + NUM_WAYS_OF_UNDERPROMOTION
 }
