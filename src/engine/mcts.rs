@@ -84,7 +84,7 @@ impl MCTSNode {
 
     fn backup(&mut self, value: f64) {
         self.visits += 1;
-        self.value += value;
+        self.value -= value;
         if let Some(previous_node) = &self.previous_node {
             previous_node.borrow_mut().backup(-1. * value);
         }
