@@ -64,38 +64,34 @@ pub const fn get_policy_index_for_move(src_square: Square, dst_square: Square, v
     }
 }
 
+/// Fills the tensor channels for a given color's pieces.
+/// `offset` determines the starting channel for this color's pieces in the tensor.
+fn fill_piece_channel(tensor: &Tensor, state: &State, color: Color, offset: i64) {
+    for piece_type in PieceType::iter_pieces() {
+        let mask = state.board.color_masks[color as usize] & state.board.piece_type_masks[piece_type as usize];
+        for square in get_squares_from_mask_iter(mask) {
+            let square_from_perspective = square.to_perspective_from_white(state.side_to_move);
+            let channel_index = offset + piece_type as i64 - PieceType::Pawn as i64;
+            let _ = tensor
+                .get(channel_index)
+                .get(square_from_perspective.get_rank() as i64)
+                .get(square_from_perspective.get_file() as i64)
+                .fill_(1.);
+        }
+    }
+}
+
 pub fn state_to_tensor(state: &State) -> Tensor {
     // Initialize a tensor with shape [17, 8, 8], where:
     // - 17 is the number of channels
     // - 8x8 is the board size
-    let tensor = Tensor::zeros(&[NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
+    let mut tensor = Tensor::zeros(&[NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
     
-    // Channels 0-11: Piece types for both colors
-    for piece_type in PieceType::iter_pieces() {
-        // Get the bitboard mask for the specific piece type and color
-        let player_piece_type_mask = state.board.color_masks[state.side_to_move as usize] & state.board.piece_type_masks[piece_type as usize];
-        let opponent_piece_type_mask = state.board.color_masks[state.side_to_move.flip() as usize] & state.board.piece_type_masks[piece_type as usize];
-
-        // Channels 0-5: Player's pieces
-        for square in get_squares_from_mask_iter(player_piece_type_mask) {
-            let square_from_unified_perspective = square.to_perspective_from_white(state.side_to_move);
-            let _ = tensor
-                .get(piece_type as i64 - PieceType::Pawn as i64)
-                .get(square_from_unified_perspective.get_rank() as i64)
-                .get(square_from_unified_perspective.get_file() as i64)
-                .fill_(1.);
-        }
-
-        // Channels 6-11: Opponent's pieces
-        for square in get_squares_from_mask_iter(opponent_piece_type_mask) {
-            let square_from_unified_perspective = square.to_perspective_from_white(state.side_to_move);
-            let _ = tensor
-                .get(NUM_PIECE_TYPE_BITS as i64 + piece_type as i64 - PieceType::Pawn as i64)
-                .get(square_from_unified_perspective.get_rank() as i64)
-                .get(square_from_unified_perspective.get_file() as i64)
-                .fill_(1.);
-        }
-    }
+    // Channels 0-5: Player's pieces
+    fill_piece_channel(&mut tensor, state, state.side_to_move, 0);
+    
+    // Channels 6-11: Opponent's pieces
+    fill_piece_channel(&mut tensor, state, state.side_to_move.flip(), NUM_PIECE_TYPE_BITS as i64);
 
     // Channel 12: Side to move (1 if white to move, 0 if black to move)
     let _ = tensor.get(12).fill_(
@@ -104,18 +100,9 @@ pub fn state_to_tensor(state: &State) -> Tensor {
 
     // Channel 13-16: Castling rights
     let castling_rights = state.context.borrow().castling_rights;
-    let _ = tensor.get(13).fill_(
-        if castling_rights & 0b1000 != 0 { 1. } else { 0. }
-    );
-    let _ = tensor.get(14).fill_(
-        if castling_rights & 0b0100 != 0 { 1. } else { 0. }
-    );
-    let _ = tensor.get(15).fill_(
-        if castling_rights & 0b0010 != 0 { 1. } else { 0. }
-    );
-    let _ = tensor.get(16).fill_(
-        if castling_rights & 0b0001 != 0 { 1. } else { 0. }
-    );
+    for (i, bit) in [0b1000, 0b0100, 0b0010, 0b0001].iter().enumerate() {
+        let _ = tensor.get(13 + i as i64).fill_(if castling_rights & bit != 0 { 1. } else { 0. });
+    }
 
     tensor
 }
