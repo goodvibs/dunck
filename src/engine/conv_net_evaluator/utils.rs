@@ -10,7 +10,7 @@ lazy_static! {
 }
 
 /// Checks if a move is a knight move based on its source and destination squares.
-pub fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
+pub const fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
     // Calculate the difference in rank and file between the source and destination
     let rank_diff = (dst_square.get_rank() as i8 - src_square.get_rank() as i8).abs();
     let file_diff = (dst_square.get_file() as i8 - src_square.get_file() as i8).abs();
@@ -21,7 +21,7 @@ pub fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
 
 /// Maps a queen-like move to an index in the policy tensor's 73 possible moves per square.
 /// Index is between 0 and 64 for queen-like moves (56 different target squares, 9 possible underpromotions).
-pub fn get_policy_index_for_queen_like_move(direction: QueenMoveDirection, distance: u8, promotion: Option<PieceType>) -> u8 {
+pub const fn get_policy_index_for_queen_like_move(direction: QueenMoveDirection, distance: u8, promotion: Option<PieceType>) -> u8 {
     // Calculate the index based on the direction and distance
     let direction_index = direction as u8;
     let distance_index = distance - 1; // Distance is 1-indexed
@@ -45,7 +45,7 @@ pub fn get_policy_index_for_queen_like_move(direction: QueenMoveDirection, dista
 
 /// Maps a knight move to an index in the policy tensor's 73 possible moves per square.
 /// Index is between 65 and 72 for knight moves (8 possible moves).
-pub fn get_policy_index_for_knight_move(direction: KnightMoveDirection) -> u8 {
+pub const fn get_policy_index_for_knight_move(direction: KnightMoveDirection) -> u8 {
     direction as u8 + NUM_QUEEN_LIKE_MOVES + NUM_WAYS_OF_UNDERPROMOTION
 }
 
