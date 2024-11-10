@@ -1,5 +1,7 @@
+use std::iter::zip;
 use lazy_static::lazy_static;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor, Device, Kind};
+use crate::engine::Evaluation;
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenMoveDirection, Square};
@@ -37,6 +39,56 @@ const NUM_WAYS_OF_UNDERPROMOTION: u8 = NUM_PAWN_MOVE_DIRECTIONS * NUM_UNDERPROMO
 const NUM_TARGET_SQUARE_POSSIBILITIES: u8 = NUM_QUEEN_LIKE_MOVES + MAX_NUM_KNIGHT_MOVES + NUM_WAYS_OF_UNDERPROMOTION; // 73 of possible target squares for a move
 const NUM_OUTPUT_POLICY_MOVES: usize = 64 * NUM_TARGET_SQUARE_POSSIBILITIES as usize; // 4672 possible moves for policy head
 const NUM_INITIAL_CONV_OUTPUT_CHANNELS: usize = 32; // Output channels for initial conv layer
+
+pub struct ResNetEvaluator {
+    model: ResNet,
+}
+
+impl ResNetEvaluator {
+    pub fn new() -> ResNetEvaluator {
+        let vs = nn::VarStore::new(*DEVICE);
+        let model = ResNet::new(&vs.root(), 4);
+
+        ResNetEvaluator {
+            model
+        }
+    }
+
+    pub fn evaluate_state(&self, state: &State, for_color: Color) -> Evaluation {
+        let input_tensor = state_to_tensor(state);
+        let (policy, value) = self.model.forward(&input_tensor);
+        
+        let legal_moves = state.calc_legal_moves();
+        let mut priors = Vec::with_capacity(legal_moves.len());
+        let mut sum = 0.;
+
+        for mv in &legal_moves {
+            let policy_index = get_policy_index_for_move(&mv, state.side_to_move);
+            let src_square = match state.side_to_move {
+                Color::White => mv.get_source(),
+                Color::Black => mv.get_source().rotated_perspective()
+            };
+            let prior = policy.double_value(&[0, src_square.get_rank() as i64, src_square.get_file() as i64, policy_index as i64]);
+            priors.push(prior);
+            sum += prior;
+        }
+        
+        let policy = if for_color == state.side_to_move {
+            zip(legal_moves, priors)
+                .map(|(mv, prior)| (mv, prior / sum))
+                .collect()
+        } else {
+            zip(legal_moves, priors)
+                .map(|(mv, prior)| (mv, 1. - prior / sum))
+                .collect()
+        };
+
+        Evaluation {
+            policy,
+            value: value.double_value(&[]),
+        }
+    }
+}
 
 /// Checks if a move is a knight move based on its source and destination squares.
 fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
@@ -271,7 +323,7 @@ impl ResidualBlock {
 
 // Define the main model structure
 #[derive(Debug)]
-struct ChessModel {
+struct ResNet {
     conv1: nn::Conv2D,
     bn1: nn::BatchNorm,
     residual_blocks: Vec<ResidualBlock>,
@@ -279,8 +331,8 @@ struct ChessModel {
     fc_value: nn::Linear,
 }
 
-impl ChessModel {
-    fn new(vs: &nn::Path, num_residual_blocks: usize) -> ChessModel {
+impl ResNet {
+    fn new(vs: &nn::Path, num_residual_blocks: usize) -> ResNet {
         // Initial convolutional layer
         let conv1 = nn::conv2d(vs, NUM_POSITION_BITS as i64, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64, 3, nn::ConvConfig { padding: 1, ..Default::default() }); // 17 input channels, 32 output channels
 
@@ -307,7 +359,7 @@ impl ChessModel {
             Default::default(),
         );
 
-        ChessModel {
+        ResNet {
             conv1,
             bn1,
             residual_blocks,
@@ -344,7 +396,7 @@ impl ChessModel {
     }
 }
 
-unsafe impl Sync for ChessModel {}
+unsafe impl Sync for ResNet {}
 
 #[cfg(test)]
 mod tests {
@@ -361,7 +413,7 @@ mod tests {
     #[test]
     fn test_chess_model() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ChessModel::new(&vs.root(), 4);
+        let model = ResNet::new(&vs.root(), 4);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
@@ -373,7 +425,7 @@ mod tests {
     #[test]
     fn test_training() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ChessModel::new(&vs.root(), 4);
+        let model = ResNet::new(&vs.root(), 4);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor);
@@ -393,7 +445,7 @@ mod tests {
     #[test]
     fn test_train_100_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ChessModel::new(&vs.root(), 4);
+        let model = ResNet::new(&vs.root(), 4);
 
         for _ in 0..100 {
             let input_tensor = state_to_tensor(&State::initial());

@@ -1,4 +1,5 @@
 mod neural_network;
+mod mcts;
 
 use std::cell::RefCell;
 use std::cmp::max_by;
@@ -251,7 +252,7 @@ mod tests {
         let mut mcts = MCTS::new(State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(), exploration_param);
         for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(10000);
+            mcts.run(800);
             println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = best_move_node.borrow().mv.clone();
