@@ -177,12 +177,13 @@ impl Display for MCTS {
 mod tests {
     use std::thread;
     use crate::engine::material_evaluator::MaterialEvaluator;
+    use crate::engine::rollout_evaluator::RolloutEvaluator;
     use super::*;
 
     #[test]
     fn test_mcts() {
         let exploration_param = 2.;
-        let evaluator = Box::new(MaterialEvaluator {});
+        let evaluator = Box::new(RolloutEvaluator::new(200));
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
