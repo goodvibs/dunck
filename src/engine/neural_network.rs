@@ -70,7 +70,7 @@ fn get_policy_index_for_queen_like_move(direction: QueenMoveDirection, distance:
         QueenMoveDirection::UpLeft => 2,
         _ => panic!()
     };
-    
+
     NUM_QUEEN_LIKE_MOVES + promotion_direction_index * NUM_UNDERPROMOTIONS + promotion_index
 }
 
@@ -81,13 +81,19 @@ fn get_policy_index_for_knight_move(direction: KnightMoveDirection) -> u8 {
 }
 
 /// Maps a move to an index in the policy tensor's 73 possible moves per square.
-fn get_policy_index_for_move(mv: &Move) -> u8 {
+fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
     // Extract destination, source, promotion, and flag from the move
-    let dst_square = mv.get_destination();
-    let src_square = mv.get_source();
+    let dst_square = match side_to_move {
+        Color::White => mv.get_destination(),
+        Color::Black => mv.get_destination().rotated_perspective()
+    };
+    let src_square = match side_to_move {
+        Color::White => mv.get_source(),
+        Color::Black => mv.get_source().rotated_perspective()
+    };
     let unvetted_promotion = mv.get_promotion();
     let flag = mv.get_flag();
-    
+
     if flag == MoveFlag::NormalMove && is_knight_jump(src_square, dst_square) {
         // Knight move
         get_policy_index_for_knight_move(KnightMoveDirection::calc(src_square, dst_square))
@@ -95,28 +101,31 @@ fn get_policy_index_for_move(mv: &Move) -> u8 {
         // Queen-like move
         let mut distance = 0;
         let direction = QueenMoveDirection::calc_and_measure_distance(src_square, dst_square, &mut distance);
-        
+
         let promotion = if flag == MoveFlag::Promotion {
             Some(unvetted_promotion)
         } else {
             None
         };
-        
+
         get_policy_index_for_queen_like_move(direction, distance as u8, promotion)
     }
 }
 
 /// Generates a move mask tensor, marking legal moves with 1 and others with 0.
-pub fn get_move_mask(moves: &Vec<Move>) -> Tensor {
+pub fn get_move_mask(moves: &Vec<Move>, side_to_move: Color) -> Tensor {
     // Initialize a mask tensor with shape [8, 8, 73] (8x8 board, 73 possible moves)
     let mask = Tensor::zeros(&[8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64], (Kind::Float, *DEVICE));
 
     for mv in moves {
         // Get the source square from which the move is made
-        let src_square = mv.get_source();
+        let src_square = match side_to_move {
+            Color::White => mv.get_source(),
+            Color::Black => mv.get_source().rotated_perspective()
+        };
 
         // Determine the policy index using get_policy_index_for_move
-        let policy_index = get_policy_index_for_move(mv);
+        let policy_index = get_policy_index_for_move(mv, side_to_move);
 
         // Set the mask at the corresponding source square and policy index to 1
         let _ = mask.get(src_square.get_rank() as i64)
@@ -133,21 +142,43 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     // - 1 is the batch size
     // - 17 is the number of channels
     // - 8x8 is the board size
-    let tensor = Tensor::zeros(&[1, NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
+    let tensor = Tensor::zeros(&[NUM_STATES_TO_CONSIDER as i64, NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
 
-    // Channel 0-5: White pieces (one channel per piece type)
-    // Channel 6-11: Black pieces (one channel per piece type)
+    // Determine if we need to rotate the board
+    let rotate = state.side_to_move == Color::Black;
+
+    // Channels 0-11: Piece types for both colors
     for (i, piece_type) in PieceType::iter_pieces().enumerate() {
-        // White pieces
-        let white_mask = state.board.piece_type_masks[piece_type as usize] & state.board.color_masks[Color::White as usize];
-        for square in get_squares_from_mask_iter(white_mask) {
-            let _ = tensor.get(0).get(i as i64).get(square.get_rank() as i64).get(square.get_file() as i64).fill_(1.);
+        // Get the bitboard mask for the specific piece type and color
+        let player_piece_type_mask = state.board.color_masks[state.side_to_move as usize] & state.board.piece_type_masks[piece_type as usize];
+        let opponent_piece_type_mask = state.board.color_masks[state.side_to_move.flip() as usize] & state.board.piece_type_masks[piece_type as usize];
+
+        // Channels 0-5: Player's pieces
+        for square in get_squares_from_mask_iter(player_piece_type_mask) {
+            let square_from_unified_perspective = if rotate {
+                square.rotated_perspective()
+            } else {
+                square
+            };
+            let _ = tensor.get(0)
+                .get(piece_type as i64 - PieceType::Pawn as i64)
+                .get(square_from_unified_perspective.get_rank() as i64)
+                .get(square_from_unified_perspective.get_file() as i64)
+                .fill_(1.);
         }
 
-        // Black pieces
-        let black_mask = state.board.piece_type_masks[piece_type as usize] & state.board.color_masks[Color::Black as usize];
-        for square in get_squares_from_mask_iter(black_mask) {
-            let _ = tensor.get(0).get((i + 6) as i64).get(square.get_rank() as i64).get(square.get_file() as i64).fill_(1.);
+        // Channels 6-11: Opponent's pieces
+        for square in get_squares_from_mask_iter(opponent_piece_type_mask) {
+            let square_from_unified_perspective = if rotate {
+                square.rotated_perspective()
+            } else {
+                square
+            };
+            let _ = tensor.get(0)
+                .get(NUM_PIECE_TYPE_BITS as i64 + piece_type as i64 - PieceType::Pawn as i64)
+                .get(square_from_unified_perspective.get_rank() as i64)
+                .get(square_from_unified_perspective.get_file() as i64)
+                .fill_(1.);
         }
     }
 
@@ -155,6 +186,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     let _ = tensor.get(0).get(12).fill_(
         if state.side_to_move == Color::White { 1. } else { 0. }
     );
+    
     // Channel 13-16: Castling rights
     let castling_rights = state.context.borrow().castling_rights;
     let _ = tensor.get(0).get(13).fill_(

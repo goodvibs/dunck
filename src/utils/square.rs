@@ -121,6 +121,14 @@ impl Square {
             Some(unsafe { Square::from(*self as u8 + 9) })
         }
     }
+    
+    pub const fn reflect_rank(&self) -> Square {
+        unsafe { Square::from((self.get_rank() * 8) + self.get_file()) }
+    }
+    
+    pub const fn rotated_perspective(&self) -> Square {
+        unsafe { Square::from(63 - *self as u8) }
+    }
 
     pub const fn get_file_char(&self) -> char {
         (b'a' + self.get_file()) as char
