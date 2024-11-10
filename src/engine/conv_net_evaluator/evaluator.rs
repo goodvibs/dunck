@@ -34,10 +34,7 @@ impl Evaluator for ConvNetEvaluator {
 
         for mv in &legal_moves {
             let policy_index = get_policy_index_for_move(&mv, state.side_to_move);
-            let src_square = match state.side_to_move {
-                Color::White => mv.get_source(),
-                Color::Black => mv.get_source().rotated_perspective()
-            };
+            let src_square = mv.get_source().to_perspective_from_white(state.side_to_move);
             let prior = policy.double_value(&[0, src_square.get_rank() as i64, src_square.get_file() as i64, policy_index as i64]);
             priors.push(prior);
             sum += prior;

@@ -1,5 +1,5 @@
 use std::fmt::Display;
-use crate::utils::Bitboard;
+use crate::utils::{Bitboard, Color};
 use crate::utils::charboard::SQUARE_NAMES;
 use crate::utils::masks::{FILES, RANKS};
 
@@ -128,6 +128,20 @@ impl Square {
     
     pub const fn rotated_perspective(&self) -> Square {
         unsafe { Square::from(63 - *self as u8) }
+    }
+    
+    pub const fn to_perspective_from_white(&self, desired_perspective: Color) -> Square {
+        match desired_perspective {
+            Color::White => *self,
+            Color::Black => self.rotated_perspective()
+        }
+    }
+    
+    pub const fn to_perspective_from_black(&self, desired_perspective: Color) -> Square {
+        match desired_perspective {
+            Color::White => self.rotated_perspective(),
+            Color::Black => *self
+        }
     }
 
     pub const fn get_file_char(&self) -> char {

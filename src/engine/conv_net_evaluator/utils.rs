@@ -52,17 +52,11 @@ pub const fn get_policy_index_for_knight_move(direction: KnightMoveDirection) ->
 /// Maps a move to an index in the policy tensor's 73 possible moves per square.
 pub const fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
     // Extract destination, source, promotion, and flag from the move
-    let dst_square = match side_to_move {
-        Color::White => mv.get_destination(),
-        Color::Black => mv.get_destination().rotated_perspective()
-    };
-    let src_square = match side_to_move {
-        Color::White => mv.get_source(),
-        Color::Black => mv.get_source().rotated_perspective()
-    };
+    let dst_square = mv.get_destination().to_perspective_from_white(side_to_move);
+    let src_square = mv.get_source().to_perspective_from_white(side_to_move);
     let unvetted_promotion = mv.get_promotion();
     let flag = mv.get_flag();
-    
+
     let (is_normal_move, is_promotion) = match flag {
         MoveFlag::NormalMove => (true, false),
         MoveFlag::Promotion => (false, true),
@@ -93,10 +87,7 @@ pub fn get_move_mask(moves: &Vec<Move>, side_to_move: Color) -> Tensor {
 
     for mv in moves {
         // Get the source square from which the move is made
-        let src_square = match side_to_move {
-            Color::White => mv.get_source(),
-            Color::Black => mv.get_source().rotated_perspective()
-        };
+        let src_square = mv.get_source().to_perspective_from_white(side_to_move);
 
         // Determine the policy index using get_policy_index_for_move
         let policy_index = get_policy_index_for_move(mv, side_to_move);
@@ -213,7 +204,7 @@ mod tests {
             }
         }
     }
-    
+
     #[test]
     fn test_get_policy_index_for_queen_like_move() {
         let src_square = Square::A1;
