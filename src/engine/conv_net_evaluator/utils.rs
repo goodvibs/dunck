@@ -151,7 +151,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
 mod tests {
     use std::collections::HashSet;
     use crate::attacks::single_knight_attacks;
-    use crate::engine::conv_net_evaluator::constants::NUM_PAWN_MOVE_DIRECTIONS;
+    use crate::engine::conv_net_evaluator::constants::{MAX_NUM_KNIGHT_MOVES, NUM_PAWN_MOVE_DIRECTIONS};
     use super::*;
 
     #[test]
@@ -198,12 +198,21 @@ mod tests {
         assert!(used_underpromotion_indices.iter().all(|&used| used));
         assert_eq!(used_queen_promotion_indices.len(), NUM_PAWN_MOVE_DIRECTIONS as usize);
     }
-    
+
     #[test]
     fn test_get_policy_index_for_knight_move() {
-        // TODO
+        let mut used_indices = [false; MAX_NUM_KNIGHT_MOVES as usize];
+        for direction in KnightMoveDirection::iter() {
+            let index = get_policy_index_for_knight_move(direction);
+            assert!(index >= NUM_QUEEN_LIKE_MOVES + NUM_WAYS_OF_UNDERPROMOTION);
+            assert!(index < NUM_TARGET_SQUARE_POSSIBILITIES);
+            let modified_index = index - NUM_QUEEN_LIKE_MOVES - NUM_WAYS_OF_UNDERPROMOTION;
+            assert!(!used_indices[modified_index as usize]);
+            used_indices[modified_index as usize] = true;
+        }
+        assert!(used_indices.iter().all(|&used| used));
     }
-    
+
     #[test]
     fn test_get_policy_index_for_move() {
         // TODO
