@@ -69,10 +69,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     // - 17 is the number of channels
     // - 8x8 is the board size
     let tensor = Tensor::zeros(&[NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
-
-    // Determine if we need to rotate the board
-    let rotate = state.side_to_move == Color::Black;
-
+    
     // Channels 0-11: Piece types for both colors
     for piece_type in PieceType::iter_pieces() {
         // Get the bitboard mask for the specific piece type and color
@@ -81,11 +78,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
 
         // Channels 0-5: Player's pieces
         for square in get_squares_from_mask_iter(player_piece_type_mask) {
-            let square_from_unified_perspective = if rotate {
-                square.rotated_perspective()
-            } else {
-                square
-            };
+            let square_from_unified_perspective = square.to_perspective_from_white(state.side_to_move);
             let _ = tensor
                 .get(piece_type as i64 - PieceType::Pawn as i64)
                 .get(square_from_unified_perspective.get_rank() as i64)
@@ -95,11 +88,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
 
         // Channels 6-11: Opponent's pieces
         for square in get_squares_from_mask_iter(opponent_piece_type_mask) {
-            let square_from_unified_perspective = if rotate {
-                square.rotated_perspective()
-            } else {
-                square
-            };
+            let square_from_unified_perspective = square.to_perspective_from_white(state.side_to_move);
             let _ = tensor
                 .get(NUM_PIECE_TYPE_BITS as i64 + piece_type as i64 - PieceType::Pawn as i64)
                 .get(square_from_unified_perspective.get_rank() as i64)
