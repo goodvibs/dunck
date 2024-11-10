@@ -63,12 +63,13 @@ impl MCTSNode {
         }
     }
 
-    fn calc_ucb1(&self, parent_visits: u32, exploration_param: f64) -> f64 {
+    fn calc_ucb1(&self, parent_visits: u32, c_puct: f64) -> f64 {
+        let exploration = c_puct * self.prior * (parent_visits as f64).sqrt() / (1.0 + self.visits as f64);
+
         if self.visits == 0 {
-            f64::INFINITY
+            exploration  // Prior-driven exploration for unvisited nodes
         } else {
             let exploitation = self.value / self.visits as f64;
-            let exploration = exploration_param * ((parent_visits as f64).ln() / self.visits as f64).sqrt() * self.prior;
             exploitation + exploration
         }
     }
@@ -80,7 +81,7 @@ impl MCTSNode {
             a_score.partial_cmp(&b_score).unwrap()
         }).cloned()
     }
-    
+
     fn backup(&mut self, value: f64) {
         self.visits += 1;
         self.value += value;
@@ -124,7 +125,7 @@ impl MCTS {
             evaluator
         }
     }
-    
+
     fn select_best_leaf(&self) -> Rc<RefCell<MCTSNode>> {
         let mut leaf = self.root.clone();
         loop {
@@ -143,19 +144,17 @@ impl MCTS {
     pub fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
             let leaf = self.select_best_leaf();
-            let evaluation;
-            {
-                let state_after_move = &leaf.borrow().state_after_move;
-                evaluation = if leaf.borrow().is_expanded {
-                    let value = evaluate_terminal_state(state_after_move, state_after_move.side_to_move);
-                    Evaluation {
-                        policy: Vec::with_capacity(0),
-                        value,
-                    }
-                } else {
-                    self.evaluator.evaluate(state_after_move)
-                };
-            }
+            let evaluation = if leaf.borrow().is_expanded {
+                let value = evaluate_terminal_state(
+                    &leaf.borrow().state_after_move, leaf.borrow().state_after_move.side_to_move
+                );
+                Evaluation {
+                    policy: Vec::with_capacity(0),
+                    value,
+                }
+            } else { 
+                self.evaluator.evaluate(&leaf.borrow().state_after_move)
+            };
             let leaf_ptr = Rc::clone(&leaf);
             leaf.borrow_mut().expand(evaluation.policy, &leaf_ptr);
             leaf.borrow_mut().backup(evaluation.value);
@@ -182,8 +181,9 @@ mod tests {
 
     #[test]
     fn test_mcts() {
-        let exploration_param = 2.;
+        let exploration_param = 1.5;
         let evaluator = Box::new(RolloutEvaluator::new(200));
+        // let evaluator = Box::new(MaterialEvaluator {});
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),

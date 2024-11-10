@@ -6,13 +6,13 @@ use crate::utils::Color;
 
 #[derive(Clone)]
 pub struct RolloutEvaluator {
-    pub num_rollouts: u32,
+    pub max_rollout_depth: u32,
 }
 
 impl RolloutEvaluator {
-    pub fn new(num_rollouts: u32) -> Self {
+    pub fn new(max_rollout_depth: u32) -> Self {
         Self {
-            num_rollouts,
+            max_rollout_depth,
         }
     }
 }
@@ -37,7 +37,7 @@ impl Evaluator for RolloutEvaluator {
             }
             i += 1;
             
-            if i >= self.num_rollouts {
+            if i >= self.max_rollout_depth {
                 value = 0.;
                 break;
             }
