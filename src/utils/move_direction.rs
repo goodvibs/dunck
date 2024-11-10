@@ -54,7 +54,7 @@ impl QueenLikeMoveDirection {
         }
     }
 
-    pub const fn calc_and_measure_distance(src_square: Square, dst_square: Square) -> (QueenLikeMoveDirection, usize) {
+    pub const fn calc_and_measure_distance(src_square: Square, dst_square: Square) -> (QueenLikeMoveDirection, u8) {
         let value_change = dst_square as i8 - src_square as i8;
 
         let positive_direction;
@@ -75,9 +75,9 @@ impl QueenLikeMoveDirection {
         }
 
         if value_change < 0 {
-            (positive_direction.flip(), -distance_temp as usize)
+            (positive_direction.flip(), -distance_temp as u8)
         } else {
-            (positive_direction, distance_temp as usize)
+            (positive_direction, distance_temp as u8)
         }
     }
 }

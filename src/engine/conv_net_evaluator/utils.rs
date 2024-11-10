@@ -52,17 +52,11 @@ pub const fn get_policy_index_for_knight_move(direction: KnightMoveDirection) ->
 }
 
 /// Maps a move to an index in the policy tensor's 73 possible moves per square.
-pub const fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
-    // Extract destination, source, promotion, and flag from the move
-    let dst_square = mv.get_destination().to_perspective_from_white(side_to_move);
-    let src_square = mv.get_source().to_perspective_from_white(side_to_move);
-    let unvetted_promotion = mv.get_promotion();
-    let flag = mv.get_flag();
-
-    let (is_normal_move, is_promotion) = match flag {
-        MoveFlag::NormalMove => (true, false),
-        MoveFlag::Promotion => (false, true),
-        _ => (false, false)
+/// Assumes that the move is from the perspective of the current player.
+pub const fn get_policy_index_for_move(src_square: Square, dst_square: Square, vetted_promotion: Option<PieceType>, flag: MoveFlag) -> u8 {
+    let is_normal_move = match flag {
+        MoveFlag::NormalMove => true,
+        _ => false
     };
 
     if is_normal_move && is_knight_jump(src_square, dst_square) {
@@ -71,14 +65,7 @@ pub const fn get_policy_index_for_move(mv: &Move, side_to_move: Color) -> u8 {
     } else {
         // Queen-like move
         let (direction, distance) = QueenLikeMoveDirection::calc_and_measure_distance(src_square, dst_square);
-
-        let promotion = if is_promotion {
-            Some(unvetted_promotion)
-        } else {
-            None
-        };
-
-        get_policy_index_for_queen_like_move(direction, distance as u8, promotion)
+        get_policy_index_for_queen_like_move(direction, distance as u8, vetted_promotion)
     }
 }
 

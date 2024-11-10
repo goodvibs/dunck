@@ -33,9 +33,30 @@ impl Evaluator for ConvNetEvaluator {
         let mut sum = 0.;
 
         for mv in &legal_moves {
-            let policy_index = get_policy_index_for_move(&mv, state.side_to_move);
-            let src_square = mv.get_source().to_perspective_from_white(state.side_to_move);
-            let prior = policy.double_value(&[0, src_square.get_rank() as i64, src_square.get_file() as i64, policy_index as i64]);
+            let src_square_from_current_perspective = mv.get_source().to_perspective_from_white(state.side_to_move);
+            let dst_square_from_current_perspective = mv.get_destination().to_perspective_from_white(state.side_to_move);
+            let flag = mv.get_flag();
+            let vetted_promotion = match flag {
+                MoveFlag::Promotion => Some(mv.get_promotion()),
+                _ => None
+            };
+            
+            let policy_index = get_policy_index_for_move(
+                src_square_from_current_perspective,
+                dst_square_from_current_perspective,
+                vetted_promotion,
+                flag
+            );
+            
+            let prior = policy.double_value(
+                &[
+                    0,
+                    src_square_from_current_perspective.get_rank() as i64,
+                    src_square_from_current_perspective.get_file() as i64,
+                    policy_index as i64
+                ]
+            );
+            
             priors.push(prior);
             sum += prior;
         }
