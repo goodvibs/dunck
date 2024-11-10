@@ -138,11 +138,10 @@ pub fn get_move_mask(moves: &Vec<Move>, side_to_move: Color) -> Tensor {
 }
 
 pub fn state_to_tensor(state: &State) -> Tensor {
-    // Initialize a tensor with shape [1, 17, 8, 8], where:
-    // - 1 is the batch size
+    // Initialize a tensor with shape [17, 8, 8], where:
     // - 17 is the number of channels
     // - 8x8 is the board size
-    let tensor = Tensor::zeros(&[NUM_STATES_TO_CONSIDER as i64, NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
+    let tensor = Tensor::zeros(&[NUM_POSITION_BITS as i64, 8, 8], (Kind::Float, *DEVICE));
 
     // Determine if we need to rotate the board
     let rotate = state.side_to_move == Color::Black;
@@ -160,7 +159,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
             } else {
                 square
             };
-            let _ = tensor.get(0)
+            let _ = tensor
                 .get(piece_type as i64 - PieceType::Pawn as i64)
                 .get(square_from_unified_perspective.get_rank() as i64)
                 .get(square_from_unified_perspective.get_file() as i64)
@@ -174,7 +173,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
             } else {
                 square
             };
-            let _ = tensor.get(0)
+            let _ = tensor
                 .get(NUM_PIECE_TYPE_BITS as i64 + piece_type as i64 - PieceType::Pawn as i64)
                 .get(square_from_unified_perspective.get_rank() as i64)
                 .get(square_from_unified_perspective.get_file() as i64)
@@ -183,22 +182,22 @@ pub fn state_to_tensor(state: &State) -> Tensor {
     }
 
     // Channel 12: Side to move (1 if white to move, 0 if black to move)
-    let _ = tensor.get(0).get(12).fill_(
+    let _ = tensor.get(12).fill_(
         if state.side_to_move == Color::White { 1. } else { 0. }
     );
     
     // Channel 13-16: Castling rights
     let castling_rights = state.context.borrow().castling_rights;
-    let _ = tensor.get(0).get(13).fill_(
+    let _ = tensor.get(13).fill_(
         if castling_rights & 0b1000 != 0 { 1. } else { 0. }
     );
-    let _ = tensor.get(0).get(14).fill_(
+    let _ = tensor.get(14).fill_(
         if castling_rights & 0b0100 != 0 { 1. } else { 0. }
     );
-    let _ = tensor.get(0).get(15).fill_(
+    let _ = tensor.get(15).fill_(
         if castling_rights & 0b0010 != 0 { 1. } else { 0. }
     );
-    let _ = tensor.get(0).get(16).fill_(
+    let _ = tensor.get(16).fill_(
         if castling_rights & 0b0001 != 0 { 1. } else { 0. }
     );
 
@@ -319,7 +318,7 @@ mod tests {
         let state = State::initial();
         let tensor = state_to_tensor(&state);
 
-        assert_eq!(tensor.size(), [1, NUM_POSITION_BITS as i64, 8, 8]);
+        assert_eq!(tensor.size(), [NUM_POSITION_BITS as i64, 8, 8]);
     }
 
     #[test]
