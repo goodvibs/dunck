@@ -91,7 +91,7 @@ impl MCTSNode {
     }
 
     fn metadata(&self) -> String {
-        format!("MCTSNode(move: {:?}, visits: {}, value: {})", self.mv, self.visits, self.value)
+        format!("MCTSNode(move: {:?}, prior: {}, visits: {}, value: {})", self.mv, self.prior, self.visits, self.value)
     }
 
     fn fmt_helper(&self, depth: usize, depth_limit: usize) -> String {
@@ -182,8 +182,8 @@ mod tests {
     #[test]
     fn test_mcts() {
         let exploration_param = 1.5;
-        let evaluator = Box::new(RolloutEvaluator::new(200));
-        // let evaluator = Box::new(MaterialEvaluator {});
+        // let evaluator = Box::new(RolloutEvaluator::new(200));
+        let evaluator = Box::new(MaterialEvaluator {});
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
@@ -192,7 +192,7 @@ mod tests {
         );
         for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(800);
+            mcts.run(8000);
             println!("{}", mcts);
             if let Some(best_move_node) = mcts.select_best_move() {
                 let best_move = best_move_node.borrow().mv.clone();
