@@ -149,7 +149,9 @@ pub fn state_to_tensor(state: &State) -> Tensor {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
     use crate::attacks::single_knight_attacks;
+    use crate::engine::conv_net_evaluator::constants::NUM_PAWN_MOVE_DIRECTIONS;
     use super::*;
 
     #[test]
@@ -176,8 +178,25 @@ mod tests {
     }
 
     #[test]
-    fn test_get_policy_index_for_pawns() {
-        // TODO
+    fn test_get_policy_index_for_promotions() {
+        let mut used_underpromotion_indices = [false; NUM_WAYS_OF_UNDERPROMOTION as usize];
+        let mut used_queen_promotion_indices = HashSet::new();
+        for direction in [QueenLikeMoveDirection::UpLeft, QueenLikeMoveDirection::Up, QueenLikeMoveDirection::UpRight].iter() {
+            for promotion in [PieceType::Knight, PieceType::Bishop, PieceType::Rook].iter() {
+                let index = get_policy_index_for_queen_like_move(*direction, 1, Some(*promotion));
+                assert!(index >= NUM_QUEEN_LIKE_MOVES);
+                assert!(index < NUM_TARGET_SQUARE_POSSIBILITIES);
+                let modified_index = index - NUM_QUEEN_LIKE_MOVES;
+                assert!(!used_underpromotion_indices[modified_index as usize]);
+                used_underpromotion_indices[modified_index as usize] = true;
+            }
+            let index = get_policy_index_for_queen_like_move(*direction, 1, Some(PieceType::Queen));
+            assert!(index < NUM_QUEEN_LIKE_MOVES);
+            assert!(!used_queen_promotion_indices.contains(&index));
+            used_queen_promotion_indices.insert(index);
+        }
+        assert!(used_underpromotion_indices.iter().all(|&used| used));
+        assert_eq!(used_queen_promotion_indices.len(), NUM_PAWN_MOVE_DIRECTIONS as usize);
     }
     
     #[test]
