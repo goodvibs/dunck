@@ -144,7 +144,7 @@ impl Display for MCTSNode {
 }
 
 pub struct MCTS {
-    root: Rc<RefCell<MCTSNode>>,
+    pub root: Rc<RefCell<MCTSNode>>,
     exploration_param: f64,
     evaluator: Box<dyn Evaluator>,
     save_data: bool,
@@ -177,7 +177,7 @@ impl MCTS {
         }
     }
 
-    pub fn run(&mut self, iterations: u32) {
+    pub fn run(&mut self, iterations: usize) {
         for _ in 0..iterations {
             let leaf = self.select_best_leaf();
             let state_after_move = leaf.borrow().state_after_move.clone();
@@ -228,6 +228,23 @@ impl MCTS {
             Err("No best child found".to_string())
         }
     }
+
+    pub fn play_game(&mut self, num_iterations_per_move: usize, max_depth: usize) -> f64 {
+        let initial_side_to_move = self.root.borrow().state_after_move.side_to_move;
+        for _ in 0..max_depth {
+            self.run(num_iterations_per_move);
+            match self.take_best_child() {
+                Ok(_) => {}
+                Err(_) => {
+                    let final_state = self.root.borrow().state_after_move.clone();
+                    assert!(final_state.termination.is_some());
+                    assert!(final_state.is_unequivocally_valid());
+                    return evaluate_terminal_state(&final_state, initial_side_to_move);
+                }
+            }
+        }
+        0.
+    }
 }
 
 impl Display for MCTS {
@@ -272,5 +289,20 @@ mod tests {
                 }
             }
         }
+    }
+    
+    #[test]
+    fn test_simulation() {
+        let exploration_param = 1.5;
+        let mut mcts = MCTS::new(
+            State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
+            exploration_param,
+            // Box::new(MaterialEvaluator {}),
+            // Box::new(RolloutEvaluator::new(200)),
+            Box::new(ConvNetEvaluator::new(4, false)),
+            true
+        );
+        let result = mcts.play_game(800, 300);
+        println!("Simulation result: {}", result);
     }
 }
