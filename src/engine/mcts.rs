@@ -211,7 +211,7 @@ mod tests {
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
             exploration_param,
-            Box::new(ConvNetEvaluator::new())
+            Box::new(ConvNetEvaluator::new(4, false))
         );
         for i in 0..1 {
             println!("Move: {}", i);
@@ -223,7 +223,7 @@ mod tests {
                 mcts = MCTS::new(
                     next_state.clone(),
                     exploration_param,
-                    Box::new(ConvNetEvaluator::new())
+                    Box::new(ConvNetEvaluator::new(4, true))
                 );
                 next_state.board.print();
                 println!("Best move: {:?}", best_move.unwrap().uci());

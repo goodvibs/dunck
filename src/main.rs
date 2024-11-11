@@ -66,7 +66,7 @@ fn main() {
             "b" | "BEST" => {
                 let exploration_constant = 2.0;
                 // let evaluator = engine::material_evaluator::MaterialEvaluator {};
-                let evaluator = engine::conv_net_evaluator::ConvNetEvaluator::new();
+                let evaluator = engine::conv_net_evaluator::ConvNetEvaluator::new(4, false);
                 let mut mcts = MCTS::new(state.clone(), exploration_constant, Box::new(evaluator));
                 mcts.run(800);
                 if let Some(best_move_node) = mcts.get_best_child_by_visits() {

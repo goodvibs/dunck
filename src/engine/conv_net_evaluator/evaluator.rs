@@ -9,16 +9,17 @@ use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 pub struct ConvNetEvaluator {
-    model: ConvNet,
+    pub model: ConvNet,
+    pub train: bool
 }
 
 impl ConvNetEvaluator {
-    pub fn new() -> ConvNetEvaluator {
-        let vs = nn::VarStore::new(*DEVICE);
-        let model = ConvNet::new(&vs.root(), 4);
+    pub fn new(num_residual_blocks: usize, train: bool) -> ConvNetEvaluator {
+        let model = ConvNet::new(*DEVICE, num_residual_blocks);
 
         ConvNetEvaluator {
-            model
+            model,
+            train
         }
     }
 }
@@ -26,7 +27,7 @@ impl ConvNetEvaluator {
 impl Evaluator for ConvNetEvaluator {
     fn evaluate(&self, state: &State) -> Evaluation {
         let input_tensor = state_to_tensor(state);
-        let (policy, value) = self.model.forward(&input_tensor);
+        let (policy, value) = self.model.forward(&input_tensor, self.train);
 
         let legal_moves = state.calc_legal_moves();
         let mut priors = Vec::with_capacity(legal_moves.len());
