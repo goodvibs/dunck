@@ -14,8 +14,8 @@ pub struct ConvNetEvaluator {
 }
 
 impl ConvNetEvaluator {
-    pub fn new(num_residual_blocks: usize, train: bool) -> ConvNetEvaluator {
-        let model = ConvNet::new(*DEVICE, num_residual_blocks);
+    pub fn new(num_residual_blocks: usize, num_filters: i64, train: bool) -> ConvNetEvaluator {
+        let model = ConvNet::new(*DEVICE, num_residual_blocks, num_filters);
 
         ConvNetEvaluator {
             model,

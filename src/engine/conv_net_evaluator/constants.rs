@@ -26,4 +26,3 @@ pub const NUM_WAYS_OF_UNDERPROMOTION: u8 = NUM_PAWN_MOVE_DIRECTIONS * NUM_UNDERP
 
 pub const NUM_TARGET_SQUARE_POSSIBILITIES: u8 = NUM_QUEEN_LIKE_MOVES + MAX_NUM_KNIGHT_MOVES + NUM_WAYS_OF_UNDERPROMOTION; // 73 of possible target squares for a move
 pub const NUM_OUTPUT_POLICY_MOVES: usize = 64 * NUM_TARGET_SQUARE_POSSIBILITIES as usize; // 4672 possible moves for policy head
-pub const NUM_INITIAL_CONV_OUTPUT_CHANNELS: usize = 32; // Output channels for initial conv layer

@@ -12,6 +12,7 @@ use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, Piece
 #[derive(Debug)]
 pub struct ConvNet {
     pub vs: nn::VarStore,
+    pub num_filters: i64,
     conv1: nn::Conv2D,
     bn1: nn::BatchNorm,
     residual_blocks: Vec<ResidualBlock>,
@@ -20,38 +21,39 @@ pub struct ConvNet {
 }
 
 impl ConvNet {
-    pub fn new(device: Device, num_residual_blocks: usize) -> ConvNet {
+    pub fn new(device: Device, num_residual_blocks: usize, num_filters: i64) -> ConvNet {
         let vs = nn::VarStore::new(device);
         let root = &vs.root();
         
         // Initial convolutional layer
-        let conv1 = nn::conv2d(root, NUM_POSITION_BITS as i64, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64, 3, nn::ConvConfig { padding: 1, ..Default::default() }); // 17 input channels, 32 output channels
+        let conv1 = nn::conv2d(root, NUM_POSITION_BITS as i64, num_filters, 3, nn::ConvConfig { padding: 1, ..Default::default() }); // 17 input channels, num_filters output channels
 
         // Batch normalization for initial convolution layer
-        let bn1 = nn::batch_norm2d(root, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64, Default::default());
+        let bn1 = nn::batch_norm2d(root, num_filters, Default::default());
 
         // Residual blocks
         let mut residual_blocks = Vec::new();
         for _ in 0..num_residual_blocks {
-            residual_blocks.push(ResidualBlock::new(root, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64));
+            residual_blocks.push(ResidualBlock::new(root, num_filters));
         }
 
         // Fully connected layers for policy and value heads
         let fc_policy = nn::linear(
             root,
-            NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 64,
+            num_filters * 64,
             NUM_OUTPUT_POLICY_MOVES as i64,
             Default::default(),
         );
         let fc_value = nn::linear(
             root,
-            NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 64,
+            num_filters * 64,
             1,
             Default::default(),
         );
 
         ConvNet {
             vs,
+            num_filters,
             conv1,
             bn1,
             residual_blocks,
@@ -84,7 +86,7 @@ impl ConvNet {
         }
 
         // Flatten for fully connected layers
-        x = x.view([-1, NUM_INITIAL_CONV_OUTPUT_CHANNELS as i64 * 8 * 8]);
+        x = x.view([-1, self.num_filters * 8 * 8]);
 
         // Policy head: Softmax over 4672 possible moves
         let policy = self
@@ -108,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_chess_model() {
-        let model = ConvNet::new(*DEVICE, 4);
+        let model = ConvNet::new(*DEVICE, 4, 8);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor, false);
@@ -120,7 +122,7 @@ mod tests {
     #[test]
     fn test_training() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ConvNet::new(*DEVICE, 4);
+        let model = ConvNet::new(*DEVICE, 4, 8);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor, true);
@@ -140,7 +142,7 @@ mod tests {
     #[test]
     fn test_train_1000_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ConvNet::new(*DEVICE, 4);
+        let model = ConvNet::new(*DEVICE, 4, 8);
         let mut optimizer = nn::Adam::default().build(&vs, 1e-3).unwrap();
 
         for _ in 0..1000 {

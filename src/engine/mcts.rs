@@ -268,14 +268,14 @@ mod tests {
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
             exploration_param,
-            // Box::new(ConvNetEvaluator::new(4, true)),
+            Box::new(ConvNetEvaluator::new(4, 8, true)),
             // Box::new(RolloutEvaluator::new(200)),
-            Box::new(MaterialEvaluator {}),
+            // Box::new(MaterialEvaluator {}),
             true
         );
-        for i in 0..5 {
+        for i in 0..10 {
             println!("Move: {}", i);
-            mcts.run(800);
+            mcts.run(400);
             println!("{}", mcts);
             let initial_state = mcts.root.borrow().state_after_move.clone();
             match mcts.take_best_child() {
@@ -292,17 +292,21 @@ mod tests {
     }
     
     #[test]
-    fn test_simulation() {
+    fn test_play_game() {
         let exploration_param = 1.5;
         let mut mcts = MCTS::new(
-            State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
+            State::initial(),
             exploration_param,
             // Box::new(MaterialEvaluator {}),
             // Box::new(RolloutEvaluator::new(200)),
-            Box::new(ConvNetEvaluator::new(4, false)),
+            Box::new(ConvNetEvaluator::new(4, 8, false)),
             true
         );
-        let result = mcts.play_game(800, 300);
+        let result = mcts.play_game(400, 300);
+        for (state, evaluation) in mcts.state_evaluations.iter() {
+            println!("State: {}", state.board);
+            println!("Evaluation: {:?}", evaluation);
+        }
         println!("Simulation result: {}", result);
     }
 }
