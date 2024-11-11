@@ -79,7 +79,7 @@ impl MCTSNode {
         }
     }
 
-    fn calc_ucb1(&self, parent_visits: u32, c_puct: f64) -> f64 {
+    fn calc_puct(&self, parent_visits: u32, c_puct: f64) -> f64 {
         let exploration = c_puct * self.prior * (parent_visits as f64).sqrt() / (1.0 + self.visits as f64);
 
         if self.visits == 0 {
@@ -89,11 +89,20 @@ impl MCTSNode {
             exploitation + exploration
         }
     }
+    
+    fn calc_ucb1(&self, parent_visits: u32, c_ucb1: f64) -> f64 {
+        if self.visits == 0 {
+            f64::INFINITY
+        } else {
+            let exploitation = self.value / self.visits as f64;
+            exploitation + c_ucb1 * (parent_visits as f64).ln() / self.visits as f64
+        }
+    }
 
     fn select_best_child(&mut self, exploration_param: f64) -> Option<Rc<RefCell<MCTSNode>>> {
         self.children.iter().max_by(|a, b| {
-            let a_score = a.borrow().calc_ucb1(self.visits, exploration_param);
-            let b_score = b.borrow().calc_ucb1(self.visits, exploration_param);
+            let a_score = a.borrow().calc_puct(self.visits, exploration_param);
+            let b_score = b.borrow().calc_puct(self.visits, exploration_param);
             a_score.partial_cmp(&b_score).unwrap()
         }).cloned()
     }
@@ -222,10 +231,11 @@ mod tests {
             // State::initial(),
             exploration_param,
             // Box::new(ConvNetEvaluator::new(4, true)),
-            Box::new(RolloutEvaluator::new(200)),
+            // Box::new(RolloutEvaluator::new(200)),
+            Box::new(MaterialEvaluator {}),
             true
         );
-        for i in 0..5 {
+        for i in 0..1 {
             println!("Move: {}", i);
             mcts.run(800);
             println!("{}", mcts);
@@ -236,7 +246,8 @@ mod tests {
                     next_state.clone(),
                     exploration_param,
                     // Box::new(ConvNetEvaluator::new(4, true)),
-                    Box::new(RolloutEvaluator::new(200)),
+                    // Box::new(RolloutEvaluator::new(200)),
+                    Box::new(MaterialEvaluator {}),
                     true
                 );
                 next_state.board.print();
