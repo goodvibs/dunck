@@ -202,8 +202,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 
-    test_mcts() {
+    fn test_mcts() {
         let exploration_param = 1.5;
         // let evaluator = Box::new(RolloutEvaluator::new(200));
         // let evaluator = Box::new(MaterialEvaluator {});
@@ -213,7 +212,7 @@ mod tests {
             exploration_param,
             Box::new(ConvNetEvaluator::new(4, false))
         );
-        for i in 0..1 {
+        for i in 0..5 {
             println!("Move: {}", i);
             mcts.run(800);
             println!("{}", mcts);

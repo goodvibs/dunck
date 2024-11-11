@@ -11,7 +11,7 @@ use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, Piece
 // Define the main model structure
 #[derive(Debug)]
 pub struct ConvNet {
-    vs: nn::VarStore,
+    pub vs: nn::VarStore,
     conv1: nn::Conv2D,
     bn1: nn::BatchNorm,
     residual_blocks: Vec<ResidualBlock>,
@@ -70,11 +70,6 @@ impl ConvNet {
     pub fn load(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
         self.vs.load(path)?;
         Ok(())
-    }
-
-    /// Access the device for optimizer setup
-    pub fn device(&self) -> Device {
-        self.vs.device()
     }
 
     /// Forward pass through the model
@@ -143,12 +138,12 @@ mod tests {
     }
 
     #[test]
-    fn test_train_100_iterations() {
+    fn test_train_1000_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
         let model = ConvNet::new(*DEVICE, 4);
         let mut optimizer = nn::Adam::default().build(&vs, 1e-3).unwrap();
 
-        for _ in 0..100 {
+        for _ in 0..1000 {
             let input_tensor = state_to_tensor(&State::initial());
             let (policy, value) = model.forward(&input_tensor, true);
 
