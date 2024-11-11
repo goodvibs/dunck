@@ -56,6 +56,13 @@ impl MCTSNode {
         }
     }
 
+    fn flip_values(&mut self) {
+        self.value = -self.value;
+        for child in &self.children {
+            child.borrow_mut().flip_values();
+        }
+    }
+
     fn expand(&mut self, policy: Vec<(Move, f64)>, self_ptr: &Rc<RefCell<MCTSNode>>) {
         self.is_expanded = true;
         if policy.is_empty() {
@@ -89,7 +96,7 @@ impl MCTSNode {
             exploitation + exploration
         }
     }
-    
+
     fn calc_ucb1(&self, parent_visits: u32, c_ucb1: f64) -> f64 {
         if self.visits == 0 {
             f64::INFINITY
@@ -132,7 +139,7 @@ impl MCTSNode {
 
 impl Display for MCTSNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.fmt_helper(0, 2))
+        write!(f, "{}", self.fmt_helper(0, 1))
     }
 }
 
@@ -183,7 +190,7 @@ impl MCTS {
                     policy: Vec::with_capacity(0),
                     value,
                 }
-            } else { 
+            } else {
                 self.evaluator.evaluate(&state_after_move)
             };
 
@@ -195,7 +202,7 @@ impl MCTS {
             leaf.borrow_mut().backup(evaluation.value);
         }
     }
-    
+
     pub fn get_best_child_by_score(&self) -> Option<Rc<RefCell<MCTSNode>>> {
         self.root.borrow_mut().select_best_child(0.)
     }
@@ -206,6 +213,20 @@ impl MCTS {
             let b_score = b.borrow().visits;
             a_score.cmp(&b_score)
         }).cloned()
+    }
+
+    pub fn take_best_child(&mut self) -> Result<(State, Move), String> {
+        if let Some(best_child) = self.get_best_child_by_visits() {
+            let best_move = best_child.borrow().mv.clone();
+            let next_state = best_child.borrow().state_after_move.clone();
+            self.root = best_child;
+            self.root.borrow_mut().previous_node = None;
+            self.root.borrow_mut().flip_values();
+
+            Ok((next_state, best_move.unwrap()))
+        } else {
+            Err("No best child found".to_string())
+        }
     }
 }
 
@@ -235,27 +256,20 @@ mod tests {
             Box::new(MaterialEvaluator {}),
             true
         );
-        for i in 0..1 {
+        for i in 0..5 {
             println!("Move: {}", i);
             mcts.run(800);
             println!("{}", mcts);
-            if let Some(best_move_node) = mcts.get_best_child_by_visits() {
-                let best_move = best_move_node.borrow().mv.clone();
-                let next_state = best_move_node.borrow().state_after_move.clone();
-                mcts = MCTS::new(
-                    next_state.clone(),
-                    exploration_param,
-                    // Box::new(ConvNetEvaluator::new(4, true)),
-                    // Box::new(RolloutEvaluator::new(200)),
-                    Box::new(MaterialEvaluator {}),
-                    true
-                );
-                next_state.board.print();
-                println!("Best move: {:?}", best_move.unwrap().uci());
-                println!();
-            }
-            else{
-                break;
+            let initial_state = mcts.root.borrow().state_after_move.clone();
+            match mcts.take_best_child() {
+                Ok((next_state, mv)) => {
+                    println!("Playing best move: {:?}", mv.san(&initial_state, &next_state, &next_state.calc_legal_moves()));
+                    next_state.board.print();
+                }
+                Err(e) => {
+                    println!("Error: {}", e);
+                    break;
+                }
             }
         }
     }
