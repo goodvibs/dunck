@@ -20,6 +20,7 @@ pub fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Evaluation {
     pub policy: Vec<(Move, f64)>,
     pub value: f64,
@@ -57,7 +58,9 @@ impl MCTSNode {
 
     fn expand(&mut self, policy: Vec<(Move, f64)>, self_ptr: &Rc<RefCell<MCTSNode>>) {
         self.is_expanded = true;
-        if !policy.is_empty() {
+        if policy.is_empty() {
+            self.state_after_move.assume_and_update_termination();
+        } else {
             for (legal_move, prior) in policy {
                 let mut new_state = self.state_after_move.clone();
                 new_state.make_move(legal_move);
@@ -127,15 +130,19 @@ impl Display for MCTSNode {
 pub struct MCTS {
     root: Rc<RefCell<MCTSNode>>,
     exploration_param: f64,
-    evaluator: Box<dyn Evaluator>
+    evaluator: Box<dyn Evaluator>,
+    save_data: bool,
+    state_evaluations: Vec<(State, Evaluation)>
 }
 
 impl MCTS {
-    pub fn new(state: State, exploration_param: f64, evaluator: Box<dyn Evaluator>) -> Self {
+    pub fn new(state: State, exploration_param: f64, evaluator: Box<dyn Evaluator>, save_data: bool) -> Self {
         Self {
             root: Rc::new(RefCell::new(MCTSNode::new(None, None, state))),
             exploration_param,
-            evaluator
+            evaluator,
+            save_data,
+            state_evaluations: Vec::new()
         }
     }
 
@@ -157,19 +164,25 @@ impl MCTS {
     pub fn run(&mut self, iterations: u32) {
         for _ in 0..iterations {
             let leaf = self.select_best_leaf();
+            let state_after_move = leaf.borrow().state_after_move.clone();
             let evaluation = if leaf.borrow().is_expanded {
+                // leaf.borrow_mut().state_after_move.assume_and_update_termination();
                 let value = evaluate_terminal_state(
-                    &leaf.borrow().state_after_move, leaf.borrow().state_after_move.side_to_move
+                    &state_after_move, state_after_move.side_to_move
                 );
                 Evaluation {
                     policy: Vec::with_capacity(0),
                     value,
                 }
             } else { 
-                self.evaluator.evaluate(&leaf.borrow().state_after_move)
+                self.evaluator.evaluate(&state_after_move)
             };
-            let leaf_ptr = Rc::clone(&leaf);
-            leaf.borrow_mut().expand(evaluation.policy, &leaf_ptr);
+
+            if self.save_data {
+                self.state_evaluations.push((state_after_move, evaluation.clone()));
+            }
+
+            leaf.borrow_mut().expand(evaluation.policy, &Rc::clone(&leaf));
             leaf.borrow_mut().backup(evaluation.value);
         }
     }
@@ -204,13 +217,13 @@ mod tests {
     #[test]
     fn test_mcts() {
         let exploration_param = 1.5;
-        // let evaluator = Box::new(RolloutEvaluator::new(200));
-        // let evaluator = Box::new(MaterialEvaluator {});
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
             exploration_param,
-            Box::new(ConvNetEvaluator::new(4, false))
+            // Box::new(ConvNetEvaluator::new(4, true)),
+            Box::new(RolloutEvaluator::new(200)),
+            true
         );
         for i in 0..5 {
             println!("Move: {}", i);
@@ -222,7 +235,9 @@ mod tests {
                 mcts = MCTS::new(
                     next_state.clone(),
                     exploration_param,
-                    Box::new(ConvNetEvaluator::new(4, true))
+                    // Box::new(ConvNetEvaluator::new(4, true)),
+                    Box::new(RolloutEvaluator::new(200)),
+                    true
                 );
                 next_state.board.print();
                 println!("Best move: {:?}", best_move.unwrap().uci());
