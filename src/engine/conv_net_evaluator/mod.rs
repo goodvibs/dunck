@@ -1,7 +1,8 @@
 mod evaluator;
 mod conv_net;
-mod utils;
+pub(crate) mod utils;
 mod constants;
 mod residual_block;
+mod train;
 
 pub use evaluator::*;

@@ -24,7 +24,7 @@ impl ConvNet {
     pub fn new(device: Device, num_residual_blocks: usize, num_filters: i64) -> ConvNet {
         let vs = nn::VarStore::new(device);
         let root = &vs.root();
-        
+
         // Initial convolutional layer
         let conv1 = nn::conv2d(root, NUM_POSITION_BITS as i64, num_filters, 3, nn::ConvConfig { padding: 1, ..Default::default() }); // 17 input channels, num_filters output channels
 

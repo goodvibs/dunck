@@ -143,16 +143,16 @@ impl Display for MCTSNode {
     }
 }
 
-pub struct MCTS {
+pub struct MCTS<'a> {
     pub root: Rc<RefCell<MCTSNode>>,
-    exploration_param: f64,
-    evaluator: Box<dyn Evaluator>,
-    save_data: bool,
-    state_evaluations: Vec<(State, Evaluation)>
+    pub exploration_param: f64,
+    evaluator: &'a dyn Evaluator,
+    pub save_data: bool,
+    pub state_evaluations: Vec<(State, Evaluation)>
 }
 
-impl MCTS {
-    pub fn new(state: State, exploration_param: f64, evaluator: Box<dyn Evaluator>, save_data: bool) -> Self {
+impl<'a> MCTS<'a> {
+    pub fn new(state: State, exploration_param: f64, evaluator: &'a dyn Evaluator, save_data: bool) -> Self {
         Self {
             root: Rc::new(RefCell::new(MCTSNode::new(None, None, state))),
             exploration_param,
@@ -247,7 +247,7 @@ impl MCTS {
     }
 }
 
-impl Display for MCTS {
+impl<'a> Display for MCTS<'a> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.root.borrow())
     }
@@ -263,14 +263,13 @@ mod tests {
 
     #[test]
     fn test_mcts() {
+        let evaluator = ConvNetEvaluator::new(4, 8, true);
         let exploration_param = 1.5;
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
             exploration_param,
-            Box::new(ConvNetEvaluator::new(4, 8, true)),
-            // Box::new(RolloutEvaluator::new(200)),
-            // Box::new(MaterialEvaluator {}),
+            &evaluator,
             true
         );
         for i in 0..10 {
@@ -293,13 +292,12 @@ mod tests {
     
     #[test]
     fn test_play_game() {
+        let evaluator = ConvNetEvaluator::new(4, 8, true);
         let exploration_param = 1.5;
         let mut mcts = MCTS::new(
             State::initial(),
             exploration_param,
-            // Box::new(MaterialEvaluator {}),
-            // Box::new(RolloutEvaluator::new(200)),
-            Box::new(ConvNetEvaluator::new(4, 8, false)),
+            &evaluator,
             true
         );
         let result = mcts.play_game(400, 300);

@@ -1,5 +1,4 @@
 use std::iter::zip;
-use lazy_static::lazy_static;
 use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor, Device, Kind};
 use crate::engine::conv_net_evaluator::conv_net::{ConvNet};
 use crate::engine::conv_net_evaluator::utils::{get_policy_index_for_move, state_to_tensor, DEVICE};
@@ -8,6 +7,7 @@ use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
+#[derive(Debug)]
 pub struct ConvNetEvaluator {
     pub model: ConvNet,
     pub train: bool
