@@ -3,7 +3,7 @@ use tch::nn::OptimizerConfig;
 use tch::{nn, Tensor};
 use rand::seq::SliceRandom;
 use std::time::Instant;
-use dunck::engine::conv_net_evaluator::constants::NUM_OUTPUT_POLICY_MOVES;
+use dunck::engine::conv_net_evaluator::constants::{NUM_OUTPUT_POLICY_MOVES, NUM_TARGET_SQUARE_POSSIBILITIES};
 use dunck::engine::conv_net_evaluator::ConvNetEvaluator;
 use dunck::engine::conv_net_evaluator::utils::{get_policy_index_for_move, state_to_tensor};
 use dunck::engine::mcts::{Evaluation, MCTS};
@@ -14,8 +14,8 @@ pub const EXPLORATION_PARAM: f64 = 1.5;
 pub const NUM_RESIDUAL_BLOCKS: usize = 4;
 pub const NUM_FILTERS: i64 = 8;
 pub const BATCH_SIZE: i64 = 256;
-pub const LEARNING_RATE: f64 = 0.001;
-pub const GAMES_BEFORE_TRAINING: usize = 100;
+pub const LEARNING_RATE: f64 = 0.01;
+pub const GAMES_BEFORE_TRAINING: usize = 5;
 pub const MAX_GAME_DEPTH: usize = 200;
 
 fn train(num_games: usize, num_mcts_iterations_per_move: usize) {
@@ -41,6 +41,8 @@ fn train(num_games: usize, num_mcts_iterations_per_move: usize) {
 
         // Play game and collect training data
         mcts.play_game(num_mcts_iterations_per_move, MAX_GAME_DEPTH);
+        
+        let final_state = mcts.root.borrow().state_after_move.clone();
 
         // Get training data from MCTS
         all_training_data.extend(mcts.state_evaluations);
@@ -65,6 +67,8 @@ fn train(num_games: usize, num_mcts_iterations_per_move: usize) {
             num_games,
             elapsed.as_secs_f32()
         );
+        println!("Final position:");
+        final_state.board.print();
     }
 }
 
@@ -105,7 +109,7 @@ fn train_epoch(
 
                     policy[policy_index as usize] = *prob;
                 }
-                Tensor::from_slice(&policy)
+                Tensor::from_slice(&policy).view([8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64])
             })
             .collect();
 
