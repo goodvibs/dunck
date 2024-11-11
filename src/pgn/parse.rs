@@ -3,7 +3,6 @@ use std::fmt::{Display, Formatter};
 use std::iter::Peekable;
 use std::rc::Rc;
 use std::str::{Chars, FromStr};
-use indexmap::IndexMap;
 use crate::pgn::error::PgnParseError;
 use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
 use crate::pgn::PgnMoveTree;

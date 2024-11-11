@@ -1,6 +1,5 @@
 use crate::pgn::pgn_move_tree_node::{PgnMoveTreeNode, PgnMoveTreeNodePtr};
 use crate::pgn::{PgnMoveTree};
-use indexmap::IndexMap;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 use std::fs;
