@@ -1,14 +1,14 @@
 use std::fs::exists;
 use tch::nn::OptimizerConfig;
-use tch::{nn, Device, Tensor};
+use tch::{nn, Tensor};
 use rand::seq::SliceRandom;
 use std::time::Instant;
-use crate::engine::conv_net_evaluator::constants::NUM_OUTPUT_POLICY_MOVES;
-use crate::engine::conv_net_evaluator::ConvNetEvaluator;
-use crate::engine::conv_net_evaluator::utils::{get_policy_index_for_move, state_to_tensor};
-use crate::engine::mcts::{Evaluation, MCTS};
-use crate::r#move::MoveFlag;
-use crate::state::State;
+use dunck::engine::conv_net_evaluator::constants::NUM_OUTPUT_POLICY_MOVES;
+use dunck::engine::conv_net_evaluator::ConvNetEvaluator;
+use dunck::engine::conv_net_evaluator::utils::{get_policy_index_for_move, state_to_tensor};
+use dunck::engine::mcts::{Evaluation, MCTS};
+use dunck::r#move::MoveFlag;
+use dunck::state::State;
 
 pub const EXPLORATION_PARAM: f64 = 1.5;
 pub const NUM_RESIDUAL_BLOCKS: usize = 4;
@@ -29,13 +29,13 @@ fn train(num_games: usize, num_mcts_iterations_per_move: usize) {
     let mut optimizer = nn::Adam::default()
         .build(&evaluator.model.vs, LEARNING_RATE)
         .expect("Failed to create optimizer");
-    
+
     let mut all_training_data: Vec<(State, Evaluation)> = Vec::new();
     let start_time = Instant::now();
 
     for game_idx in 0..num_games {
         println!("Starting game {}/{}", game_idx + 1, num_games);
-        
+
         // Create MCTS with save_data enabled
         let mut mcts = MCTS::new(State::initial(), EXPLORATION_PARAM, &evaluator, true);
 
@@ -58,15 +58,13 @@ fn train(num_games: usize, num_mcts_iterations_per_move: usize) {
         }
 
         // Log progress
-        if (game_idx + 1) % 10 == 0 {
-            let elapsed = start_time.elapsed();
-            println!(
-                "Completed {}/{} games. Time elapsed: {:.2}s",
-                game_idx + 1,
-                num_games,
-                elapsed.as_secs_f32()
-            );
-        }
+        let elapsed = start_time.elapsed();
+        println!(
+            "Completed {}/{} games. Time elapsed: {:.2}s",
+            game_idx + 1,
+            num_games,
+            elapsed.as_secs_f32()
+        );
     }
 }
 
@@ -104,7 +102,7 @@ fn train_epoch(
                         dst_square_from_current_perspective,
                         vetted_promotion
                     );
-                    
+
                     policy[policy_index as usize] = *prob;
                 }
                 Tensor::from_slice(&policy)
@@ -144,4 +142,8 @@ fn train_epoch(
             policy_loss_scalar, value_loss_scalar, total_loss_scalar
         );
     }
+}
+
+fn main() {
+    train(1000, 500);
 }
