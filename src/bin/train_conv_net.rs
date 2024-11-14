@@ -6,7 +6,8 @@ use std::time::Instant;
 use dunck::engine::conv_net_evaluator::constants::{NUM_OUTPUT_POLICY_MOVES, NUM_TARGET_SQUARE_POSSIBILITIES};
 use dunck::engine::conv_net_evaluator::ConvNetEvaluator;
 use dunck::engine::conv_net_evaluator::utils::{get_policy_index_for_move, state_to_tensor};
-use dunck::engine::mcts::{Evaluation, MCTS};
+use dunck::engine::mcts::{calc_puct_score, MCTS};
+use dunck::engine::evaluation::Evaluation;
 use dunck::r#move::MoveFlag;
 use dunck::state::State;
 
@@ -37,7 +38,7 @@ fn train(num_games: usize, num_mcts_iterations_per_move: usize) {
         println!("Starting game {}/{}", game_idx + 1, num_games);
 
         // Create MCTS with save_data enabled
-        let mut mcts = MCTS::new(State::initial(), EXPLORATION_PARAM, &evaluator, true);
+        let mut mcts = MCTS::new(State::initial(), EXPLORATION_PARAM, &evaluator, &calc_puct_score, true);
 
         // Play game and collect training data
         mcts.play_game(num_mcts_iterations_per_move, MAX_GAME_DEPTH);
