@@ -3,7 +3,7 @@
 #![allow(unused_imports)]
 #![allow(non_upper_case_globals)]
 
-use crate::engine::mcts::MCTS;
+use crate::engine::mcts::{calc_uct_score, MCTS};
 use crate::state::State;
 
 pub mod attacks;
@@ -65,10 +65,11 @@ fn main() {
             }
             "b" | "BEST" => {
                 let exploration_constant = 2.0;
-                let evaluator = engine::material_evaluator::MaterialEvaluator {};
+                let evaluator = engine::rollout_evaluator::RolloutEvaluator::new(300);
+                // let evaluator = engine::material_evaluator::MaterialEvaluator {};
                 // let evaluator = engine::conv_net_evaluator::ConvNetEvaluator::new(4, 8, false);
-                let mut mcts = MCTS::new(state.clone(), exploration_constant, &evaluator, false);
-                mcts.run(500);
+                let mut mcts = MCTS::new(state.clone(), exploration_constant, &evaluator, &calc_uct_score, false);
+                mcts.run(5000);
                 if let Some(best_move_node) = mcts.get_best_child_by_visits() {
                     let best_move = best_move_node.borrow().mv.clone();
                     let new_state = best_move_node.borrow().state_after_move.clone();

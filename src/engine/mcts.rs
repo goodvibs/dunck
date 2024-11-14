@@ -2,144 +2,43 @@ use std::cell::RefCell;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::rc::Rc;
+use rand::distributions::Distribution;
+use rand_distr::Gamma;
+use crate::engine::evaluation::{get_value_at_terminal_state, Evaluation, Evaluator};
+use crate::engine::mcts_node::MCTSNode;
 use crate::r#move::Move;
 use crate::state::{State, Termination};
 use crate::utils::Color;
 
-pub fn evaluate_terminal_state(state: &State, for_color: Color) -> f64 {
-    match state.termination.unwrap() {
-        Termination::Checkmate => {
-            let checkmated_side = state.side_to_move;
-            if checkmated_side == for_color {
-                -1.
-            } else {
-                1.
-            }
-        }
-        _ => 0.
+// fn generate_dirichlet_noise(num_moves: usize, alpha: f64) -> Vec<f64> {
+//     let gamma = Gamma::new(alpha, 1.0).expect("Invalid alpha for Dirichlet");
+//     let mut rng = rand::thread_rng();
+//     let mut noise: Vec<f64> = (0..num_moves).map(|_| gamma.sample(&mut rng)).collect();
+// 
+//     // Normalize the noise to sum to 1
+//     let sum: f64 = noise.iter().sum();
+//     noise.iter_mut().for_each(|n| *n /= sum);
+//     noise
+// }
+
+pub fn calc_uct_score(node: &MCTSNode, parent_visits: u32, exploration_constant: f64) -> f64 {
+    if node.visits == 0 {
+        f64::INFINITY
+    } else {
+        let exploitation = node.value / node.visits as f64;
+        let exploration = exploration_constant * (parent_visits as f64).ln() / node.visits as f64;
+        exploitation + exploration
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Evaluation {
-    pub policy: Vec<(Move, f64)>,
-    pub value: f64,
-}
+pub fn calc_puct_score(node: &MCTSNode, parent_visits: u32, exploration_constant: f64) -> f64 {
+    let exploration = exploration_constant * node.prior * (parent_visits as f64).sqrt() / (1.0 + node.visits as f64);
 
-pub trait Evaluator {
-    fn evaluate(&self, state: &State) -> Evaluation;
-}
-
-#[derive(Debug)]
-pub struct MCTSNode {
-    pub state_after_move: State,
-    pub mv: Option<Move>,
-    visits: u32,
-    value: f64,
-    prior: f64,
-    children: Vec<Rc<RefCell<MCTSNode>>>,
-    previous_node: Option<Rc<RefCell<MCTSNode>>>,
-    is_expanded: bool,
-}
-
-impl MCTSNode {
-    fn new(mv: Option<Move>, previous_node: Option<Rc<RefCell<MCTSNode>>>, state_after_move: State) -> Self {
-        Self {
-            state_after_move,
-            mv,
-            visits: 0,
-            value: 0.,
-            prior: 0.,
-            children: Vec::new(),
-            previous_node,
-            is_expanded: false,
-        }
-    }
-
-    fn flip_values(&mut self) {
-        self.value = -self.value;
-        for child in &self.children {
-            child.borrow_mut().flip_values();
-        }
-    }
-
-    fn expand(&mut self, policy: Vec<(Move, f64)>, self_ptr: &Rc<RefCell<MCTSNode>>) {
-        self.is_expanded = true;
-        if policy.is_empty() {
-            self.state_after_move.assume_and_update_termination();
-        } else {
-            for (legal_move, prior) in policy {
-                let mut new_state = self.state_after_move.clone();
-                new_state.make_move(legal_move);
-                let new_node = MCTSNode {
-                    state_after_move: new_state,
-                    mv: Some(legal_move),
-                    visits: 0,
-                    value: 0.0,
-                    prior,
-                    children: Vec::new(),
-                    previous_node: Some(self_ptr.clone()),
-                    is_expanded: false,
-                };
-                self.children.push(Rc::new(RefCell::new(new_node)));
-            }
-        }
-    }
-
-    fn calc_puct(&self, parent_visits: u32, c_puct: f64) -> f64 {
-        let exploration = c_puct * self.prior * (parent_visits as f64).sqrt() / (1.0 + self.visits as f64);
-
-        if self.visits == 0 {
-            exploration  // Prior-driven exploration for unvisited nodes
-        } else {
-            let exploitation = self.value / self.visits as f64;
-            exploitation + exploration
-        }
-    }
-
-    fn calc_ucb1(&self, parent_visits: u32, c_ucb1: f64) -> f64 {
-        if self.visits == 0 {
-            f64::INFINITY
-        } else {
-            let exploitation = self.value / self.visits as f64;
-            exploitation + c_ucb1 * (parent_visits as f64).ln() / self.visits as f64
-        }
-    }
-
-    fn select_best_child(&mut self, exploration_param: f64) -> Option<Rc<RefCell<MCTSNode>>> {
-        self.children.iter().max_by(|a, b| {
-            let a_score = a.borrow().calc_puct(self.visits, exploration_param);
-            let b_score = b.borrow().calc_puct(self.visits, exploration_param);
-            a_score.partial_cmp(&b_score).unwrap()
-        }).cloned()
-    }
-
-    fn backup(&mut self, value: f64) {
-        self.visits += 1;
-        self.value -= value;
-        if let Some(previous_node) = &self.previous_node {
-            previous_node.borrow_mut().backup(-1. * value);
-        }
-    }
-
-    fn metadata(&self) -> String {
-        format!("MCTSNode(move: {:?}, prior: {}, visits: {}, value: {})", self.mv, self.prior, self.visits, self.value)
-    }
-
-    fn fmt_helper(&self, depth: usize, depth_limit: usize) -> String {
-        let mut s = format!("{}{}\n", "| ".repeat(depth), self.metadata());
-        if depth < depth_limit {
-            for child in &self.children {
-                s += &child.borrow().fmt_helper(depth + 1, depth_limit);
-            }
-        }
-        s
-    }
-}
-
-impl Display for MCTSNode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.fmt_helper(0, 1))
+    if node.visits == 0 {
+        exploration  // Prior-driven exploration for unvisited nodes
+    } else {
+        let exploitation = node.value / node.visits as f64;
+        exploitation + exploration
     }
 }
 
@@ -147,16 +46,24 @@ pub struct MCTS<'a> {
     pub root: Rc<RefCell<MCTSNode>>,
     pub exploration_param: f64,
     evaluator: &'a dyn Evaluator,
+    calc_node_score: &'static dyn Fn(&MCTSNode, u32, f64) -> f64,
     pub save_data: bool,
     pub state_evaluations: Vec<(State, Evaluation)>
 }
 
 impl<'a> MCTS<'a> {
-    pub fn new(state: State, exploration_param: f64, evaluator: &'a dyn Evaluator, save_data: bool) -> Self {
+    pub fn new(
+        state: State,
+        exploration_param: f64,
+        evaluator: &'a dyn Evaluator,
+        calc_node_score: &'static dyn Fn(&MCTSNode, u32, f64) -> f64,
+        save_data: bool
+    ) -> Self {
         Self {
             root: Rc::new(RefCell::new(MCTSNode::new(None, None, state))),
             exploration_param,
             evaluator,
+            calc_node_score,
             save_data,
             state_evaluations: Vec::new()
         }
@@ -165,7 +72,7 @@ impl<'a> MCTS<'a> {
     fn select_best_leaf(&self) -> Rc<RefCell<MCTSNode>> {
         let mut leaf = self.root.clone();
         loop {
-            let option_best_child = leaf.borrow_mut().select_best_child(self.exploration_param);
+            let option_best_child = leaf.borrow_mut().select_best_child(self.calc_node_score, self.exploration_param);
             match option_best_child {
                 Some(best_child) => {
                     leaf = best_child;
@@ -181,9 +88,9 @@ impl<'a> MCTS<'a> {
         for _ in 0..iterations {
             let leaf = self.select_best_leaf();
             let state_after_move = leaf.borrow().state_after_move.clone();
-            let evaluation = if leaf.borrow().is_expanded {
+            let mut evaluation = if leaf.borrow().is_expanded {
                 // leaf.borrow_mut().state_after_move.assume_and_update_termination();
-                let value = evaluate_terminal_state(
+                let value = get_value_at_terminal_state(
                     &state_after_move, state_after_move.side_to_move
                 );
                 Evaluation {
@@ -193,6 +100,22 @@ impl<'a> MCTS<'a> {
             } else {
                 self.evaluator.evaluate(&state_after_move)
             };
+
+            // // Apply Dirichlet noise at the root node
+            // if Rc::ptr_eq(&self.root, &leaf) {
+            //     let alpha = 0.3;
+            //     let epsilon = 0.25;
+            //     let num_moves = evaluation.policy.len();
+            // 
+            //     if num_moves > 0 {
+            //         let noise = generate_dirichlet_noise(num_moves, alpha);
+            // 
+            //         for (i, (_, prob)) in evaluation.policy.iter_mut().enumerate() {
+            //             *prob = (1.0 - epsilon) * *prob + epsilon * noise[i];
+            //         }
+            //     }
+            // }
+
 
             if self.save_data {
                 self.state_evaluations.push((state_after_move, evaluation.clone()));
@@ -204,7 +127,7 @@ impl<'a> MCTS<'a> {
     }
 
     pub fn get_best_child_by_score(&self) -> Option<Rc<RefCell<MCTSNode>>> {
-        self.root.borrow_mut().select_best_child(0.)
+        self.root.borrow_mut().select_best_child(self.calc_node_score, 0.)
     }
 
     pub fn get_best_child_by_visits(&self) -> Option<Rc<RefCell<MCTSNode>>> {
@@ -239,7 +162,7 @@ impl<'a> MCTS<'a> {
                     let final_state = self.root.borrow().state_after_move.clone();
                     assert!(final_state.termination.is_some());
                     assert!(final_state.is_unequivocally_valid());
-                    return evaluate_terminal_state(&final_state, initial_side_to_move);
+                    return get_value_at_terminal_state(&final_state, initial_side_to_move);
                 }
             }
         }
@@ -255,26 +178,26 @@ impl<'a> Display for MCTS<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::thread;
     use crate::engine::conv_net_evaluator::ConvNetEvaluator;
-    use crate::engine::material_evaluator::MaterialEvaluator;
     use crate::engine::rollout_evaluator::RolloutEvaluator;
     use super::*;
 
     #[test]
     fn test_mcts() {
-        let evaluator = ConvNetEvaluator::new(4, 8, true);
+        // let evaluator = ConvNetEvaluator::new(4, 8, true);
+        let evaluator = RolloutEvaluator::new(300);
         let exploration_param = 1.5;
         let mut mcts = MCTS::new(
             State::from_fen("r1n1k3/p2p1pbr/B1p1pnp1/2qPN3/4P3/R1N1BQ1P/1PP2P1P/4K2R w Kq - 5 6").unwrap(),
             // State::initial(),
             exploration_param,
             &evaluator,
+            &calc_uct_score,
             true
         );
-        for i in 0..10 {
+        for i in 0..1 {
             println!("Move: {}", i);
-            mcts.run(400);
+            mcts.run(1000);
             println!("{}", mcts);
             let initial_state = mcts.root.borrow().state_after_move.clone();
             match mcts.take_best_child() {
@@ -298,6 +221,7 @@ mod tests {
             State::initial(),
             exploration_param,
             &evaluator,
+            &calc_uct_score,
             true
         );
         let result = mcts.play_game(400, 300);

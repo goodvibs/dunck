@@ -1,4 +1,4 @@
-use crate::engine::mcts::{Evaluation, Evaluator};
+use crate::engine::evaluation::{Evaluation, Evaluator};
 use crate::r#move::Move;
 use crate::state::State;
 use crate::utils::{Color, PieceType};

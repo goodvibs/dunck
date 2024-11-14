@@ -1,7 +1,6 @@
 use rand::prelude::SliceRandom;
-use crate::engine::mcts::{evaluate_terminal_state, Evaluation, Evaluator};
+use crate::engine::evaluation::{get_value_at_terminal_state, Evaluation, Evaluator};
 use crate::state::State;
-use crate::utils::Color;
 
 #[derive(Clone)]
 pub struct RolloutEvaluator {
@@ -28,7 +27,7 @@ impl Evaluator for RolloutEvaluator {
             let moves = state.calc_legal_moves();
             if moves.is_empty() {
                 state.assume_and_update_termination();
-                value = evaluate_terminal_state(&state, side_to_move);
+                value = get_value_at_terminal_state(&state, side_to_move);
                 break;
             } else {
                 let mv = moves.choose(&mut rng).unwrap();
