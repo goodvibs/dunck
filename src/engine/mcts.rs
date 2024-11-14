@@ -7,8 +7,7 @@ use rand_distr::Gamma;
 use crate::engine::evaluation::{get_value_at_terminal_state, Evaluation, Evaluator};
 use crate::engine::mcts_node::MCTSNode;
 use crate::r#move::Move;
-use crate::state::{State, Termination};
-use crate::utils::Color;
+use crate::state::{State};
 
 // fn generate_dirichlet_noise(num_moves: usize, alpha: f64) -> Vec<f64> {
 //     let gamma = Gamma::new(alpha, 1.0).expect("Invalid alpha for Dirichlet");
@@ -45,8 +44,8 @@ pub fn calc_puct_score(node: &MCTSNode, parent_visits: u32, exploration_constant
 pub struct MCTS<'a> {
     pub root: Rc<RefCell<MCTSNode>>,
     pub exploration_param: f64,
-    evaluator: &'a dyn Evaluator,
-    calc_node_score: &'static dyn Fn(&MCTSNode, u32, f64) -> f64,
+    pub evaluator: &'a dyn Evaluator,
+    pub calc_node_score: &'static dyn Fn(&MCTSNode, u32, f64) -> f64,
     pub save_data: bool,
     pub state_evaluations: Vec<(State, Evaluation)>
 }
@@ -88,7 +87,7 @@ impl<'a> MCTS<'a> {
         for _ in 0..iterations {
             let leaf = self.select_best_leaf();
             let state_after_move = leaf.borrow().state_after_move.clone();
-            let mut evaluation = if leaf.borrow().is_expanded {
+            let evaluation = if leaf.borrow().is_expanded {
                 // leaf.borrow_mut().state_after_move.assume_and_update_termination();
                 let value = get_value_at_terminal_state(
                     &state_after_move, state_after_move.side_to_move
@@ -136,6 +135,37 @@ impl<'a> MCTS<'a> {
             let b_score = b.borrow().visits;
             a_score.cmp(&b_score)
         }).cloned()
+    }
+    
+    pub fn take_child_with_move(&mut self, mv: Move, expand_if_unexpanded: bool) -> Result<(), String> {
+        if !self.root.borrow().is_expanded {
+            if expand_if_unexpanded {
+                let evaluation = self.evaluator.evaluate(&self.root.borrow().state_after_move);
+                self.root.borrow_mut().expand(evaluation.policy, &self.root);
+            } else {
+                return Err("Root node is not expanded".to_string());
+            }
+        }
+        
+        let mut new_root = None;
+        {
+            let root = self.root.borrow();
+            let children_iter = root.children.iter();
+            for child in children_iter {
+                if child.borrow().mv == Some(mv) {
+                    new_root = Some(Rc::clone(child));
+                    break;
+                }
+            }
+        }
+        if let Some(new_root) = new_root {
+            self.root = new_root;
+            self.root.borrow_mut().previous_node = None;
+            self.root.borrow_mut().flip_values();
+            Ok(())
+        } else {
+            Err("No child found".to_string())
+        }
     }
 
     pub fn take_best_child(&mut self) -> Result<(State, Move), String> {
