@@ -1,7 +1,9 @@
+use std::cell::RefCell;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
+use std::rc::Rc;
 use crate::pgn::state_tree::PgnStateTree;
-use crate::pgn::state_tree_node::{PgnStateTreeNodePtr};
+use crate::pgn::state_tree_node::PgnStateTreeNode;
 use crate::r#move::Move;
 use crate::state::State;
 
@@ -27,8 +29,8 @@ impl Display for PgnStateTreeTraverseError {
 impl Error for PgnStateTreeTraverseError {}
 
 pub struct PgnStateTreeTraverser<'a> {
-    tree: &'a PgnStateTree,
-    current_move_node: PgnStateTreeNodePtr
+    pub tree: &'a PgnStateTree,
+    pub current_move_node: Rc<RefCell<PgnStateTreeNode>>
 }
 
 impl<'a> PgnStateTreeTraverser<'a> {

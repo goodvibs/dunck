@@ -3,16 +3,14 @@ use std::rc::Rc;
 use crate::r#move::Move;
 use crate::state::State;
 
-pub type PgnStateTreeNodePtr = Rc<RefCell<PgnStateTreeNode>>;
-
 pub struct PgnStateTreeNode {
-    pub(crate) move_and_san_and_previous_node: Option<(Move, String, PgnStateTreeNodePtr)>,
-    pub(crate) state_after_move: State,
-    pub(crate) next_nodes: Vec<PgnStateTreeNodePtr>,
+    pub move_and_san_and_previous_node: Option<(Move, String, Rc<RefCell<PgnStateTreeNode>>)>,
+    pub state_after_move: State,
+    pub next_nodes: Vec<Rc<RefCell<PgnStateTreeNode>>>,
 }
 
 impl PgnStateTreeNode {
-    pub(crate) fn new_root() -> PgnStateTreeNodePtr {
+    pub fn new_root() -> Rc<RefCell<PgnStateTreeNode>> {
         Rc::new(RefCell::new(PgnStateTreeNode {
             move_and_san_and_previous_node: None,
             state_after_move: State::initial(),
@@ -20,12 +18,12 @@ impl PgnStateTreeNode {
         }))
     }
 
-    pub(crate) fn new_linked_to_previous(
+    pub fn new_linked_to_previous(
         move_: Move,
         san: String,
-        previous_node: PgnStateTreeNodePtr,
+        previous_node: Rc<RefCell<PgnStateTreeNode>>,
         state_after_move: State,
-    ) -> PgnStateTreeNodePtr {
+    ) -> Rc<RefCell<PgnStateTreeNode>> {
         let new_node = Rc::new(RefCell::new(PgnStateTreeNode {
             move_and_san_and_previous_node: Some((move_, san, Rc::clone(&previous_node))),
             state_after_move,
@@ -38,23 +36,23 @@ impl PgnStateTreeNode {
         new_node
     }
 
-    pub(crate) fn has_next(&self) -> bool {
+    pub fn has_next(&self) -> bool {
         !self.next_nodes.is_empty()
     }
 
-    pub(crate) fn has_variation(&self) -> bool {
+    pub fn has_variation(&self) -> bool {
         self.next_nodes.len() > 1
     }
     
-    pub fn next_nodes(&self) -> Vec<PgnStateTreeNodePtr> {
+    pub fn next_nodes(&self) -> Vec<Rc<RefCell<PgnStateTreeNode>>> {
         self.next_nodes.clone()
     }
 
-    pub(crate) fn next_main_node(&self) -> Option<PgnStateTreeNodePtr> {
+    pub fn next_main_node(&self) -> Option<Rc<RefCell<PgnStateTreeNode>>> {
         self.next_nodes.first().cloned()
     }
 
-    pub(crate) fn next_variation_nodes(&self) -> Vec<PgnStateTreeNodePtr> {
+    pub fn next_variation_nodes(&self) -> Vec<Rc<RefCell<PgnStateTreeNode>>> {
         if self.next_nodes.len() < 2 {
             return Vec::new();
         }

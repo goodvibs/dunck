@@ -1,11 +1,13 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::str::FromStr;
 use indexmap::IndexMap;
-use crate::pgn::state_tree_node::{PgnStateTreeNode, PgnStateTreeNodePtr};
+use crate::pgn::state_tree_node::{PgnStateTreeNode};
 use crate::pgn::{tokenize_pgn, PgnParseError};
 
 pub struct PgnStateTree {
     pub tags: IndexMap<String, String>,
-    pub head: PgnStateTreeNodePtr,
+    pub head: Rc<RefCell<PgnStateTreeNode>>,
 }
 
 impl PgnStateTree {
