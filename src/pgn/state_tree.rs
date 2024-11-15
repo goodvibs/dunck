@@ -35,8 +35,8 @@ mod tests {
     use super::*;
 
     fn load_input_and_expected_pgn(file_name: &str) -> (String, String) {
-        let input_pgn = fs::read_to_string(format!("src/pgn/test_pgn_files/{}.pgn", file_name)).expect("Could not read file");
-        let expected_pgn = fs::read_to_string(format!("src/pgn/test_pgn_files/{}_formatted.pgn", file_name)).expect("Could not read file");
+        let input_pgn = fs::read_to_string(format!("data/pgn_test_files/{}.pgn", file_name)).expect("Could not read file");
+        let expected_pgn = fs::read_to_string(format!("data/pgn_test_files/{}_formatted.pgn", file_name)).expect("Could not read file");
         (input_pgn, expected_pgn)
     }
 
