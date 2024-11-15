@@ -1,40 +1,40 @@
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
-use crate::pgn::PgnMoveTree;
-use crate::pgn::pgn_move_tree_node::{PgnMoveTreeNode, PgnMoveTreeNodePtr};
+use crate::pgn::state_tree::PgnStateTree;
+use crate::pgn::state_tree_node::{PgnStateTreeNodePtr};
 use crate::r#move::Move;
 use crate::state::State;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum PgnMoveTreeTraverseError {
+pub enum PgnStateTreeTraverseError {
     NoMovePlayed,
     NoNextNode,
     NoPreviousNode,
     VariationDoesNotExist
 }
 
-impl Display for PgnMoveTreeTraverseError {
+impl Display for PgnStateTreeTraverseError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            PgnMoveTreeTraverseError::NoMovePlayed => write!(f, "No move played"),
-            PgnMoveTreeTraverseError::NoNextNode => write!(f, "No next node"),
-            PgnMoveTreeTraverseError::NoPreviousNode => write!(f, "No previous node"),
-            PgnMoveTreeTraverseError::VariationDoesNotExist => write!(f, "Variation does not exist")
+            PgnStateTreeTraverseError::NoMovePlayed => write!(f, "No move played"),
+            PgnStateTreeTraverseError::NoNextNode => write!(f, "No next node"),
+            PgnStateTreeTraverseError::NoPreviousNode => write!(f, "No previous node"),
+            PgnStateTreeTraverseError::VariationDoesNotExist => write!(f, "Variation does not exist")
         }
     }
 }
 
-impl Error for PgnMoveTreeTraverseError {}
+impl Error for PgnStateTreeTraverseError {}
 
-pub struct PgnMoveTreeTraverser<'a> {
-    tree: &'a PgnMoveTree,
-    current_move_node: PgnMoveTreeNodePtr
+pub struct PgnStateTreeTraverser<'a> {
+    tree: &'a PgnStateTree,
+    current_move_node: PgnStateTreeNodePtr
 }
 
-impl<'a> PgnMoveTreeTraverser<'a> {
+impl<'a> PgnStateTreeTraverser<'a> {
     
-    pub fn new(tree: &'a PgnMoveTree) -> PgnMoveTreeTraverser<'a> {
-        PgnMoveTreeTraverser {
+    pub fn new(tree: &'a PgnStateTree) -> PgnStateTreeTraverser<'a> {
+        PgnStateTreeTraverser {
             tree,
             current_move_node: tree.head.clone()
         }
@@ -44,9 +44,9 @@ impl<'a> PgnMoveTreeTraverser<'a> {
         self.current_move_node.borrow().state_after_move.clone()
     }
     
-    pub fn get_played_move(&self) -> Result<(Move, String), PgnMoveTreeTraverseError> {
+    pub fn get_played_move(&self) -> Result<(Move, String), PgnStateTreeTraverseError> {
         match self.current_move_node.borrow().move_and_san_and_previous_node.clone() {
-            None => Err(PgnMoveTreeTraverseError::NoMovePlayed),
+            None => Err(PgnStateTreeTraverseError::NoMovePlayed),
             Some((mv, san, _)) => Ok((mv, san))
         }
     }
@@ -66,9 +66,9 @@ impl<'a> PgnMoveTreeTraverser<'a> {
         }).collect()
     }
     
-    pub fn get_next_main(&self) -> Result<(Move, String), PgnMoveTreeTraverseError> {
+    pub fn get_next_main(&self) -> Result<(Move, String), PgnStateTreeTraverseError> {
         match self.current_move_node.borrow().next_main_node() {
-            None => Err(PgnMoveTreeTraverseError::NoNextNode),
+            None => Err(PgnStateTreeTraverseError::NoNextNode),
             Some(node) => {
                 let (mv, san, _): (Move, String, _) = node.borrow().move_and_san_and_previous_node.clone().unwrap();
                 Ok((mv, san))
@@ -83,27 +83,27 @@ impl<'a> PgnMoveTreeTraverser<'a> {
         }).collect()
     }
     
-    pub fn step_forward_with_main_line(&mut self) -> Result<(), PgnMoveTreeTraverseError> {
+    pub fn step_forward_with_main_line(&mut self) -> Result<(), PgnStateTreeTraverseError> {
         self.current_move_node = match self.current_move_node.clone().borrow().next_main_node() {
-            None => return Err(PgnMoveTreeTraverseError::NoNextNode),
+            None => return Err(PgnStateTreeTraverseError::NoNextNode),
             Some(node) => node
         };
         Ok(())
     }
     
-    // pub fn step_forward_with_variation_by_move(&mut self, variation: Move) -> Result<(), PgnMoveTreeTraverseError> {
+    // pub fn step_forward_with_variation_by_move(&mut self, variation: Move) -> Result<(), PgnStateTreeTraverseError> {
     //     // todo
     // }
     // 
-    // pub fn step_forward_with_variation_by_san(&mut self, variation_san: &str) -> Result<(), PgnMoveTreeTraverseError> {
+    // pub fn step_forward_with_variation_by_san(&mut self, variation_san: &str) -> Result<(), PgnStateTreeTraverseError> {
     //     // todo
     // }
     // 
-    // pub fn step_forward_with_variation_by_index(&mut self, variation_index: usize) -> Result<(), PgnMoveTreeTraverseError> {
+    // pub fn step_forward_with_variation_by_index(&mut self, variation_index: usize) -> Result<(), PgnStateTreeTraverseError> {
     //     // todo
     // }
     // 
-    // pub fn step_backward(&mut self) -> Result<(), PgnMoveTreeTraverseError> {
+    // pub fn step_backward(&mut self) -> Result<(), PgnStateTreeTraverseError> {
     //     // todo
     // }
 }

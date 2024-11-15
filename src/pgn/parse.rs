@@ -1,13 +1,8 @@
-use std::error::Error;
-use std::fmt::{Display, Formatter};
-use std::iter::Peekable;
-use std::rc::Rc;
-use std::str::{Chars, FromStr};
 use crate::pgn::error::PgnParseError;
-use crate::pgn::pgn_move_tree_node::PgnMoveTreeNode;
-use crate::pgn::PgnMoveTree;
-use crate::pgn::tokenize::{tokenize_pgn, PgnToken};
-use crate::state::{State, Termination};
+use crate::pgn::state_tree::PgnStateTree;
+use crate::pgn::state_tree_node::PgnStateTreeNode;
+use crate::pgn::tokenize::{PgnToken};
+use crate::state::Termination;
 use crate::utils::Color;
 
 fn validate_tag_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
@@ -150,8 +145,8 @@ fn validate_move_numbers(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
     Ok(())
 }
 
-impl PgnMoveTree {
-    fn from_tokens(tokens: Vec<PgnToken>) -> Result<PgnMoveTree, PgnParseError> {
+impl PgnStateTree {
+    pub fn from_tokens(tokens: Vec<PgnToken>) -> Result<PgnStateTree, PgnParseError> {
         validate_tag_placement(&tokens)?;
         validate_result_placement(&tokens)?;
         validate_variation_start_placement(&tokens)?;
@@ -159,7 +154,7 @@ impl PgnMoveTree {
         validate_variation_closure(&tokens)?;
         validate_move_numbers(&tokens)?;
 
-        let pgn_move_tree = PgnMoveTree::new();
+        let pgn_move_tree = PgnStateTree::new();
 
         let mut current_node = pgn_move_tree.head.clone();
         let mut node_stack = Vec::new();
@@ -189,7 +184,7 @@ impl PgnMoveTree {
                         if san == *mv {
                             found_match = true;
                             
-                            current_node = PgnMoveTreeNode::new_linked_to_previous(*legal_move, mv.to_string(), current_node, new_state);
+                            current_node = PgnStateTreeNode::new_linked_to_previous(*legal_move, mv.to_string(), current_node, new_state);
                             
                             break;
                         }
@@ -244,14 +239,5 @@ impl PgnMoveTree {
         }
         
         Ok(pgn_move_tree)
-    }
-}
-
-impl FromStr for PgnMoveTree {
-    type Err = PgnParseError;
-
-    fn from_str(pgn: &str) -> Result<PgnMoveTree, PgnParseError> {
-        let tokens = tokenize_pgn(pgn)?;
-        PgnMoveTree::from_tokens(tokens)
     }
 }

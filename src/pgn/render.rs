@@ -1,15 +1,11 @@
-use crate::pgn::pgn_move_tree_node::{PgnMoveTreeNode, PgnMoveTreeNodePtr};
-use crate::pgn::{PgnMoveTree};
-use std::error::Error;
-use std::fmt::{Debug, Display, Formatter};
-use std::fs;
-use std::ptr::null_mut;
-use std::str::FromStr;
+use crate::pgn::state_tree_node::{PgnStateTreeNode};
+use std::fmt::{Display, Formatter};
 use crate::utils::Color;
 use crate::pgn::tokenize::PgnToken;
-use crate::state::{State, Termination};
+use crate::state::{Termination};
 
 use std::fmt::Write;
+use crate::pgn::state_tree::PgnStateTree;
 
 pub fn render_tokens(tokens: Vec<PgnToken>) -> String {
     let mut result = String::with_capacity(tokens.len() * 10); // Estimate initial capacity
@@ -46,13 +42,13 @@ pub fn render_tokens(tokens: Vec<PgnToken>) -> String {
         .to_string()
 }
 
-impl Display for PgnMoveTree {
+impl Display for PgnStateTree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", render_tokens(self.to_tokens()))
     }
 }
 
-impl PgnMoveTreeNode {
+impl PgnStateTreeNode {
     fn get_san(&self) -> String {
         match self.move_and_san_and_previous_node.clone() {
             None => panic!(),
@@ -89,14 +85,14 @@ impl PgnMoveTreeNode {
         
         // recurse into next variation nodes
         for variation in self.next_variation_nodes() {
-            res.push(PgnToken::StartVariation); // add (
+            res.push(PgnToken::StartVariation); // add '('
             let num_periods = match side_to_move_after_move {
                 Color::White => 1,
                 Color::Black => 3
             };
             res.push(PgnToken::MoveNumberAndPeriods(fullmove_after_move, num_periods)); // add fullmove number
             res.append(&mut (*variation).borrow().to_tokens(true)); // recurse into next variation
-            res.push(PgnToken::EndVariation); // add )
+            res.push(PgnToken::EndVariation); // add ')'
         }
         
         if self.has_variation() && side_to_move_after_move == Color::White {
@@ -111,7 +107,7 @@ impl PgnMoveTreeNode {
     }
 }
 
-impl PgnMoveTree {
+impl PgnStateTree {
     pub fn to_tokens(&self) -> Vec<PgnToken> {
         let mut res = Vec::new();
         
