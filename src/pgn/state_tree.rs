@@ -24,7 +24,7 @@ impl FromStr for PgnStateTree {
 
     fn from_str(pgn: &str) -> Result<PgnStateTree, PgnParseError> {
         let tokens = tokenize_pgn(pgn)?;
-        PgnStateTree::from_tokens(tokens)
+        PgnStateTree::from_tokens(&tokens)
     }
 }
 

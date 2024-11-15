@@ -5,7 +5,7 @@ use crate::pgn::tokenize::{PgnToken};
 use crate::state::Termination;
 use crate::utils::Color;
 
-fn validate_tag_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
+fn validate_tag_placement(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     let mut can_tag_be_placed = true;
     
     for token in tokens {
@@ -24,7 +24,7 @@ fn validate_tag_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
     Ok(())
 }
 
-fn validate_result_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
+fn validate_result_placement(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     let mut results_placed = false;
     
     for token in tokens {
@@ -43,7 +43,7 @@ fn validate_result_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError
 }
 
 /// Ensure that all variations start after a move
-fn validate_variation_start_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
+fn validate_variation_start_placement(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     let mut last_token_was_move = false;
     
     for token in tokens {
@@ -68,7 +68,7 @@ fn validate_variation_start_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnP
 }
 
 /// Ensure that all variations end after a move
-fn validate_variation_end_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
+fn validate_variation_end_placement(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     let mut last_token_was_move = false;
     
     for token in tokens {
@@ -91,7 +91,7 @@ fn validate_variation_end_placement(tokens: &Vec<PgnToken>) -> Result<(), PgnPar
     Ok(())
 }
 
-fn validate_variation_closure(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
+fn validate_variation_closure(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     let mut open_variations = 0;
     
     for token in tokens {
@@ -113,7 +113,7 @@ fn validate_variation_closure(tokens: &Vec<PgnToken>) -> Result<(), PgnParseErro
     Ok(())
 }
 
-fn validate_move_numbers(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
+fn validate_move_numbers(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     let mut stack = Vec::new();
     let mut halfmove = 1;
     
@@ -146,13 +146,13 @@ fn validate_move_numbers(tokens: &Vec<PgnToken>) -> Result<(), PgnParseError> {
 }
 
 impl PgnStateTree {
-    pub fn from_tokens(tokens: Vec<PgnToken>) -> Result<PgnStateTree, PgnParseError> {
-        validate_tag_placement(&tokens)?;
-        validate_result_placement(&tokens)?;
-        validate_variation_start_placement(&tokens)?;
-        validate_variation_end_placement(&tokens)?;
-        validate_variation_closure(&tokens)?;
-        validate_move_numbers(&tokens)?;
+    pub fn from_tokens(tokens: &[PgnToken]) -> Result<PgnStateTree, PgnParseError> {
+        validate_tag_placement(tokens)?;
+        validate_result_placement(tokens)?;
+        validate_variation_start_placement(tokens)?;
+        validate_variation_end_placement(tokens)?;
+        validate_variation_closure(tokens)?;
+        validate_move_numbers(tokens)?;
 
         let pgn_move_tree = PgnStateTree::new();
 

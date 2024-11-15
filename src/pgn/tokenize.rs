@@ -3,7 +3,7 @@ use std::str::Chars;
 use crate::pgn::error::PgnParseError;
 
 /// Represents a token in a PGN string
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PgnToken {
     Tag(String),                       // Represents a tag (e.g., "[Event "F/S Return Match"]")
     Move(String),                      // Represents a move (e.g., "e4", "Nf3#")
