@@ -68,4 +68,9 @@ mod tests {
     fn rosen1_pgn_test() {
         generic_pgn_test("rosen1");
     }
+    
+    #[test]
+    fn amirkhafan_vs_trickortreat_pgn_test() {
+        generic_pgn_test("amirkhafan_vs_trickortreat");
+    }
 }
