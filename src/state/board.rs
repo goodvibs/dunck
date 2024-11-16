@@ -53,7 +53,7 @@ impl Board {
     /// A king and bishop
     /// A king and knight
     /// A king and two knights, only if the other side is a lone king
-    pub fn are_both_sides_insufficient_material(&self) -> bool {
+    pub fn are_both_sides_insufficient_material(&self, use_uscf_rules: bool) -> bool {
         if self.piece_type_masks[PieceType::Pawn as usize] | self.piece_type_masks[PieceType::Rook as usize] | self.piece_type_masks[PieceType::Queen as usize] != 0 {
             return false;
         }
@@ -68,7 +68,7 @@ impl Board {
             let knights = self.piece_type_masks[PieceType::Knight as usize] & self.color_masks[color_int as usize];
             let num_knights = knights.count_ones();
             
-            if num_knights == 2 && num_bishops == 0 { // king and two knights
+            if use_uscf_rules && num_knights == 2 && num_bishops == 0 { // king and two knights
                 let opposite_side_bb = self.color_masks[Color::from(color_int != 0).flip() as usize];
                 let all_occupancy = self.piece_type_masks[PieceType::AllPieceTypes as usize];
                 let opposite_side_is_lone_king = (opposite_side_bb & all_occupancy).count_ones() == 1;

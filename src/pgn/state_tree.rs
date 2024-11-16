@@ -73,4 +73,9 @@ mod tests {
     fn amirkhafan_vs_trickortreat_pgn_test() {
         generic_pgn_test("amirkhafan_vs_trickortreat");
     }
+
+    #[test]
+    fn blitzstream_twitch_vs_amirkhafan_test() {
+        generic_pgn_test("blitzstream-twitch_vs_amirkhafan");
+    }
 }

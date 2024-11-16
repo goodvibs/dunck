@@ -103,7 +103,7 @@ impl State {
         self.side_to_move = self.side_to_move.flip();
         self.context = Rc::new(RefCell::new(new_context));
 
-        if self.board.are_both_sides_insufficient_material() {
+        if self.board.are_both_sides_insufficient_material(true) {
             self.termination = Some(Termination::InsufficientMaterial);
         }
         else if self.context.borrow().halfmove_clock == 100 { // fifty move rule
