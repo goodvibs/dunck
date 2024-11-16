@@ -60,6 +60,13 @@ impl State {
             }
         );
     }
+    
+    /// Checks if the game has ended and updates the termination as checkmate or stalemate.
+    pub fn check_and_update_termination(&mut self) {
+        if self.calc_legal_moves().is_empty() {
+            self.assume_and_update_termination();
+        }
+    }
 
     /// Returns whether the current side to move has short castling rights.
     pub fn has_castling_rights_short(&self, color: Color) -> bool {

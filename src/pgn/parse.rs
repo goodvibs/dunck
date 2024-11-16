@@ -179,6 +179,7 @@ impl PgnStateTree {
                     for legal_move in &legal_moves {
                         let mut new_state = initial_state.clone();
                         new_state.make_move(*legal_move);
+                        new_state.check_and_update_termination();
                         
                         let san = legal_move.san(&initial_state, &new_state, &legal_moves);
                         if san == *mv {

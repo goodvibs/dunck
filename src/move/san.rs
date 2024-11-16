@@ -1,10 +1,11 @@
 use crate::utils::PieceType;
-use crate::r#move::{r#move, Move};
+use crate::r#move::{Move};
 use crate::r#move::move_flag::MoveFlag;
-use crate::state::State;
+use crate::state::{State, Termination};
 
 impl Move {
     /// Returns the SAN (Standard Algebraic Notation) representation of the move.
+    /// Assumes that `final_state` has an updated termination
     pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
         // TODO: Break this function into smaller functions.
         
@@ -57,18 +58,10 @@ impl Move {
             _ => moved_piece.to_char().to_string()
         };
 
-        let annotation_str;
-        if final_state.board.is_color_in_check(final_state.side_to_move) {
-            if final_state.calc_legal_moves().is_empty() {
-                annotation_str = "#";
-            }
-            else {
-                annotation_str = "+";
-            }
-        }
-        else {
-            annotation_str = "";
-        }
+        let annotation_str = match final_state.termination {
+            Some(Termination::Checkmate) => "#",
+            _ => if final_state.board.is_color_in_check(final_state.side_to_move) { "+" } else { "" },
+        };
 
         let mut disambiguation_str = "".to_string();
 
