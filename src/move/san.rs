@@ -19,12 +19,17 @@ impl Move {
         let is_capture;
         let moved_piece;
 
+        let annotation_str = match final_state.termination {
+            Some(Termination::Checkmate) => "#",
+            _ => if final_state.board.is_color_in_check(final_state.side_to_move) { "+" } else { "" },
+        };
+
         match flag {
             MoveFlag::Castling => {
                 return if dst_str.contains('g') {
-                    "O-O".to_string()
+                    format!("O-O{}", annotation_str)
                 } else {
-                    "O-O-O".to_string()
+                    format!("O-O-O{}", annotation_str)
                 }
             },
             MoveFlag::EnPassant => {
@@ -56,11 +61,6 @@ impl Move {
                 }
             },
             _ => moved_piece.to_char().to_string()
-        };
-
-        let annotation_str = match final_state.termination {
-            Some(Termination::Checkmate) => "#",
-            _ => if final_state.board.is_color_in_check(final_state.side_to_move) { "+" } else { "" },
         };
 
         let mut disambiguation_str = "".to_string();
