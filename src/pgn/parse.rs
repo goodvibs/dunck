@@ -145,14 +145,20 @@ fn validate_move_numbers(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     Ok(())
 }
 
+fn validate(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
+    validate_tag_placement(tokens)?;
+    validate_result_placement(tokens)?;
+    validate_variation_start_placement(tokens)?;
+    validate_variation_end_placement(tokens)?;
+    validate_variation_closure(tokens)?;
+    validate_move_numbers(tokens)?;
+    
+    Ok(())
+}
+
 impl PgnStateTree {
     pub fn from_tokens(tokens: &[PgnToken]) -> Result<PgnStateTree, PgnParseError> {
-        validate_tag_placement(tokens)?;
-        validate_result_placement(tokens)?;
-        validate_variation_start_placement(tokens)?;
-        validate_variation_end_placement(tokens)?;
-        validate_variation_closure(tokens)?;
-        validate_move_numbers(tokens)?;
+        validate(tokens)?;
 
         let pgn_move_tree = PgnStateTree::new();
 
@@ -238,6 +244,7 @@ impl PgnStateTree {
                             node.state_after_move.termination = Some(Termination::Stalemate);
                         }
                         "*" => {
+                            // Todo: add support
                         }
                         _ => {
                             return Err(PgnParseError::InvalidResult(result.to_string()));

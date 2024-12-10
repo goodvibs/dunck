@@ -12,7 +12,7 @@ pub enum PgnToken {
     EndVariation,                      // Represents the end of a variation (')')
     Comment(String),                   // Represents a comment (e.g., "{This is a comment}")
     Annotation(String),                // Represents an annotation (e.g., "!", "?", "!?", etc.)
-    Result(String),                    // Represents a game result (e.g., "1-0", "0-1", "1/2-1/2")
+    Result(String),                    // Represents a game result (e.g., "1-0", "0-1", "1/2-1/2", "*")
 }
 
 /// Tokenizes a PGN string into a list of PgnTokens

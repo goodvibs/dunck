@@ -1,3 +1,4 @@
 /target
 .idea
 .DS_Store
+/data/lichess_elite_db_multi_pgn/*
