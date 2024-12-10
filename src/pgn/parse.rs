@@ -217,19 +217,27 @@ impl PgnStateTree {
                 }
                 PgnToken::Result(result) => {
                     match result.as_str() {
-                        "1-0" => {
+                        "1-0" => { // Todo: Add support for time-related game results
                             let mut node = current_node.borrow_mut();
-                            node.state_after_move.termination = Some(Termination::Checkmate);
-                            assert_eq!(node.state_after_move.side_to_move, Color::Black);
+                            if node.state_after_move.side_to_move == Color::Black {
+                                node.state_after_move.termination = Some(Termination::Checkmate);
+                            }
+                            // node.state_after_move.termination = Some(Termination::Checkmate);
+                            // assert_eq!(node.state_after_move.side_to_move, Color::Black);
                         }
                         "0-1" => {
                             let mut node = current_node.borrow_mut();
-                            node.state_after_move.termination = Some(Termination::Checkmate);
-                            assert_eq!(node.state_after_move.side_to_move, Color::White);
+                            if node.state_after_move.side_to_move == Color::White {
+                                node.state_after_move.termination = Some(Termination::Checkmate);
+                            }
+                            // node.state_after_move.termination = Some(Termination::Checkmate);
+                            // assert_eq!(node.state_after_move.side_to_move, Color::White);
                         }
                         "1/2-1/2" => {
                             let mut node = current_node.borrow_mut();
                             node.state_after_move.termination = Some(Termination::Stalemate);
+                        }
+                        "*" => {
                         }
                         _ => {
                             return Err(PgnParseError::InvalidResult(result.to_string()));

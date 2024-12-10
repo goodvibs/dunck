@@ -78,4 +78,9 @@ mod tests {
     fn blitzstream_twitch_vs_amirkhafan_test() {
         generic_pgn_test("blitzstream-twitch_vs_amirkhafan");
     }
+    
+    #[test]
+    fn pinhead_larry_vs_orlando_gloom_test() {
+        generic_pgn_test("pinhead-larry_vs_orlando_gloom");
+    }
 }

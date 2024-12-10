@@ -61,6 +61,11 @@ pub fn tokenize_pgn(pgn: &str) -> Result<Vec<PgnToken>, PgnParseError> {
                 let annotation = collect_until(&mut chars, |c| c.is_ascii_whitespace());
                 tokens.push(PgnToken::Annotation(annotation));
             }
+            '*' => {
+                // Indicates an incomplete game
+                tokens.push(PgnToken::Result("*".to_string()));
+                chars.next();
+            }
             _ if ch.is_numeric() => {
                 // Could be a move number or a result
                 let move_number_or_result = collect_until(&mut chars, |c| c == '.' || c.is_ascii_whitespace());
