@@ -60,13 +60,14 @@ fn verify_and_save_model(evaluator: &ConvNetEvaluator) {
     println!("Model verified and saved to file");
 }
 
-fn get_training_data_for_epoch(
+/// Sample a batch of data from a given PGN set
+fn get_random_data_from_pgns(
     pgns: &[String],
-    num_batches_per_epoch: usize,
-    random_state: &mut ThreadRng,
+    num_samples: usize,
+    random_state: &mut ThreadRng
 ) -> Vec<(State, Evaluation)> {
-    let mut training_data = Vec::new();
-    for _ in 0..num_batches_per_epoch {
+    let mut data = Vec::with_capacity(num_samples);
+    for _ in 0..num_samples {
         let mut pgn;
         loop {
             pgn = match pgns.choose(random_state) {
@@ -79,41 +80,16 @@ fn get_training_data_for_epoch(
                 Err(_) => continue,
             };
 
-            let training_example = match get_random_example_from_state_tree(state_tree, random_state) {
+            let example = match get_random_example_from_state_tree(state_tree, random_state) {
                 Some(example) => example,
                 None => continue,
             };
 
-            training_data.push(training_example);
+            data.push(example);
             break;
         }
     }
-    training_data
-}
-
-fn train(
-    pgns: &[String],
-    num_epochs: usize,
-    num_batches_per_epoch: usize,
-    learning_rate: f64,
-) {
-    let mut random_state = rand::thread_rng();
-    let mut evaluator = load_evaluator();
-
-    let mut optimizer = nn::Adam::default()
-        .build(&evaluator.model.vs, learning_rate)
-        .expect("Failed to create optimizer");
-
-    let start_time = Instant::now();
-
-    for epoch in 0..num_epochs {
-        println!("Starting epoch {}/{}", epoch + 1, num_epochs);
-        let training_data = get_training_data_for_epoch(pgns, num_batches_per_epoch, &mut random_state);
-        train_epoch(&mut evaluator, &mut optimizer, &training_data);
-    }
-
-    println!("Training completed. Total time elapsed: {:.2}s", start_time.elapsed().as_secs_f32());
-    verify_and_save_model(&evaluator);
+    data
 }
 
 fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut ThreadRng) -> Option<(State, Evaluation)> {
@@ -141,7 +117,7 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
     };
 
     // Ensure sufficient moves
-    if num_moves < 40 {
+    if num_moves < 10 {
         return None;
     }
 
@@ -176,6 +152,35 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
     Some((initial_state, Evaluation { policy, value }))
 }
 
+/// Compute the losses (policy and value) for a given batch of data without updating the model.
+fn compute_loss(
+    evaluator: &ConvNetEvaluator,
+    data: &[(State, Evaluation)]
+) -> (f64, f64, f64) {
+    let (states, policies, values) = create_batch_tensors(data);
+
+    let (pred_policies, pred_values) = evaluator.model.forward(&states, false);
+
+    // Cross-entropy for policy
+    let log_probs = pred_policies.log_softmax(-1, Kind::Float);
+    let policy_loss = -(policies * &log_probs)
+        // Summation dimensions: for a policy shape [batch, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES]
+        .sum_dim_intlist(&[1i64, 2i64, 3i64][..], false, Kind::Float)
+        .mean(Kind::Float);
+
+    // MSE for value
+    let value_loss = pred_values.mse_loss(&values, tch::Reduction::Mean);
+
+    let total_loss = &policy_loss + &value_loss;
+
+    (
+        policy_loss.double_value(&[]),
+        value_loss.double_value(&[]),
+        total_loss.double_value(&[])
+    )
+}
+
+/// Create batch tensors for states, policies, and values
 fn create_batch_tensors(
     training_data: &[(State, Evaluation)]
 ) -> (Tensor, Tensor, Tensor) {
@@ -215,6 +220,7 @@ fn create_batch_tensors(
     (states, policies, values)
 }
 
+/// Update the model parameters given a batch of training data
 fn run_batch(
     evaluator: &mut ConvNetEvaluator,
     optimizer: &mut nn::Optimizer,
@@ -224,16 +230,15 @@ fn run_batch(
 
     let (pred_policies, pred_values) = evaluator.model.forward(&states, true);
 
-    // Compute policy cross-entropy loss
+    // Cross-entropy for policy
     let log_probs = pred_policies.log_softmax(-1, Kind::Float);
     let policy_loss = -(policies * &log_probs)
         .sum_dim_intlist(&[1i64, 2i64, 3i64][..], false, Kind::Float)
         .mean(Kind::Float);
 
-    // Compute value MSE loss
+    // MSE for value
     let value_loss = pred_values.mse_loss(&values, tch::Reduction::Mean);
 
-    // Total loss
     let total_loss = &policy_loss + &value_loss;
 
     optimizer.zero_grad();
@@ -245,34 +250,91 @@ fn run_batch(
     let total_loss_scalar = total_loss.double_value(&[]);
 
     println!(
-        "Loss - Policy: {:.4}, Value: {:.4}, Total: {:.4}",
+        "Train Loss - Policy: {:.4}, Value: {:.4}, Total: {:.4}",
         policy_loss_scalar, value_loss_scalar, total_loss_scalar
     );
 }
 
+/// Train for one epoch and return the training loss
 fn train_epoch(
     evaluator: &mut ConvNetEvaluator,
     optimizer: &mut nn::Optimizer,
     training_data: &[(State, Evaluation)],
-) {
+) -> (f64, f64, f64) {
     let mut indices: Vec<usize> = (0..training_data.len()).collect();
     indices.shuffle(&mut rand::thread_rng());
 
-    // In this example, we treat the entire `training_data` as one batch.
-    // If you need smaller batches, you can chunk further.
+    // For simplicity, we treat all training_data as one batch. If you have large data,
+    // consider splitting into multiple batches per epoch.
     for chunk in indices.chunks(training_data.len()) {
         let batch_data: Vec<_> = chunk.iter().map(|&i| training_data[i].clone()).collect();
         run_batch(evaluator, optimizer, &batch_data);
     }
+
+    // Compute final training loss after epoch
+    compute_loss(evaluator, training_data)
+}
+
+/// Evaluate the model on the validation set and print losses
+fn evaluate_epoch(
+    evaluator: &ConvNetEvaluator,
+    validation_data: &[(State, Evaluation)],
+) -> (f64, f64, f64) {
+    let (policy_loss, value_loss, total_loss) = compute_loss(evaluator, validation_data);
+    println!(
+        "Validation Loss - Policy: {:.4}, Value: {:.4}, Total: {:.4}",
+        policy_loss, value_loss, total_loss
+    );
+    (policy_loss, value_loss, total_loss)
 }
 
 fn main() {
     let multi_pgn_file_content = std::fs::read_to_string(MULTI_PGN_FILE).expect("Failed to read PGN file");
     let pgns = extract_pgns(&multi_pgn_file_content);
 
-    for i in 0..200 {
-        let learning_rate = 0.0001;
-        println!("|*| Training iteration {}/200 with learning rate {} |*|", i + 1, learning_rate);
-        train(&pgns, 50, 64, learning_rate);
+    // Split into train and validation sets
+    let val_ratio = 0.1;
+    let val_size = (pgns.len() as f64 * val_ratio) as usize;
+    let (val_pgns, train_pgns) = pgns.split_at(val_size);
+
+    let mut random_state = rand::thread_rng();
+
+    // Construct a fixed validation set of examples before training begins
+    // For example, let's pick 512 samples for validation
+    let validation_data = get_random_data_from_pgns(val_pgns, 512, &mut random_state);
+
+    // Training parameters
+    let num_iterations = 200;
+    let num_epochs = 50;
+    let num_batches_per_epoch = 64;
+    let learning_rate = 0.001;
+
+    for i in 0..num_iterations {
+        println!("|*| Training iteration {}/{} with learning rate {} |*|", i + 1, num_iterations, learning_rate);
+
+        let mut evaluator = load_evaluator();
+        let mut optimizer = nn::Adam::default()
+            .build(&evaluator.model.vs, learning_rate)
+            .expect("Failed to create optimizer");
+
+        for epoch in 0..num_epochs {
+            println!("Starting epoch {}/{}", epoch + 1, num_epochs);
+
+            // Get fresh training data for this epoch
+            let training_data = get_random_data_from_pgns(train_pgns, num_batches_per_epoch, &mut random_state);
+
+            // Train on the training data
+            let (train_pol_loss, train_val_loss, train_tot_loss) = train_epoch(&mut evaluator, &mut optimizer, &training_data);
+
+            // Evaluate on validation data
+            let (val_pol_loss, val_val_loss, val_tot_loss) = evaluate_epoch(&evaluator, &validation_data);
+
+            println!(
+                "Epoch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4}), Validation (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
+                epoch + 1, num_epochs, train_pol_loss, train_val_loss, train_tot_loss, val_pol_loss, val_val_loss, val_tot_loss
+            );
+        }
+
+        verify_and_save_model(&evaluator);
     }
 }
