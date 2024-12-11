@@ -1,10 +1,10 @@
+use rand::distributions::Distribution;
 use std::fs::{exists};
 use std::str::FromStr;
 use tch::nn::OptimizerConfig;
-use tch::{nn, Device, Kind, Tensor};
+use tch::{nn, Kind, Tensor};
 use rand::seq::SliceRandom;
 use std::time::Instant;
-use rand::Rng;
 use rand::rngs::ThreadRng;
 use dunck::engine::conv_net_evaluator::constants::{NUM_OUTPUT_POLICY_MOVES, NUM_TARGET_SQUARE_POSSIBILITIES};
 use dunck::engine::conv_net_evaluator::ConvNetEvaluator;
@@ -16,9 +16,12 @@ use dunck::r#move::MoveFlag;
 use dunck::utils::Color;
 
 pub const MULTI_PGN_FILE: &str = "data/lichess_elite_db_multi_pgn/accepted.pgn";
+pub const MODEL_FILE: &str = "model.safetensors";
 
-pub const NUM_RESIDUAL_BLOCKS: usize = 4;
-pub const NUM_FILTERS: i64 = 32;
+pub const NUM_RESIDUAL_BLOCKS: usize = 10;
+pub const NUM_FILTERS: i64 = 256;
+pub const DROPOUT: f64 = 0.3;
+
 
 fn extract_pgns(multi_pgn_file_content: &str) -> Vec<String> {
     let mut pgns = Vec::new();
@@ -33,12 +36,12 @@ fn extract_pgns(multi_pgn_file_content: &str) -> Vec<String> {
 fn train(pgns: &[String], num_epochs: usize, num_batches_per_epoch: usize, learning_rate: f64) {
     let mut random_state = rand::thread_rng();
     
-    let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, true);
+    let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, DROPOUT, true);
 
     // Load model if it exists
-    if exists("model.pt").expect("Failed to check if model file exists") {
+    if exists(MODEL_FILE).expect("Failed to check if model file exists") {
         println!("Loading model from file...");
-        evaluator.model.load("model.pt").expect("Failed to load model");
+        evaluator.model.load(MODEL_FILE).expect("Failed to load model");
     }
 
     let mut optimizer = nn::Adam::default()
@@ -61,7 +64,7 @@ fn train(pgns: &[String], num_epochs: usize, num_batches_per_epoch: usize, learn
                 pgn = match pgns.choose(&mut random_state) {
                     Some(pgn) => pgn,
                     None => { 
-                        println!("Failed to choose PGN. Retrying...");
+                        // println!("Failed to choose PGN. Retrying...");
                         continue;
                     }
                 };
@@ -69,7 +72,7 @@ fn train(pgns: &[String], num_epochs: usize, num_batches_per_epoch: usize, learn
                 let state_tree = match PgnStateTree::from_str(pgn.as_str()) {
                     Ok(state_tree) => state_tree,
                     Err(_) => {
-                        println!("Failed to parse PGN. Retrying...");
+                        // println!("Failed to parse PGN. Retrying...");
                         continue;
                     }
                 };
@@ -77,7 +80,7 @@ fn train(pgns: &[String], num_epochs: usize, num_batches_per_epoch: usize, learn
                 let training_example = match get_random_example_from_state_tree(state_tree, &mut random_state) {
                     Some(example) => example,
                     None => {
-                        println!("Failed to get random example from state tree. Retrying...");
+                        // println!("Failed to get random example from state tree. Retrying...");
                         continue;
                     }
                 };
@@ -91,20 +94,36 @@ fn train(pgns: &[String], num_epochs: usize, num_batches_per_epoch: usize, learn
     }
     
     println!("Training completed. Total time elapsed: {:.2}s", start_time.elapsed().as_secs_f32());
-    evaluator.model.save("model.pt").expect("Failed to save model");
+    evaluator.model.save(MODEL_FILE).expect("Failed to save model");
+    // check that saved model is equal to the model in memory
+    let mut evaluator2 = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, DROPOUT, true);
+    evaluator2.model.load(MODEL_FILE).expect("Failed to load model");
+    assert_eq!(evaluator.model.vs.variables().len(), evaluator2.model.vs.variables().len());
+    let evaluator2_variables = evaluator2.model.vs.variables();
+    for (name, tensor) in evaluator.model.vs.variables() {
+        let tensor2 = evaluator2_variables.get(&name).expect("Failed to get tensor");
+        assert_eq!(tensor.size(), tensor2.size());
+        assert!(Tensor::allclose(&tensor, &tensor2, 1e-6, 1e-6, false));
+    }
+    
+    
     println!("Model saved to file");
 }
 
 
 fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut ThreadRng) -> Option<(State, Evaluation)> {
+    let mut nodes = Vec::new();
     let mut num_moves = 0;
-    
+
+    // Traverse the state tree and collect nodes
     let mut current_node = state_tree.head.clone();
     while let Some(next_node) = current_node.clone().borrow().next_main_node() {
+        nodes.push(current_node.clone());
         current_node = next_node;
         num_moves += 1;
-    };
-    
+    }
+
+    // Determine the winner from the final state
     let winner = match current_node.borrow().state_after_move.termination {
         Some(Termination::Checkmate) => {
             if current_node.borrow().state_after_move.side_to_move == Color::White {
@@ -114,58 +133,63 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
             }
         },
         Some(_) => None,
-        None => return None
+        None => return None,
     };
-    
+
+    // Ensure sufficient moves exist for meaningful training
     if num_moves < 10 {
-        None
-    } else {
-        let mut current_node = state_tree.head.clone();
-        let mut next_node = current_node.clone().borrow().next_main_node().unwrap();
-        
-        let node_idx = rng.gen_range(0..num_moves - 1);
-        for _ in 0..node_idx {
-            let next_next_node = next_node.borrow().next_main_node().unwrap();
-            current_node = next_node;
-            next_node = next_next_node;
-        }
-
-        let initial_state = current_node.borrow().state_after_move.clone();
-        let legal_moves = initial_state.calc_legal_moves();
-        
-        let expected_mv = next_node.borrow().move_and_san_and_previous_node.clone().unwrap().0.clone();
-
-        if !legal_moves.iter().any(|mv| *mv == expected_mv) {
-            initial_state.board.print();
-            println!("Expected move: {:?}", expected_mv);
-        }
-        
-        assert!(legal_moves.iter().any(|mv| *mv == expected_mv));
-
-        let value = match winner {
-            Some(winner) => {
-                if winner == initial_state.side_to_move {
-                    1.0
-                } else {
-                    -1.0
-                }
-            },
-            None => 0.0
-        };
-        
-        let mut policy = Vec::new();
-        
-        for legal_mv in legal_moves {
-            policy.push((legal_mv, if legal_mv == expected_mv { 1.0 } else { 0.0 }));
-        }
-        
-        let evaluation = Evaluation {
-            policy,
-            value
-        };
-        
-        Some((initial_state, evaluation))
+        return None;
     }
+
+    // Generate weights for positions
+    let weights: Vec<f64> = (0..num_moves).map(|i| (i + 1) as f64).collect(); // Linear weighting
+    let weight_sum: f64 = weights.iter().sum();
+    let probabilities: Vec<f64> = weights.iter().map(|w| w / weight_sum).collect();
+
+    // Sample a position index based on probabilities
+    let dist = rand::distributions::WeightedIndex::new(&probabilities).unwrap();
+    let node_idx = dist.sample(rng);
+
+    // Get the selected node
+    let selected_node = nodes[node_idx].clone();
+    let next_node = selected_node.borrow().next_main_node().unwrap();
+
+    // Extract state and legal moves
+    let initial_state = selected_node.borrow().state_after_move.clone();
+    let legal_moves = initial_state.calc_legal_moves();
+    let expected_mv = next_node.borrow().move_and_san_and_previous_node.clone().unwrap().0.clone();
+
+    if !legal_moves.iter().any(|mv| *mv == expected_mv) {
+        initial_state.board.print();
+        println!("Expected move: {:?}", expected_mv);
+    }
+
+    assert!(legal_moves.iter().any(|mv| *mv == expected_mv));
+
+    // Assign value based on game outcome
+    let value = match winner {
+        Some(winner) => {
+            if winner == initial_state.side_to_move {
+                1.0
+            } else {
+                -1.0
+            }
+        },
+        None => 0.0,
+    };
+
+    // Create the policy distribution
+    let mut policy = Vec::new();
+    for legal_mv in legal_moves {
+        policy.push((legal_mv, if legal_mv == expected_mv { 1.0 } else { 0.0 }));
+    }
+
+    let evaluation = Evaluation {
+        policy,
+        value,
+    };
+
+    Some((initial_state, evaluation))
 }
 
 
@@ -249,19 +273,9 @@ fn main() {
     let multi_pgn_file_content = std::fs::read_to_string(MULTI_PGN_FILE).expect("Failed to read PGN file");
     let pgns = extract_pgns(&multi_pgn_file_content);
     for i in 0..200 {
-        let learning_rate;
-        if i < 5 {
-            learning_rate = 0.05;
-        } else if i < 20 {
-            learning_rate = 0.01;
-        } else if i < 50 {
-            learning_rate = 0.005;
-        } else {
-            learning_rate = 0.001;
-        }
+        let learning_rate = 0.01;
         
         println!("|*| Training iteration {}/200 with learning rate {} |*|", i + 1, learning_rate);
-        
-        train(&pgns, 1, 500, learning_rate);
+        train(&pgns, 50, 32, learning_rate);
     }
 }

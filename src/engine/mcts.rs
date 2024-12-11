@@ -25,7 +25,7 @@ pub fn calc_uct_score(node: &MCTSNode, parent_visits: u32, exploration_constant:
         f64::INFINITY
     } else {
         let exploitation = node.value / node.visits as f64;
-        let exploration = exploration_constant * (parent_visits as f64).ln() / node.visits as f64;
+        let exploration = exploration_constant * ((parent_visits as f64).ln() / node.visits as f64).sqrt();
         exploitation + exploration
     }
 }

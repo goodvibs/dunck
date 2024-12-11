@@ -1,4 +1,6 @@
 use std::error::Error;
+use std::fs;
+use std::path::Path;
 use tch::{nn, Device, Kind, Tensor};
 use tch::nn::Module;
 use crate::engine::conv_net_evaluator::constants::*;
@@ -16,12 +18,13 @@ pub struct ConvNet {
     conv1: nn::Conv2D,
     bn1: nn::BatchNorm,
     residual_blocks: Vec<ResidualBlock>,
+    dropout: f64,
     fc_policy: nn::Linear,
     fc_value: nn::Linear,
 }
 
 impl ConvNet {
-    pub fn new(device: Device, num_residual_blocks: usize, num_filters: i64) -> ConvNet {
+    pub fn new(device: Device, num_residual_blocks: usize, num_filters: i64, dropout: f64) -> ConvNet {
         let vs = nn::VarStore::new(device);
         let root = &vs.root();
 
@@ -57,18 +60,19 @@ impl ConvNet {
             conv1,
             bn1,
             residual_blocks,
+            dropout,
             fc_policy,
             fc_value,
         }
     }
 
-    /// Save model weights to a file
+    /// Save model weights manually using read_safetensors
     pub fn save(&self, path: &str) -> Result<(), Box<dyn Error>> {
         self.vs.save(path)?;
         Ok(())
     }
 
-    /// Load model weights from a file
+    /// Load model weights manually using fill_safetensors
     pub fn load(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
         self.vs.load(path)?;
         Ok(())
@@ -86,7 +90,11 @@ impl ConvNet {
         }
 
         // Flatten for fully connected layers
-        x = x.view([-1, self.num_filters * 8 * 8]);
+        x = x.flatten(1, -1);
+
+        if train {
+            x = x.dropout(self.dropout, train);
+        }
 
         // Policy head: Softmax over 4672 possible moves
         let policy = self
@@ -110,7 +118,7 @@ mod tests {
 
     #[test]
     fn test_chess_model() {
-        let model = ConvNet::new(*DEVICE, 4, 8);
+        let model = ConvNet::new(*DEVICE, 10, 256, 0.3);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor, false);
@@ -122,7 +130,7 @@ mod tests {
     #[test]
     fn test_training() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ConvNet::new(*DEVICE, 4, 8);
+        let model = ConvNet::new(*DEVICE, 10, 256, 0.3);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor, true);
@@ -142,7 +150,7 @@ mod tests {
     #[test]
     fn test_train_1000_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ConvNet::new(*DEVICE, 4, 8);
+        let model = ConvNet::new(*DEVICE, 10, 256, 0.3);
         let mut optimizer = nn::Adam::default().build(&vs, 1e-3).unwrap();
 
         for _ in 0..1000 {

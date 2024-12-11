@@ -45,6 +45,6 @@ impl ResidualBlock {
         let residual = x;  // Save the input for the skip connection
         let x = x.apply(&self.conv1).apply_t(&self.bn1, train).relu();
         let x = x.apply(&self.conv2).apply_t(&self.bn2, train);
-        x + residual  // Skip connection
+        (x + residual).relu()
     }
 }
