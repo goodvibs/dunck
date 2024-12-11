@@ -1,8 +1,7 @@
 const INPUT_DIRECTORY: &str = "data/lichess_elite_db_multi_pgn";
 
 use std::fs;
-use std::str::FromStr;
-use dunck::pgn::{tokenize_pgn, PgnStateTree, PgnToken};
+use dunck::pgn::{tokenize_pgn, PgnToken};
 use dunck::r#move::Move;
 use dunck::state::State;
 use dunck::utils::Color;
@@ -48,13 +47,6 @@ fn write_to_file(file_path: &str, pgns: Vec<String>) {
 }
 
 
-pub struct TrainingItem {
-    pub state: State,
-    pub best_move: Move,
-    pub winner: Option<Color>
-}
-
-
 fn main() {
     let mut num_pgns_read = 0;
     let mut num_accepted_pgns = 0;
@@ -87,6 +79,6 @@ fn main() {
     println!("Number of pgns accepted: {}", num_accepted_pgns);
     println!("Number of pgns read: {}", num_pgns_read);
     
-    let output_file_path = "data/lichess_elite_db_multi_pgn/accepted.pgn";
-    write_to_file(output_file_path, accepted_pgns);
+    let output_file_path = format!("{}/accepted.pgn", INPUT_DIRECTORY);
+    // write_to_file(output_file_path.as_str(), accepted_pgns);
 }
