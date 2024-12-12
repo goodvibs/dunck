@@ -11,9 +11,8 @@ use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use std::fs::exists;
 use std::str::FromStr;
-use std::time::Instant;
-use tch::{nn, Kind, Tensor};
 use tch::nn::OptimizerConfig;
+use tch::{nn, Kind, Tensor};
 
 pub const MULTI_PGN_FILE: &str = "data/lichess_elite_db_multi_pgn/accepted.pgn";
 pub const MODEL_FILE: &str = "model.safetensors";
@@ -161,10 +160,11 @@ fn compute_loss(
 
     let (pred_policies, pred_values) = evaluator.model.forward(&states, false);
 
-    // Cross-entropy for policy
+    // Apply log_softmax to the policy logits
     let log_probs = pred_policies.log_softmax(-1, Kind::Float);
+
+    // Cross-entropy for policy
     let policy_loss = -(policies * &log_probs)
-        // Summation dimensions: for a policy shape [batch, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES]
         .sum_dim_intlist(&[1i64, 2i64, 3i64][..], false, Kind::Float)
         .mean(Kind::Float);
 
@@ -230,8 +230,10 @@ fn run_batch(
 
     let (pred_policies, pred_values) = evaluator.model.forward(&states, true);
 
-    // Cross-entropy for policy
+    // Apply log_softmax to the policy logits
     let log_probs = pred_policies.log_softmax(-1, Kind::Float);
+
+    // Cross-entropy for policy: -sum(target * log_pred)
     let policy_loss = -(policies * &log_probs)
         .sum_dim_intlist(&[1i64, 2i64, 3i64][..], false, Kind::Float)
         .mean(Kind::Float);
@@ -307,7 +309,7 @@ fn main() {
     let num_iterations = 200;
     let num_epochs = 50;
     let num_batches_per_epoch = 64;
-    let learning_rate = 0.001;
+    let learning_rate = 0.01;
 
     for i in 0..num_iterations {
         println!("|*| Training iteration {}/{} with learning rate {} |*|", i + 1, num_iterations, learning_rate);

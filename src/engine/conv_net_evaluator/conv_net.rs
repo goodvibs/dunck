@@ -1,14 +1,8 @@
 use std::error::Error;
-use std::fs;
-use std::path::Path;
 use tch::{nn, Device, Kind, Tensor};
 use tch::nn::Module;
 use crate::engine::conv_net_evaluator::constants::*;
 use crate::engine::conv_net_evaluator::residual_block::ResidualBlock;
-use crate::engine::conv_net_evaluator::utils::{is_knight_jump, DEVICE};
-use crate::r#move::{Move, MoveFlag};
-use crate::state::State;
-use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 // Define the main model structure
 #[derive(Debug)]
@@ -96,12 +90,10 @@ impl ConvNet {
             x = x.dropout(self.dropout, train);
         }
 
-        // Policy head: Softmax over 4672 possible moves
         let policy = self
             .fc_policy
             .forward(&x)
-            .view([-1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64])
-            .softmax(-1, Kind::Float); // Softmax for move probabilities
+            .view([-1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64]);
 
         // Value head: Tanh for output between -1 and 1
         let value = self.fc_value.forward(&x).tanh();
@@ -113,7 +105,8 @@ impl ConvNet {
 #[cfg(test)]
 mod tests {
     use tch::nn::OptimizerConfig;
-    use crate::engine::conv_net_evaluator::utils::state_to_tensor;
+    use crate::engine::conv_net_evaluator::utils::{state_to_tensor, DEVICE};
+    use crate::state::State;
     use super::*;
 
     #[test]
