@@ -1,11 +1,9 @@
 use std::iter::zip;
-use tch::{nn, nn::Module, nn::OptimizerConfig, Tensor, Device, Kind};
 use crate::engine::conv_net_evaluator::conv_net::{ConvNet};
 use crate::engine::conv_net_evaluator::utils::{get_policy_index_for_move, state_to_tensor, DEVICE};
 use crate::engine::evaluation::{Evaluation, Evaluator};
 use crate::r#move::{MoveFlag};
 use crate::state::State;
-use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 #[derive(Debug)]
 pub struct ConvNetEvaluator {
@@ -14,8 +12,8 @@ pub struct ConvNetEvaluator {
 }
 
 impl ConvNetEvaluator {
-    pub fn new(num_residual_blocks: usize, num_filters: i64, dropout: f64, train: bool) -> ConvNetEvaluator {
-        let model = ConvNet::new(*DEVICE, num_residual_blocks, num_filters, dropout);
+    pub fn new(num_residual_blocks: usize, num_filters: i64, train: bool) -> ConvNetEvaluator {
+        let model = ConvNet::new(*DEVICE, num_residual_blocks, num_filters);
 
         ConvNetEvaluator {
             model,
@@ -52,7 +50,7 @@ impl Evaluator for ConvNetEvaluator {
                 src_square_from_current_perspective.get_rank() as i64,
                 src_square_from_current_perspective.get_file() as i64,
                 policy_index as i64
-            ]);
+            ]).max(0.);
             
             priors.push(prior);
             sum += prior;

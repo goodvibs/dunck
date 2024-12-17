@@ -11,6 +11,7 @@ use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use std::fs::exists;
 use std::str::FromStr;
+use rand::Rng;
 use tch::nn::OptimizerConfig;
 use tch::{nn, Kind, Tensor};
 
@@ -19,7 +20,6 @@ pub const MODEL_FILE: &str = "model.safetensors";
 
 pub const NUM_RESIDUAL_BLOCKS: usize = 10;
 pub const NUM_FILTERS: i64 = 256;
-pub const DROPOUT: f64 = 0.3;
 
 fn extract_pgns(multi_pgn_file_content: &str) -> Vec<String> {
     let mut pgns = Vec::new();
@@ -32,7 +32,7 @@ fn extract_pgns(multi_pgn_file_content: &str) -> Vec<String> {
 }
 
 fn load_evaluator() -> ConvNetEvaluator {
-    let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, DROPOUT, true);
+    let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, true);
     if exists(MODEL_FILE).expect("Failed to check if model file exists") {
         println!("Loading model from file...");
         evaluator.model.load(MODEL_FILE).expect("Failed to load model");
@@ -45,7 +45,7 @@ fn verify_and_save_model(evaluator: &ConvNetEvaluator) {
     evaluator.model.save(MODEL_FILE).expect("Failed to save model");
 
     // Verify saved model
-    let mut evaluator2 = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, DROPOUT, true);
+    let mut evaluator2 = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, true);
     evaluator2.model.load(MODEL_FILE).expect("Failed to load model");
     assert_eq!(evaluator.model.vs.variables().len(), evaluator2.model.vs.variables().len());
 
@@ -116,16 +116,18 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
     };
 
     // Ensure sufficient moves
-    if num_moves < 10 {
+    if num_moves < 75 {
         return None;
     }
 
-    let weights: Vec<f64> = (0..num_moves).map(|i| (i + 1) as f64).collect();
-    let weight_sum: f64 = weights.iter().sum();
-    let probabilities: Vec<f64> = weights.iter().map(|w| w / weight_sum).collect();
-
-    let dist = rand::distributions::WeightedIndex::new(&probabilities).unwrap();
-    let node_idx = dist.sample(rng);
+    // let weights: Vec<f64> = (0..num_moves).map(|i| (i + 1) as f64).collect();
+    // let weight_sum: f64 = weights.iter().sum();
+    // let probabilities: Vec<f64> = weights.iter().map(|w| w / weight_sum).collect();
+    // 
+    // let dist = rand::distributions::WeightedIndex::new(&probabilities).unwrap();
+    // let node_idx = dist.sample(rng);
+    
+    let node_idx = rng.gen_range(0..num_moves-1);
 
     let selected_node = nodes[node_idx].clone();
     let next_node = selected_node.borrow().next_main_node().unwrap();
@@ -133,8 +135,11 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
     let initial_state = selected_node.borrow().state_after_move.clone();
     let legal_moves = initial_state.calc_legal_moves();
     let expected_mv = next_node.borrow().move_and_san_and_previous_node.as_ref().unwrap().0.clone();
-
+    
     assert!(legal_moves.iter().any(|mv| *mv == expected_mv));
+    
+    // let expected_san = next_node.borrow().move_and_san_and_previous_node.as_ref().unwrap().1.clone();
+    // println!("Selected move: {}", expected_san);
 
     let value = match winner {
         Some(winner) => {
@@ -295,7 +300,7 @@ fn main() {
     let pgns = extract_pgns(&multi_pgn_file_content);
 
     // Split into train and validation sets
-    let val_ratio = 0.1;
+    let val_ratio = 0.000001;
     let val_size = (pgns.len() as f64 * val_ratio) as usize;
     let (val_pgns, train_pgns) = pgns.split_at(val_size);
 
@@ -307,9 +312,15 @@ fn main() {
 
     // Training parameters
     let num_iterations = 200;
-    let num_epochs = 50;
+    let num_epochs = 15;
     let num_batches_per_epoch = 64;
-    let learning_rate = 0.01;
+    let mut learning_rate = 0.01;
+
+    // Parameters for dynamic LR adjustment
+    let patience = 5;
+    let reduce_factor = 0.5;
+    let mut best_val_loss = f64::INFINITY;
+    let mut no_improvement_count = 0;
 
     for i in 0..num_iterations {
         println!("|*| Training iteration {}/{} with learning rate {} |*|", i + 1, num_iterations, learning_rate);
@@ -329,12 +340,32 @@ fn main() {
             let (train_pol_loss, train_val_loss, train_tot_loss) = train_epoch(&mut evaluator, &mut optimizer, &training_data);
 
             // Evaluate on validation data
+            evaluator.train = false;
             let (val_pol_loss, val_val_loss, val_tot_loss) = evaluate_epoch(&evaluator, &validation_data);
+            evaluator.train = true;
 
             println!(
                 "Epoch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4}), Validation (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
-                epoch + 1, num_epochs, train_pol_loss, train_val_loss, train_tot_loss, val_pol_loss, val_val_loss, val_tot_loss
+                epoch + 1, num_epochs,
+                train_pol_loss, train_val_loss, train_tot_loss,
+                val_pol_loss, val_val_loss, val_tot_loss
             );
+
+            // Check if validation improved
+            if val_tot_loss < best_val_loss {
+                best_val_loss = val_tot_loss;
+                no_improvement_count = 0;
+            } else {
+                no_improvement_count += 1;
+                if no_improvement_count >= patience {
+                    // Reduce learning rate
+                    learning_rate *= reduce_factor;
+                    optimizer.set_lr(learning_rate);
+                    println!("No validation improvement for {} epochs, reducing LR to {}", patience, learning_rate);
+                    no_improvement_count = 0;
+                    best_val_loss = f64::INFINITY;
+                }
+            }
         }
 
         verify_and_save_model(&evaluator);

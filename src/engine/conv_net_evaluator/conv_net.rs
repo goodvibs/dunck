@@ -1,24 +1,24 @@
 use std::error::Error;
-use tch::{nn, Device, Kind, Tensor};
-use tch::nn::Module;
+use tch::{nn, Device, Tensor};
 use crate::engine::conv_net_evaluator::constants::*;
+use crate::engine::conv_net_evaluator::policy_head::PolicyHead;
 use crate::engine::conv_net_evaluator::residual_block::ResidualBlock;
+use crate::engine::conv_net_evaluator::value_head::ValueHead;
 
 // Define the main model structure
 #[derive(Debug)]
 pub struct ConvNet {
     pub vs: nn::VarStore,
     pub num_filters: i64,
-    conv1: nn::Conv2D,
-    bn1: nn::BatchNorm,
-    residual_blocks: Vec<ResidualBlock>,
-    dropout: f64,
-    fc_policy: nn::Linear,
-    fc_value: nn::Linear,
+    pub conv1: nn::Conv2D,
+    pub bn1: nn::BatchNorm,
+    pub residual_blocks: Vec<ResidualBlock>,
+    pub policy_head: PolicyHead,
+    pub value_head: ValueHead,
 }
 
 impl ConvNet {
-    pub fn new(device: Device, num_residual_blocks: usize, num_filters: i64, dropout: f64) -> ConvNet {
+    pub fn new(device: Device, num_residual_blocks: usize, num_filters: i64) -> ConvNet {
         let vs = nn::VarStore::new(device);
         let root = &vs.root();
 
@@ -34,19 +34,8 @@ impl ConvNet {
             residual_blocks.push(ResidualBlock::new(root, num_filters));
         }
 
-        // Fully connected layers for policy and value heads
-        let fc_policy = nn::linear(
-            root,
-            num_filters * 64,
-            NUM_OUTPUT_POLICY_MOVES as i64,
-            Default::default(),
-        );
-        let fc_value = nn::linear(
-            root,
-            num_filters * 64,
-            1,
-            Default::default(),
-        );
+        let policy_head = PolicyHead::new(root, num_filters);
+        let value_head = ValueHead::new(root, num_filters);
 
         ConvNet {
             vs,
@@ -54,9 +43,8 @@ impl ConvNet {
             conv1,
             bn1,
             residual_blocks,
-            dropout,
-            fc_policy,
-            fc_value,
+            policy_head,
+            value_head,
         }
     }
 
@@ -83,20 +71,8 @@ impl ConvNet {
             x = block.forward(&x, train);
         }
 
-        // Flatten for fully connected layers
-        x = x.flatten(1, -1);
-
-        if train {
-            x = x.dropout(self.dropout, train);
-        }
-
-        let policy = self
-            .fc_policy
-            .forward(&x)
-            .view([-1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64]);
-
-        // Value head: Tanh for output between -1 and 1
-        let value = self.fc_value.forward(&x).tanh();
+        let policy = self.policy_head.forward(&x, train);
+        let value = self.value_head.forward(&x, train);
 
         (policy, value)
     }
@@ -104,6 +80,7 @@ impl ConvNet {
 
 #[cfg(test)]
 mod tests {
+    use tch::Kind;
     use tch::nn::OptimizerConfig;
     use crate::engine::conv_net_evaluator::utils::{state_to_tensor, DEVICE};
     use crate::state::State;
@@ -111,7 +88,7 @@ mod tests {
 
     #[test]
     fn test_chess_model() {
-        let model = ConvNet::new(*DEVICE, 10, 256, 0.3);
+        let model = ConvNet::new(*DEVICE, 10, 256);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor, false);
@@ -123,7 +100,7 @@ mod tests {
     #[test]
     fn test_training() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ConvNet::new(*DEVICE, 10, 256, 0.3);
+        let model = ConvNet::new(*DEVICE, 10, 256);
 
         let input_tensor = state_to_tensor(&State::initial());
         let (policy, value) = model.forward(&input_tensor, true);
@@ -143,7 +120,7 @@ mod tests {
     #[test]
     fn test_train_1000_iterations() {
         let vs = nn::VarStore::new(*DEVICE);
-        let model = ConvNet::new(*DEVICE, 10, 256, 0.3);
+        let model = ConvNet::new(*DEVICE, 10, 256);
         let mut optimizer = nn::Adam::default().build(&vs, 1e-3).unwrap();
 
         for _ in 0..1000 {
