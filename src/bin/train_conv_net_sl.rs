@@ -6,7 +6,6 @@ use dunck::pgn::PgnStateTree;
 use dunck::r#move::MoveFlag;
 use dunck::state::{State, Termination};
 use dunck::utils::Color;
-use rand::distributions::Distribution;
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
 use std::fs::exists;
@@ -119,13 +118,6 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
     if num_moves < 75 {
         return None;
     }
-
-    // let weights: Vec<f64> = (0..num_moves).map(|i| (i + 1) as f64).collect();
-    // let weight_sum: f64 = weights.iter().sum();
-    // let probabilities: Vec<f64> = weights.iter().map(|w| w / weight_sum).collect();
-    // 
-    // let dist = rand::distributions::WeightedIndex::new(&probabilities).unwrap();
-    // let node_idx = dist.sample(rng);
     
     let node_idx = rng.gen_range(0..num_moves-1);
 
@@ -137,9 +129,6 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
     let expected_mv = next_node.borrow().move_and_san_and_previous_node.as_ref().unwrap().0.clone();
     
     assert!(legal_moves.iter().any(|mv| *mv == expected_mv));
-    
-    // let expected_san = next_node.borrow().move_and_san_and_previous_node.as_ref().unwrap().1.clone();
-    // println!("Selected move: {}", expected_san);
 
     let value = match winner {
         Some(winner) => {
@@ -313,8 +302,8 @@ fn main() {
     // Training parameters
     let num_iterations = 200;
     let num_epochs = 15;
-    let num_batches_per_epoch = 64;
-    let mut learning_rate = 0.01;
+    let num_batches_per_epoch = 512;
+    let mut learning_rate = 0.0000625;
 
     // Parameters for dynamic LR adjustment
     let patience = 5;

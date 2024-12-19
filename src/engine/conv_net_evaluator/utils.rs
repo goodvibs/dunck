@@ -1,7 +1,6 @@
 use lazy_static::lazy_static;
 use tch::{Device, Kind, Tensor};
-use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_BITS_PER_BOARD, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_SIDE_TO_MOVE_BITS, NUM_TARGET_SQUARE_POSSIBILITIES, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
-use crate::r#move::{Move, MoveFlag};
+use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_BITS_PER_BOARD, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_SIDE_TO_MOVE_BITS, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
@@ -90,15 +89,17 @@ fn fill_pieces(tensor: &mut Tensor, state: &State) {
 }
 
 fn fill_side_to_move(tensor: &mut Tensor, side_to_move: Color) {
+    let val = if side_to_move == Color::White { 1. } else { 0. };
     let _ = tensor.get(NUM_BITS_PER_BOARD as i64).fill_(
-        if side_to_move == Color::White { 1. } else { 0. }
+        val
     );
 }
 
-fn fill_castling_rights(tensor: &mut Tensor, castling_rights: u8) {
+fn fill_castling_rights(tensor: &mut Tensor, castling_rights: u8) { // todo: account for perspective
     for (i, bit) in [0b1000, 0b0100, 0b0010, 0b0001].iter().enumerate() {
+        let val = if castling_rights & bit != 0 { 1. } else { 0. };
         let _ = tensor.get((NUM_BITS_PER_BOARD + NUM_SIDE_TO_MOVE_BITS + i as u8) as i64).fill_(
-            if castling_rights & bit != 0 { 1. } else { 0. }
+            val
         );
     }
 }
@@ -124,8 +125,8 @@ pub fn state_to_tensor(state: &State) -> Tensor {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
-    use crate::attacks::single_knight_attacks;
-    use crate::engine::conv_net_evaluator::constants::{MAX_NUM_KNIGHT_MOVES, NUM_PAWN_MOVE_DIRECTIONS};
+    use crate::attacks::{single_bishop_attacks, single_knight_attacks, single_rook_attacks};
+    use crate::engine::conv_net_evaluator::constants::{MAX_NUM_KNIGHT_MOVES, NUM_PAWN_MOVE_DIRECTIONS, NUM_TARGET_SQUARE_POSSIBILITIES};
     use super::*;
 
     #[test]
@@ -188,12 +189,133 @@ mod tests {
     }
 
     #[test]
-    fn test_get_policy_index_for_move() {
-        // TODO
+    fn test_get_policy_index_for_knight_moves() {
+        for square_a in Square::iter_all() {
+            for square_b in get_squares_from_mask_iter(single_knight_attacks(square_a)) {
+                let index1 = get_policy_index_for_move(square_a, square_b, None);
+                let index2 = get_policy_index_for_move(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
+                assert_eq!(index1, index2);
+                assert!(index1 >= NUM_QUEEN_LIKE_MOVES);
+                assert!(index1 < NUM_TARGET_SQUARE_POSSIBILITIES);
+            }
+        }
+    }
+
+    #[test]
+    fn test_get_policy_index_for_queen_like_moves() {
+        for square_a in Square::iter_all() {
+            for square_b in get_squares_from_mask_iter(single_bishop_attacks(square_a, 0) | single_rook_attacks(square_a, 0)) {
+                let index1 = get_policy_index_for_move(square_a, square_b, None);
+                let index2 = get_policy_index_for_move(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
+                assert_eq!(index1, index2);
+                assert!(index1 < NUM_QUEEN_LIKE_MOVES);
+            }
+        }
     }
 
     #[test]
     fn test_state_to_tensor() {
-        // TODO
+        let state = State::initial();
+        let tensor = state_to_tensor(&state);
+        
+        // check tensor shape
+        assert_eq!(tensor.size(), vec![17, 8, 8]);
+        
+        // channel 0: player pawns
+        assert_eq!(tensor.get(0).sum(Kind::Float).double_value(&[]), 8.);
+        
+        // channel 1: player knights
+        assert_eq!(tensor.get(1).sum(Kind::Float).double_value(&[]), 2.);
+        
+        // channel 2: player bishops
+        assert_eq!(tensor.get(2).sum(Kind::Float).double_value(&[]), 2.);
+        
+        // channel 3: player rooks
+        assert_eq!(tensor.get(3).sum(Kind::Float).double_value(&[]), 2.);
+        
+        // channel 4: player queens
+        assert_eq!(tensor.get(4).sum(Kind::Float).double_value(&[]), 1.);
+        
+        // channel 5: player kings
+        assert_eq!(tensor.get(5).sum(Kind::Float).double_value(&[]), 1.);
+        
+        // channel 6: opponent pawns
+        assert_eq!(tensor.get(6).sum(Kind::Float).double_value(&[]), 8.);
+        
+        // channel 7: opponent knights
+        assert_eq!(tensor.get(7).sum(Kind::Float).double_value(&[]), 2.);
+        
+        // channel 8: opponent bishops
+        assert_eq!(tensor.get(8).sum(Kind::Float).double_value(&[]), 2.);
+        
+        // channel 9: opponent rooks
+        assert_eq!(tensor.get(9).sum(Kind::Float).double_value(&[]), 2.);
+        
+        // channel 10: opponent queens
+        assert_eq!(tensor.get(10).sum(Kind::Float).double_value(&[]), 1.);
+        
+        // channel 11: opponent kings
+        assert_eq!(tensor.get(11).sum(Kind::Float).double_value(&[]), 1.);
+        
+        // channel 12: side to move
+        assert_eq!(tensor.get(12).sum(Kind::Float).double_value(&[]), 64.);
+        
+        // channel 13-16: castling rights
+        assert_eq!(tensor.get(13).sum(Kind::Float).double_value(&[]), 64.);
+        assert_eq!(tensor.get(14).sum(Kind::Float).double_value(&[]), 64.);
+        assert_eq!(tensor.get(15).sum(Kind::Float).double_value(&[]), 64.);
+        assert_eq!(tensor.get(16).sum(Kind::Float).double_value(&[]), 64.);
+        
+        let state = State::from_fen("1nbqkbnr/rp2pp1p/p1P5/8/1P5R/P7/2PP1PP1/RNBQKBN1 b Qk - 0 7").unwrap();
+        let tensor = state_to_tensor(&state);
+
+        // check tensor shape
+        assert_eq!(tensor.size(), vec![17, 8, 8]);
+
+        // channel 0: player pawns
+        assert_eq!(tensor.get(0).sum(Kind::Float).double_value(&[]), 5.);
+
+        // channel 1: player knights
+        assert_eq!(tensor.get(1).sum(Kind::Float).double_value(&[]), 2.);
+
+        // channel 2: player bishops
+        assert_eq!(tensor.get(2).sum(Kind::Float).double_value(&[]), 2.);
+
+        // channel 3: player rooks
+        assert_eq!(tensor.get(3).sum(Kind::Float).double_value(&[]), 2.);
+
+        // channel 4: player queens
+        assert_eq!(tensor.get(4).sum(Kind::Float).double_value(&[]), 1.);
+
+        // channel 5: player kings
+        assert_eq!(tensor.get(5).sum(Kind::Float).double_value(&[]), 1.);
+
+        // channel 6: opponent pawns
+        assert_eq!(tensor.get(6).sum(Kind::Float).double_value(&[]), 7.);
+
+        // channel 7: opponent knights
+        assert_eq!(tensor.get(7).sum(Kind::Float).double_value(&[]), 2.);
+
+        // channel 8: opponent bishops
+        assert_eq!(tensor.get(8).sum(Kind::Float).double_value(&[]), 2.);
+
+        // channel 9: opponent rooks
+        assert_eq!(tensor.get(9).sum(Kind::Float).double_value(&[]), 2.);
+
+        // channel 10: opponent queens
+        assert_eq!(tensor.get(10).sum(Kind::Float).double_value(&[]), 1.);
+
+        // channel 11: opponent kings
+        assert_eq!(tensor.get(11).sum(Kind::Float).double_value(&[]), 1.);
+
+        // channel 12: side to move
+        assert_eq!(tensor.get(12).sum(Kind::Float).double_value(&[]), 0.);
+
+        // channel 13-16: castling rights
+        // todo: fix when perspective gets taken into account
+        assert_eq!(tensor.get(13).sum(Kind::Float).double_value(&[]), 0.);
+        assert_eq!(tensor.get(14).sum(Kind::Float).double_value(&[]), 64.);
+        assert_eq!(tensor.get(15).sum(Kind::Float).double_value(&[]), 64.);
+        assert_eq!(tensor.get(16).sum(Kind::Float).double_value(&[]), 0.);
     }
 }
