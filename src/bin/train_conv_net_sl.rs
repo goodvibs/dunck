@@ -59,7 +59,7 @@ fn verify_and_save_model(evaluator: &ConvNetEvaluator) {
 }
 
 /// Sample a batch of data from a given PGN set
-fn get_random_data_from_pgns(
+fn get_random_batch_from_pgns(
     pgns: &[String],
     num_samples: usize,
     random_state: &mut ThreadRng
@@ -251,28 +251,24 @@ fn run_batch(
     );
 }
 
-/// Train for one epoch and return the training loss
-fn train_epoch(
+/// Train for one batch and return the training loss
+fn train_batch(
     evaluator: &mut ConvNetEvaluator,
     optimizer: &mut nn::Optimizer,
-    training_data: &[(State, Evaluation)],
+    batch_data: &[(State, Evaluation)],
 ) -> (f64, f64, f64) {
-    let mut indices: Vec<usize> = (0..training_data.len()).collect();
+    let mut indices: Vec<usize> = (0..batch_data.len()).collect();
     indices.shuffle(&mut rand::thread_rng());
 
-    // For simplicity, we treat all training_data as one batch. If you have large data,
-    // consider splitting into multiple batches per epoch.
-    for chunk in indices.chunks(training_data.len()) {
-        let batch_data: Vec<_> = chunk.iter().map(|&i| training_data[i].clone()).collect();
-        run_batch(evaluator, optimizer, &batch_data);
-    }
+    let shuffled_batch_data: Vec<_> = indices.iter().map(|&i| batch_data[i].clone()).collect();
+    run_batch(evaluator, optimizer, &shuffled_batch_data);
 
-    // Compute final training loss after epoch
-    compute_loss(evaluator, training_data)
+    // Compute final training loss after batch
+    compute_loss(evaluator, batch_data)
 }
 
 /// Evaluate the model on the validation set and print losses
-fn evaluate_epoch(
+fn evaluate_batch(
     evaluator: &ConvNetEvaluator,
     validation_data: &[(State, Evaluation)],
 ) -> (f64, f64, f64) {
@@ -295,14 +291,14 @@ fn main() {
 
     let mut random_state = rand::thread_rng();
 
-    // Construct a fixed validation set of examples before training begins
+    // Construct a fixed validation set of examples bhefore training begins
     // For example, let's pick 512 samples for validation
-    let validation_data = get_random_data_from_pgns(val_pgns, 512, &mut random_state);
+    let validation_data = get_random_batch_from_pgns(val_pgns, 512, &mut random_state);
 
     // Training parameters
     let num_iterations = 200;
-    let num_epochs = 15;
-    let num_batches_per_epoch = 512;
+    let num_batches = 15;
+    let num_examples_per_batch = 512;
     let mut learning_rate = 0.0000625;
 
     // Parameters for dynamic LR adjustment
@@ -319,23 +315,23 @@ fn main() {
             .build(&evaluator.model.vs, learning_rate)
             .expect("Failed to create optimizer");
 
-        for epoch in 0..num_epochs {
-            println!("Starting epoch {}/{}", epoch + 1, num_epochs);
+        for batch_num in 0..num_batches {
+            println!("Starting batch {}/{}", batch_num + 1, num_batches);
 
-            // Get fresh training data for this epoch
-            let training_data = get_random_data_from_pgns(train_pgns, num_batches_per_epoch, &mut random_state);
+            // Get fresh training data for this batch
+            let training_data = get_random_batch_from_pgns(train_pgns, num_examples_per_batch, &mut random_state);
 
             // Train on the training data
-            let (train_pol_loss, train_val_loss, train_tot_loss) = train_epoch(&mut evaluator, &mut optimizer, &training_data);
+            let (train_pol_loss, train_val_loss, train_tot_loss) = train_batch(&mut evaluator, &mut optimizer, &training_data);
 
             // Evaluate on validation data
             evaluator.train = false;
-            let (val_pol_loss, val_val_loss, val_tot_loss) = evaluate_epoch(&evaluator, &validation_data);
+            let (val_pol_loss, val_val_loss, val_tot_loss) = evaluate_batch(&evaluator, &validation_data);
             evaluator.train = true;
 
             println!(
-                "Epoch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4}), Validation (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
-                epoch + 1, num_epochs,
+                "Batch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4}), Validation (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
+                batch_num + 1, num_batches,
                 train_pol_loss, train_val_loss, train_tot_loss,
                 val_pol_loss, val_val_loss, val_tot_loss
             );
@@ -350,7 +346,7 @@ fn main() {
                     // Reduce learning rate
                     learning_rate *= reduce_factor;
                     optimizer.set_lr(learning_rate);
-                    println!("No validation improvement for {} epochs, reducing LR to {}", patience, learning_rate);
+                    println!("No validation improvement for {} batches, reducing LR to {}", patience, learning_rate);
                     no_improvement_count = 0;
                     best_val_loss = f64::INFINITY;
                 }
@@ -358,5 +354,14 @@ fn main() {
         }
 
         verify_and_save_model(&evaluator);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    /// Train
+    fn test_training() {
+        
     }
 }
