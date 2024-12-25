@@ -340,18 +340,28 @@ mod tests {
 
     #[test]
     fn test_training() {
-        let expected_move = Move::new(Square::E4, Square::E2, Move::DEFAULT_PROMOTION_VALUE, MoveFlag::NormalMove);
+        let expected_move_white = Move::new(Square::E4, Square::E2, Move::DEFAULT_PROMOTION_VALUE, MoveFlag::NormalMove);
+        let expected_move_black = Move::new(Square::F6, Square::G8, Move::DEFAULT_PROMOTION_VALUE, MoveFlag::NormalMove);
 
         let test_states = [
+            // white to move
             State::initial(),
             State::from_fen("rnbqkbnr/ppp1pppp/8/3p4/5P2/8/PPPPP1PP/RNBQKBNR w KQkq - 0 2").unwrap(),
             State::from_fen("r1bqkb1r/p2ppppp/1pn2n2/2p5/P7/2P2P1P/1P1PP1P1/RNBQKBNR w KQkq - 0 5").unwrap(),
             State::from_fen("rnbqkbnr/4pppp/8/pppp4/PPP2P2/8/3PP1PP/RNBQKBNR w KQkq - 0 5").unwrap(),
+            // black to move
+            State::from_fen("rnbqkbnr/ppp1pppp/8/3p4/5P2/5N2/PPPPP1PP/RNBQKB1R b KQkq - 1 2").unwrap(),
+            State::from_fen("rnbqkbnr/1pp1pppp/8/p2p4/5P2/5N1P/PPPPP1P1/RNBQKB1R b KQkq - 0 3").unwrap(),
+            State::from_fen("rnbqkbnr/2p1pppp/8/1N1p4/1p3P1P/8/P1PPP1P1/R1BQKBNR b KQkq - 0 5").unwrap(),
         ];
 
         for state in test_states.iter() {
             let legal_moves = state.calc_legal_moves();
-            assert!(legal_moves.contains(&expected_move));
+            if state.side_to_move == Color::White {
+                assert!(legal_moves.contains(&expected_move_white));
+            } else {
+                assert!(legal_moves.contains(&expected_move_black));
+            }
         }
 
         let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS);
@@ -371,9 +381,15 @@ mod tests {
             println!("Starting batch {}/{}", i + 1, 10);
             let random_batch_vec = get_random_batch_from_pgns(&pgns, 50, rng);
             let modified_random_batch_vec = random_batch_vec.iter().map(|(state, _)| {
-                let modified_eval = Evaluation {
-                    policy: vec![(expected_move, 1.0)],
-                    value: 1.0,
+                let modified_eval = match state.side_to_move {
+                    Color::White => Evaluation {
+                        policy: vec![(expected_move_white, 1.0)],
+                        value: 1.0,
+                    },
+                Color::Black => Evaluation {
+                        policy: vec![(expected_move_black, 1.0)],
+                        value: -1.0,
+                    },
                 };
                 (state.clone(), modified_eval)
             }).collect::<Vec<_>>();
@@ -399,7 +415,16 @@ mod tests {
             if let Some(best_move_node) = mcts.get_best_child_by_visits() {
                 let best_move = best_move_node.borrow().mv.clone();
                 println!("{}", mcts);
-                assert_eq!(best_move.unwrap(), expected_move);
+                match state.side_to_move {
+                    Color::White => { 
+                        assert_eq!(best_move.unwrap(), expected_move_white);
+                        assert!(mcts.root.borrow().value > 0.9);
+                    },
+                    Color::Black => {
+                        assert_eq!(best_move.unwrap(), expected_move_black);
+                        assert!(mcts.root.borrow().value < -0.9);
+                    },
+                }
             }
         }
     }
