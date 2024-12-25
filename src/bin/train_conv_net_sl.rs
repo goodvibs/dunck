@@ -13,12 +13,19 @@ use std::str::FromStr;
 use rand::Rng;
 use tch::nn::OptimizerConfig;
 use tch::{nn, Kind, Tensor};
+use dunck::engine::conv_net_evaluator::conv_net::ConvNet;
 
 pub const MULTI_PGN_FILE: &str = "data/lichess_elite_db_multi_pgn/accepted.pgn";
 pub const MODEL_FILE: &str = "model.safetensors";
 
 pub const NUM_RESIDUAL_BLOCKS: usize = 10;
 pub const NUM_FILTERS: i64 = 256;
+
+pub struct LossMetrics {
+    pub policy_loss: f64,
+    pub value_loss: f64,
+    pub total_loss: f64,
+}
 
 fn extract_pgns(multi_pgn_file_content: &str) -> Vec<String> {
     let mut pgns = Vec::new();
@@ -31,7 +38,7 @@ fn extract_pgns(multi_pgn_file_content: &str) -> Vec<String> {
 }
 
 fn load_evaluator() -> ConvNetEvaluator {
-    let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, true);
+    let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS);
     if exists(MODEL_FILE).expect("Failed to check if model file exists") {
         println!("Loading model from file...");
         evaluator.model.load(MODEL_FILE).expect("Failed to load model");
@@ -44,7 +51,7 @@ fn verify_and_save_model(evaluator: &ConvNetEvaluator) {
     evaluator.model.save(MODEL_FILE).expect("Failed to save model");
 
     // Verify saved model
-    let mut evaluator2 = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, true);
+    let mut evaluator2 = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS);
     evaluator2.model.load(MODEL_FILE).expect("Failed to load model");
     assert_eq!(evaluator.model.vs.variables().len(), evaluator2.model.vs.variables().len());
 
@@ -147,12 +154,12 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
 
 /// Compute the losses (policy and value) for a given batch of data without updating the model.
 fn compute_loss(
-    evaluator: &ConvNetEvaluator,
+    model: &ConvNet,
     data: &[(State, Evaluation)]
 ) -> LossMetrics {
     let (states, policies, values) = create_batch_tensors(data);
 
-    let (pred_policies, pred_values) = evaluator.model.forward(&states, false);
+    let (pred_policies, pred_values) = model.forward(&states, false);
 
     // Apply log_softmax to the policy logits
     let log_probs = pred_policies.log_softmax(-1, Kind::Float);
@@ -217,21 +224,15 @@ fn create_batch_tensors(
     (states, policies, values)
 }
 
-pub struct LossMetrics {
-    pub policy_loss: f64,
-    pub value_loss: f64,
-    pub total_loss: f64,
-}
-
 /// Update the model parameters given a batch of training data
 fn train_batch(
-    evaluator: &mut ConvNetEvaluator,
+    model: &mut ConvNet,
     optimizer: &mut nn::Optimizer,
     batch_data: &[(State, Evaluation)]
 ) -> LossMetrics {
     let (states, policies, values) = create_batch_tensors(batch_data);
 
-    let (pred_policies, pred_values) = evaluator.model.forward(&states, true);
+    let (pred_policies, pred_values) = model.forward(&states, true);
 
     // Apply log_softmax to the policy logits
     let log_probs = pred_policies.log_softmax(-1, Kind::Float);
@@ -265,17 +266,8 @@ fn main() {
     let multi_pgn_file_content = std::fs::read_to_string(MULTI_PGN_FILE).expect("Failed to read PGN file");
     let pgns = extract_pgns(&multi_pgn_file_content);
 
-    // Split into train and validation sets
-    let val_ratio = 0.000001;
-    let val_size = (pgns.len() as f64 * val_ratio) as usize;
-    let (val_pgns, train_pgns) = pgns.split_at(val_size);
-
     let mut random_state = rand::thread_rng();
-
-    // Construct a fixed validation set of examples bhefore training begins
-    // For example, let's pick 512 samples for validation
-    let validation_data = get_random_batch_from_pgns(val_pgns, 512, &mut random_state);
-
+    
     // Training parameters
     let num_iterations = 200;
     let num_batches = 15;
@@ -287,6 +279,8 @@ fn main() {
     let reduce_factor = 0.5;
     let mut best_val_loss = f64::INFINITY;
     let mut no_improvement_count = 0;
+
+    let validation_data = get_random_batch_from_pgns(&pgns, num_examples_per_batch, &mut random_state);
 
     for i in 0..num_iterations {
         println!("|*| Training iteration {}/{} with learning rate {} |*|", i + 1, num_iterations, learning_rate);
@@ -300,15 +294,13 @@ fn main() {
             println!("Starting batch {}/{}", batch_num + 1, num_batches);
 
             // Get fresh training data for this batch
-            let training_data = get_random_batch_from_pgns(train_pgns, num_examples_per_batch, &mut random_state);
+            let training_data = get_random_batch_from_pgns(&pgns, num_examples_per_batch, &mut random_state);
 
             // Train on the training data
-            let train_loss_metrics = train_batch(&mut evaluator, &mut optimizer, &training_data);
+            let train_loss_metrics = train_batch(&mut evaluator.model, &mut optimizer, &training_data);
 
             // Evaluate on validation data
-            evaluator.train = false;
-            let val_loss_metrics = compute_loss(&evaluator, &validation_data);
-            evaluator.train = true;
+            let val_loss_metrics = compute_loss(&evaluator.model, &validation_data);
 
             println!(
                 "Batch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4}), Validation (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
@@ -343,7 +335,7 @@ mod tests {
     use dunck::engine::mcts::{calc_puct_score, MCTS};
     use dunck::r#move::{Move, MoveFlag};
     use dunck::state::State;
-    use dunck::utils::{PieceType, Square};
+    use dunck::utils::{Square};
     use crate::*;
 
     #[test]
@@ -362,7 +354,7 @@ mod tests {
             assert!(legal_moves.contains(&expected_move));
         }
 
-        let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, true);
+        let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS);
         let mut optimizer = nn::Adam::default().build(&evaluator.model.vs, 0.01).unwrap();
 
         let multi_pgn_file_content = std::fs::read_to_string(MULTI_PGN_FILE).expect("Failed to read PGN file");
@@ -374,7 +366,7 @@ mod tests {
             value_loss: 0.0,
             total_loss: 0.0,
         };
-        
+
         for i in 0..10 {
             println!("Starting batch {}/{}", i + 1, 10);
             let random_batch_vec = get_random_batch_from_pgns(&pgns, 50, rng);
@@ -385,8 +377,8 @@ mod tests {
                 };
                 (state.clone(), modified_eval)
             }).collect::<Vec<_>>();
-            
-            train_loss_metrics = train_batch(&mut evaluator, &mut optimizer, &modified_random_batch_vec);
+
+            train_loss_metrics = train_batch(&mut evaluator.model, &mut optimizer, &modified_random_batch_vec);
 
             println!(
                 "Batch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
@@ -394,15 +386,13 @@ mod tests {
                 train_loss_metrics.policy_loss, train_loss_metrics.value_loss, train_loss_metrics.total_loss,
             );
         }
-        
+
         assert!(train_loss_metrics.policy_loss < 0.1);
         assert!(train_loss_metrics.value_loss < 0.1);
         assert!(train_loss_metrics.total_loss < 0.1);
 
         println!();
-        
-        evaluator.train = false;
-        
+
         for state in test_states {
             let mut mcts = MCTS::new(state.clone(), 2.0, &evaluator, &calc_puct_score, false);
             mcts.run(2);
