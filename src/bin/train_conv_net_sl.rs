@@ -149,7 +149,7 @@ fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Thread
 fn compute_loss(
     evaluator: &ConvNetEvaluator,
     data: &[(State, Evaluation)]
-) -> (f64, f64, f64) {
+) -> LossMetrics {
     let (states, policies, values) = create_batch_tensors(data);
 
     let (pred_policies, pred_values) = evaluator.model.forward(&states, false);
@@ -167,11 +167,11 @@ fn compute_loss(
 
     let total_loss = &policy_loss + &value_loss;
 
-    (
-        policy_loss.double_value(&[]),
-        value_loss.double_value(&[]),
-        total_loss.double_value(&[])
-    )
+    LossMetrics {
+        policy_loss: policy_loss.double_value( & []),
+        value_loss: value_loss.double_value( & []),
+        total_loss: total_loss.double_value( & [])
+    }
 }
 
 /// Create batch tensors for states, policies, and values
@@ -196,7 +196,10 @@ fn create_batch_tensors(
                 };
 
                 let policy_index = get_policy_index_for_move(src_square, dst_square, vetted_promotion);
-                policy[policy_index as usize] = *prob;
+                let flat_index = src_square.get_rank() as usize * 8 * NUM_TARGET_SQUARE_POSSIBILITIES as usize
+                    + src_square.get_file() as usize * NUM_TARGET_SQUARE_POSSIBILITIES as usize
+                    + policy_index as usize;
+                policy[flat_index] = *prob;
             }
             Tensor::from_slice(&policy).view([8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64])
         })
@@ -214,12 +217,18 @@ fn create_batch_tensors(
     (states, policies, values)
 }
 
+pub struct LossMetrics {
+    pub policy_loss: f64,
+    pub value_loss: f64,
+    pub total_loss: f64,
+}
+
 /// Update the model parameters given a batch of training data
-fn run_batch(
+fn train_batch(
     evaluator: &mut ConvNetEvaluator,
     optimizer: &mut nn::Optimizer,
     batch_data: &[(State, Evaluation)]
-) {
+) -> LossMetrics {
     let (states, policies, values) = create_batch_tensors(batch_data);
 
     let (pred_policies, pred_values) = evaluator.model.forward(&states, true);
@@ -245,39 +254,11 @@ fn run_batch(
     let value_loss_scalar = value_loss.double_value(&[]);
     let total_loss_scalar = total_loss.double_value(&[]);
 
-    println!(
-        "Train Loss - Policy: {:.4}, Value: {:.4}, Total: {:.4}",
-        policy_loss_scalar, value_loss_scalar, total_loss_scalar
-    );
-}
-
-/// Train for one batch and return the training loss
-fn train_batch(
-    evaluator: &mut ConvNetEvaluator,
-    optimizer: &mut nn::Optimizer,
-    batch_data: &[(State, Evaluation)],
-) -> (f64, f64, f64) {
-    let mut indices: Vec<usize> = (0..batch_data.len()).collect();
-    indices.shuffle(&mut rand::thread_rng());
-
-    let shuffled_batch_data: Vec<_> = indices.iter().map(|&i| batch_data[i].clone()).collect();
-    run_batch(evaluator, optimizer, &shuffled_batch_data);
-
-    // Compute final training loss after batch
-    compute_loss(evaluator, batch_data)
-}
-
-/// Evaluate the model on the validation set and print losses
-fn evaluate_batch(
-    evaluator: &ConvNetEvaluator,
-    validation_data: &[(State, Evaluation)],
-) -> (f64, f64, f64) {
-    let (policy_loss, value_loss, total_loss) = compute_loss(evaluator, validation_data);
-    println!(
-        "Validation Loss - Policy: {:.4}, Value: {:.4}, Total: {:.4}",
-        policy_loss, value_loss, total_loss
-    );
-    (policy_loss, value_loss, total_loss)
+    LossMetrics {
+        policy_loss: policy_loss_scalar,
+        value_loss: value_loss_scalar,
+        total_loss: total_loss_scalar,
+    }
 }
 
 fn main() {
@@ -299,7 +280,7 @@ fn main() {
     let num_iterations = 200;
     let num_batches = 15;
     let num_examples_per_batch = 512;
-    let mut learning_rate = 0.0000625;
+    let mut learning_rate = 0.0003;
 
     // Parameters for dynamic LR adjustment
     let patience = 5;
@@ -322,23 +303,23 @@ fn main() {
             let training_data = get_random_batch_from_pgns(train_pgns, num_examples_per_batch, &mut random_state);
 
             // Train on the training data
-            let (train_pol_loss, train_val_loss, train_tot_loss) = train_batch(&mut evaluator, &mut optimizer, &training_data);
+            let train_loss_metrics = train_batch(&mut evaluator, &mut optimizer, &training_data);
 
             // Evaluate on validation data
             evaluator.train = false;
-            let (val_pol_loss, val_val_loss, val_tot_loss) = evaluate_batch(&evaluator, &validation_data);
+            let val_loss_metrics = compute_loss(&evaluator, &validation_data);
             evaluator.train = true;
 
             println!(
                 "Batch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4}), Validation (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
                 batch_num + 1, num_batches,
-                train_pol_loss, train_val_loss, train_tot_loss,
-                val_pol_loss, val_val_loss, val_tot_loss
+                train_loss_metrics.policy_loss, train_loss_metrics.value_loss, train_loss_metrics.total_loss,
+                val_loss_metrics.policy_loss, val_loss_metrics.value_loss, val_loss_metrics.total_loss
             );
 
             // Check if validation improved
-            if val_tot_loss < best_val_loss {
-                best_val_loss = val_tot_loss;
+            if val_loss_metrics.total_loss < best_val_loss {
+                best_val_loss = val_loss_metrics.total_loss;
                 no_improvement_count = 0;
             } else {
                 no_improvement_count += 1;
@@ -359,9 +340,77 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use dunck::engine::mcts::{calc_puct_score, MCTS};
+    use dunck::r#move::{Move, MoveFlag};
+    use dunck::state::State;
+    use dunck::utils::{PieceType, Square};
+    use crate::*;
+
     #[test]
-    /// Train
     fn test_training() {
+        let expected_move = Move::new(Square::E4, Square::E2, Move::DEFAULT_PROMOTION_VALUE, MoveFlag::NormalMove);
+
+        let test_states = [
+            State::initial(),
+            State::from_fen("rnbqkbnr/ppp1pppp/8/3p4/5P2/8/PPPPP1PP/RNBQKBNR w KQkq - 0 2").unwrap(),
+            State::from_fen("r1bqkb1r/p2ppppp/1pn2n2/2p5/P7/2P2P1P/1P1PP1P1/RNBQKBNR w KQkq - 0 5").unwrap(),
+            State::from_fen("rnbqkbnr/4pppp/8/pppp4/PPP2P2/8/3PP1PP/RNBQKBNR w KQkq - 0 5").unwrap(),
+        ];
+
+        for state in test_states.iter() {
+            let legal_moves = state.calc_legal_moves();
+            assert!(legal_moves.contains(&expected_move));
+        }
+
+        let mut evaluator = ConvNetEvaluator::new(NUM_RESIDUAL_BLOCKS, NUM_FILTERS, true);
+        let mut optimizer = nn::Adam::default().build(&evaluator.model.vs, 0.01).unwrap();
+
+        let multi_pgn_file_content = std::fs::read_to_string(MULTI_PGN_FILE).expect("Failed to read PGN file");
+        let pgns = extract_pgns(&multi_pgn_file_content);
+        let rng = &mut rand::thread_rng();
+
+        let mut train_loss_metrics = LossMetrics {
+            policy_loss: 0.0,
+            value_loss: 0.0,
+            total_loss: 0.0,
+        };
         
+        for i in 0..10 {
+            println!("Starting batch {}/{}", i + 1, 10);
+            let random_batch_vec = get_random_batch_from_pgns(&pgns, 50, rng);
+            let modified_random_batch_vec = random_batch_vec.iter().map(|(state, _)| {
+                let modified_eval = Evaluation {
+                    policy: vec![(expected_move, 1.0)],
+                    value: 1.0,
+                };
+                (state.clone(), modified_eval)
+            }).collect::<Vec<_>>();
+            
+            train_loss_metrics = train_batch(&mut evaluator, &mut optimizer, &modified_random_batch_vec);
+
+            println!(
+                "Batch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
+                i + 1, 10,
+                train_loss_metrics.policy_loss, train_loss_metrics.value_loss, train_loss_metrics.total_loss,
+            );
+        }
+        
+        assert!(train_loss_metrics.policy_loss < 0.1);
+        assert!(train_loss_metrics.value_loss < 0.1);
+        assert!(train_loss_metrics.total_loss < 0.1);
+
+        println!();
+        
+        evaluator.train = false;
+        
+        for state in test_states {
+            let mut mcts = MCTS::new(state.clone(), 2.0, &evaluator, &calc_puct_score, false);
+            mcts.run(2);
+            if let Some(best_move_node) = mcts.get_best_child_by_visits() {
+                let best_move = best_move_node.borrow().mv.clone();
+                println!("{}", mcts);
+                assert_eq!(best_move.unwrap(), expected_move);
+            }
+        }
     }
 }
