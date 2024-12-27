@@ -1,6 +1,7 @@
 use std::error::Error;
 use tch::{nn, Device, Tensor};
 use crate::engine::conv_net_evaluator::constants::*;
+use crate::engine::conv_net_evaluator::combined_policy_value_network::CombinedPolicyValueNetwork;
 use crate::engine::conv_net_evaluator::policy_head::PolicyHead;
 use crate::engine::conv_net_evaluator::residual_block::ResidualBlock;
 use crate::engine::conv_net_evaluator::value_head::ValueHead;
@@ -59,9 +60,15 @@ impl ConvNet {
         self.vs.load(path)?;
         Ok(())
     }
+}
 
+impl CombinedPolicyValueNetwork for ConvNet {
     /// Forward pass through the model
-    pub fn forward(&self, x: &Tensor, train: bool) -> (Tensor, Tensor) {
+    fn forward(&self, x: &Tensor, train: bool) -> (Tensor, Tensor) {
+        assert_eq!(x.size().len(), 4);
+        assert_eq!(x.size()[1..4], [NUM_POSITION_BITS as i64, 8, 8]);
+        assert!(x.size()[0] > 0);
+        
         // Apply initial convolution, batch normalization, and ReLU activation
         let mut x = x.view([-1, NUM_POSITION_BITS as i64, 8, 8]).apply(&self.conv1);
         x = x.apply_t(&self.bn1, train).relu();
@@ -71,8 +78,12 @@ impl ConvNet {
             x = block.forward(&x, train);
         }
 
+        // Should be batch_size x 8 x 8 x 73
         let policy = self.policy_head.forward(&x, train);
+        // Should be batch_size x 1
         let value = self.value_head.forward(&x, train);
+        
+        assert_eq!(policy.size().len(), value.size().len() + 2);
 
         (policy, value)
     }
