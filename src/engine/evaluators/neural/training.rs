@@ -35,12 +35,8 @@ pub fn run_model(
     assert_eq!(predicted_policies.size(), expected_policies.size());
     assert_eq!(predicted_values.size(), expected_values.size());
 
-    // let policy_loss = predicted_policies.mse_loss(&expected_policies, tch::Reduction::Mean);
-
-    let policy_loss = predicted_policies.cross_entropy_loss::<Tensor>(&expected_policies, None, tch::Reduction::Mean, -100, 0.) * 1000.;
-
-    // let policy_loss = predicted_policies.kl_div(&expected_policies, tch::Reduction::Mean, false);
-
+    let policy_loss = predicted_policies.cross_entropy_loss::<Tensor>(&expected_policies, None, tch::Reduction::Mean, -100, 0.) * 100.;
+    
     assert_eq!(policy_loss.size(), [] as [i64; 0]);
 
     // MSE for value

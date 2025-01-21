@@ -74,11 +74,11 @@ pub fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Th
     };
 
     // Ensure sufficient moves
-    if num_moves < 75 {
+    if num_moves < 40 {
         return None;
     }
 
-    let node_idx = rng.gen_range(0..num_moves-1);
+    let node_idx = rng.gen_range(30..num_moves-1);
 
     let selected_node = nodes[node_idx].clone();
     let next_node = selected_node.borrow().next_main_node().unwrap();

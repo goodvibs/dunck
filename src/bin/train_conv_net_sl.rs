@@ -49,7 +49,7 @@ fn main() {
     let num_iterations = 200;
     let num_batches = 15;
     let num_examples_per_batch = 512;
-    let mut learning_rate = 0.0003;
+    let mut learning_rate = 0.002;
 
     // Parameters for dynamic LR adjustment
     let patience = 3;
