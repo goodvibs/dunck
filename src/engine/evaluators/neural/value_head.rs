@@ -1,4 +1,4 @@
-use tch::{nn, Kind, Tensor};
+use tch::{nn, Tensor};
 
 #[derive(Debug)]
 pub struct ValueHead {

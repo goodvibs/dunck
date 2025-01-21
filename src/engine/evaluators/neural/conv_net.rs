@@ -1,10 +1,10 @@
 use std::error::Error;
 use tch::{nn, Device, Tensor};
-use crate::engine::conv_net_evaluator::constants::*;
-use crate::engine::conv_net_evaluator::combined_policy_value_network::CombinedPolicyValueNetwork;
-use crate::engine::conv_net_evaluator::policy_head::PolicyHead;
-use crate::engine::conv_net_evaluator::residual_block::ResidualBlock;
-use crate::engine::conv_net_evaluator::value_head::ValueHead;
+use crate::engine::evaluators::neural::constants::*;
+use crate::engine::evaluators::neural::combined_policy_value_network::CombinedPolicyValueNetwork;
+use crate::engine::evaluators::neural::policy_head::PolicyHead;
+use crate::engine::evaluators::neural::residual_block::ResidualBlock;
+use crate::engine::evaluators::neural::value_head::ValueHead;
 
 // Define the main model structure
 #[derive(Debug)]
@@ -93,7 +93,7 @@ impl CombinedPolicyValueNetwork for ConvNet {
 mod tests {
     use tch::Kind;
     use tch::nn::OptimizerConfig;
-    use crate::engine::conv_net_evaluator::utils::{state_to_tensor, DEVICE};
+    use crate::engine::evaluators::neural::utils::{state_to_tensor, DEVICE};
     use crate::state::State;
     use super::*;
 

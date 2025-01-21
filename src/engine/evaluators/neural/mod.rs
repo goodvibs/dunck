@@ -1,0 +1,13 @@
+pub mod conv_net_evaluator;
+pub mod conv_net;
+pub mod utils;
+pub mod constants;
+pub mod residual_block;
+pub mod se_layer;
+pub mod policy_head;
+pub mod value_head;
+pub mod combined_policy_value_network;
+pub mod training;
+pub mod training_utils;
+pub mod racist_dummy_net;
+pub mod racist_dummy_evaluator;

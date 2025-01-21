@@ -5,7 +5,7 @@ use std::rc::Rc;
 use rand::distributions::Distribution;
 use rand_distr::Gamma;
 use crate::engine::evaluation::{get_value_at_terminal_state, Evaluation, Evaluator};
-use crate::engine::mcts_node::MCTSNode;
+use crate::engine::mcts::mcts_node::MCTSNode;
 use crate::r#move::Move;
 use crate::state::{State};
 
@@ -208,8 +208,8 @@ impl<'a> Display for MCTS<'a> {
 
 #[cfg(test)]
 mod tests {
-    use crate::engine::conv_net_evaluator::ConvNetEvaluator;
-    use crate::engine::rollout_evaluator::RolloutEvaluator;
+    use crate::engine::evaluators::neural::conv_net_evaluator::ConvNetEvaluator;
+    use crate::engine::evaluators::random_rollout::RolloutEvaluator;
     use super::*;
 
     #[test]
@@ -245,7 +245,7 @@ mod tests {
     
     #[test]
     fn test_play_game() {
-        let evaluator = ConvNetEvaluator::new(4, 8, true);
+        let evaluator = ConvNetEvaluator::new(4, 8);
         let exploration_param = 1.5;
         let mut mcts = MCTS::new(
             State::initial(),

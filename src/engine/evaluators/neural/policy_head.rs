@@ -1,5 +1,5 @@
 use tch::{nn, Tensor};
-use crate::engine::conv_net_evaluator::constants::NUM_TARGET_SQUARE_POSSIBILITIES;
+use crate::engine::evaluators::neural::constants::NUM_TARGET_SQUARE_POSSIBILITIES;
 
 #[derive(Debug)]
 pub struct PolicyHead {

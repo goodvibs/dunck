@@ -1,6 +1,7 @@
 use lazy_static::lazy_static;
 use tch::{Device, Kind, Tensor};
-use crate::engine::conv_net_evaluator::constants::{MAX_RAY_LENGTH, NUM_BITS_PER_BOARD, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_SIDE_TO_MOVE_BITS, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
+use crate::engine::evaluators::neural::constants::{MAX_RAY_LENGTH, NUM_BITS_PER_BOARD, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_SIDE_TO_MOVE_BITS, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
+use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
@@ -8,8 +9,41 @@ lazy_static! {
     pub static ref DEVICE: Device = Device::cuda_if_available();
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub struct PolicyIndex {
+    pub source_rank_index: u8,
+    pub source_file_index: u8,
+    pub move_index: u8
+}
+
+impl PolicyIndex {
+    pub fn calc(mv: &Move, color: Color) -> Self {
+        let src_square = mv.get_source();
+        let dst_square = mv.get_destination();
+        let vetted_promotion = match mv.get_flag() {
+            MoveFlag::Promotion => Some(mv.get_promotion()),
+            _ => None
+        };
+        
+        let src_square_from_current_perspective = src_square.to_perspective_from_white(color);
+        let dst_square_from_current_perspective = dst_square.to_perspective_from_white(color);
+        
+        let move_index = calc_move_index(
+            src_square_from_current_perspective,
+            dst_square_from_current_perspective,
+            vetted_promotion
+        );
+        
+        PolicyIndex {
+            source_rank_index: src_square_from_current_perspective.get_rank(),
+            source_file_index: src_square_from_current_perspective.get_file(),
+            move_index
+        }
+    }
+}
+
 /// Checks if a move is a knight move based on its source and destination squares.
-pub const fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
+const fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
     // Calculate the difference in rank and file between the source and destination
     let rank_diff = (dst_square.get_rank() as i8 - src_square.get_rank() as i8).abs();
     let file_diff = (dst_square.get_file() as i8 - src_square.get_file() as i8).abs();
@@ -21,7 +55,7 @@ pub const fn is_knight_jump(src_square: Square, dst_square: Square) -> bool {
 /// Maps a queen-like move to an index in the policy tensor's 73 possible moves per square.
 /// Index is between 0 and 64 for queen-like moves (56 different target squares, 9 possible underpromotions).
 /// Assumes that the direction is from the perspective of the current player.
-pub const fn get_policy_index_for_queen_like_move(direction: QueenLikeMoveDirection, distance: u8, promotion: Option<PieceType>) -> u8 {
+const fn calc_move_index_for_queen_like_move(direction: QueenLikeMoveDirection, distance: u8, promotion: Option<PieceType>) -> u8 {
     // Calculate the index based on the direction and distance
     let direction_index = direction as u8;
     let distance_index = distance - 1; // Distance is 1-indexed
@@ -46,20 +80,22 @@ pub const fn get_policy_index_for_queen_like_move(direction: QueenLikeMoveDirect
 /// Maps a knight move to an index in the policy tensor's 73 possible moves per square.
 /// Index is between 65 and 72 for knight moves (8 possible moves).
 /// Assumes that the direction is from the perspective of the current player.
-pub const fn get_policy_index_for_knight_move(direction: KnightMoveDirection) -> u8 {
+const fn calc_move_index_for_knight_move(direction: KnightMoveDirection) -> u8 {
     direction as u8 + NUM_QUEEN_LIKE_MOVES + NUM_WAYS_OF_UNDERPROMOTION
 }
 
 /// Maps a move to an index in the policy tensor's 73 possible moves per square.
 /// Assumes that the move is from the perspective of the current player.
-pub const fn get_policy_index_for_move(src_square: Square, dst_square: Square, vetted_promotion: Option<PieceType>) -> u8 {
-    if is_knight_jump(src_square, dst_square) {
+const fn calc_move_index(src_square_from_current_perspective: Square,
+                             dst_square_from_current_perspective: Square,
+                             vetted_promotion: Option<PieceType>) -> u8 {
+    if is_knight_jump(src_square_from_current_perspective, dst_square_from_current_perspective) {
         // Knight move
-        get_policy_index_for_knight_move(KnightMoveDirection::calc(src_square, dst_square))
+        calc_move_index_for_knight_move(KnightMoveDirection::calc(src_square_from_current_perspective, dst_square_from_current_perspective))
     } else {
         // Queen-like move
-        let (direction, distance) = QueenLikeMoveDirection::calc_and_measure_distance(src_square, dst_square);
-        get_policy_index_for_queen_like_move(direction, distance, vetted_promotion)
+        let (direction, distance) = QueenLikeMoveDirection::calc_and_measure_distance(src_square_from_current_perspective, dst_square_from_current_perspective);
+        calc_move_index_for_queen_like_move(direction, distance, vetted_promotion)
     }
 }
 
@@ -126,7 +162,7 @@ pub fn state_to_tensor(state: &State) -> Tensor {
 mod tests {
     use std::collections::HashSet;
     use crate::attacks::{single_bishop_attacks, single_knight_attacks, single_rook_attacks};
-    use crate::engine::conv_net_evaluator::constants::{MAX_NUM_KNIGHT_MOVES, NUM_PAWN_MOVE_DIRECTIONS, NUM_TARGET_SQUARE_POSSIBILITIES};
+    use crate::engine::evaluators::neural::constants::{MAX_NUM_KNIGHT_MOVES, NUM_PAWN_MOVE_DIRECTIONS, NUM_TARGET_SQUARE_POSSIBILITIES};
     use super::*;
 
     #[test]
@@ -139,11 +175,11 @@ mod tests {
     }
     
     #[test]
-    fn test_get_policy_index_for_sliding_pieces() {
+    fn test_calc_move_index_for_sliding_pieces() {
         let mut used_indices = [false; NUM_QUEEN_LIKE_MOVES as usize];
         for direction in QueenLikeMoveDirection::iter() {
             for distance in 1..=MAX_RAY_LENGTH {
-                let index = get_policy_index_for_queen_like_move(direction, distance, None);
+                let index = calc_move_index_for_queen_like_move(direction, distance, None);
                 assert!(index < NUM_QUEEN_LIKE_MOVES);
                 assert!(!used_indices[index as usize]);
                 used_indices[index as usize] = true;
@@ -153,19 +189,19 @@ mod tests {
     }
 
     #[test]
-    fn test_get_policy_index_for_promotions() {
+    fn test_calc_move_index_for_promotions() {
         let mut used_underpromotion_indices = [false; NUM_WAYS_OF_UNDERPROMOTION as usize];
         let mut used_queen_promotion_indices = HashSet::new();
         for direction in [QueenLikeMoveDirection::UpLeft, QueenLikeMoveDirection::Up, QueenLikeMoveDirection::UpRight].iter() {
             for promotion in [PieceType::Knight, PieceType::Bishop, PieceType::Rook].iter() {
-                let index = get_policy_index_for_queen_like_move(*direction, 1, Some(*promotion));
+                let index = calc_move_index_for_queen_like_move(*direction, 1, Some(*promotion));
                 assert!(index >= NUM_QUEEN_LIKE_MOVES);
                 assert!(index < NUM_TARGET_SQUARE_POSSIBILITIES);
                 let modified_index = index - NUM_QUEEN_LIKE_MOVES;
                 assert!(!used_underpromotion_indices[modified_index as usize]);
                 used_underpromotion_indices[modified_index as usize] = true;
             }
-            let index = get_policy_index_for_queen_like_move(*direction, 1, Some(PieceType::Queen));
+            let index = calc_move_index_for_queen_like_move(*direction, 1, Some(PieceType::Queen));
             assert!(index < NUM_QUEEN_LIKE_MOVES);
             assert!(!used_queen_promotion_indices.contains(&index));
             used_queen_promotion_indices.insert(index);
@@ -175,10 +211,10 @@ mod tests {
     }
 
     #[test]
-    fn test_get_policy_index_for_knight_move() {
+    fn test_calc_move_index_for_knight_move() {
         let mut used_indices = [false; MAX_NUM_KNIGHT_MOVES as usize];
         for direction in KnightMoveDirection::iter() {
-            let index = get_policy_index_for_knight_move(direction);
+            let index = calc_move_index_for_knight_move(direction);
             assert!(index >= NUM_QUEEN_LIKE_MOVES + NUM_WAYS_OF_UNDERPROMOTION);
             assert!(index < NUM_TARGET_SQUARE_POSSIBILITIES);
             let modified_index = index - NUM_QUEEN_LIKE_MOVES - NUM_WAYS_OF_UNDERPROMOTION;
@@ -189,11 +225,11 @@ mod tests {
     }
 
     #[test]
-    fn test_get_policy_index_for_knight_moves() {
+    fn test_calc_move_index_for_knight_moves() {
         for square_a in Square::iter_all() {
             for square_b in get_squares_from_mask_iter(single_knight_attacks(square_a)) {
-                let index1 = get_policy_index_for_move(square_a, square_b, None);
-                let index2 = get_policy_index_for_move(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
+                let index1 = calc_move_index(square_a, square_b, None);
+                let index2 = calc_move_index(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
                 assert_eq!(index1, index2);
                 assert!(index1 >= NUM_QUEEN_LIKE_MOVES);
                 assert!(index1 < NUM_TARGET_SQUARE_POSSIBILITIES);
@@ -202,11 +238,11 @@ mod tests {
     }
 
     #[test]
-    fn test_get_policy_index_for_queen_like_moves() {
+    fn test_calc_move_index_for_queen_like_moves() {
         for square_a in Square::iter_all() {
             for square_b in get_squares_from_mask_iter(single_bishop_attacks(square_a, 0) | single_rook_attacks(square_a, 0)) {
-                let index1 = get_policy_index_for_move(square_a, square_b, None);
-                let index2 = get_policy_index_for_move(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
+                let index1 = calc_move_index(square_a, square_b, None);
+                let index2 = calc_move_index(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
                 assert_eq!(index1, index2);
                 assert!(index1 < NUM_QUEEN_LIKE_MOVES);
             }

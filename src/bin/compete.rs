@@ -1,6 +1,6 @@
-use dunck::engine::conv_net_evaluator::ConvNetEvaluator;
-use dunck::engine::mcts::{calc_puct_score, calc_uct_score, MCTS};
-use dunck::engine::rollout_evaluator::RolloutEvaluator;
+use dunck::engine::evaluators::neural::conv_net_evaluator::ConvNetEvaluator;
+use dunck::engine::mcts::mcts::{calc_puct_score, calc_uct_score, MCTS};
+use dunck::engine::evaluators::random_rollout::RolloutEvaluator;
 use dunck::state::State;
 
 const MAX_GAME_DEPTH: usize = 400;
@@ -68,7 +68,7 @@ fn main() {
         false
     );
     
-    let conv_net_evaluator = ConvNetEvaluator::new(4, 8, false);
+    let conv_net_evaluator = ConvNetEvaluator::new(4, 8);
     let mut conv_net_mcts = MCTS::new(
         State::initial(),
         1.5,
