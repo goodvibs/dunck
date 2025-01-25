@@ -1,13 +1,13 @@
 use lazy_static::lazy_static;
+use static_init::dynamic;
 use tch::{Device, Kind, Tensor};
 use crate::engine::evaluators::neural::constants::{MAX_RAY_LENGTH, NUM_BITS_PER_BOARD, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_SIDE_TO_MOVE_BITS, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
 use crate::r#move::{Move, MoveFlag};
 use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
-lazy_static! {
-    pub static ref DEVICE: Device = Device::Mps;
-}
+#[dynamic(lazy)]
+pub static DEVICE: Device = Device::cuda_if_available();
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PolicyIndex {

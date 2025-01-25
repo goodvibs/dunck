@@ -3,7 +3,7 @@
 use crate::utils::{get_bit_combinations_iter, Bitboard};
 use crate::utils::masks::{ANTIDIAGONALS, DIAGONALS, FILE_A, FILE_H, RANK_1, RANK_8};
 use crate::utils::{SlidingPieceType, Square};
-use lazy_static::lazy_static;
+use static_init::dynamic;
 use crate::attacks::manual::{manual_single_bishop_attacks, manual_single_rook_attacks};
 
 /// The size of the attack table for rooks
@@ -13,31 +13,33 @@ const BISHOP_ATTACK_TABLE_SIZE: usize = 4 * 2usize.pow(6) + 44 * 2usize.pow(5) +
 
 const RNG_SEED: u64 = 0;
 
-lazy_static! {
-    /// Precomputed masks for rook relevant squares
-    static ref ROOK_RELEVANT_MASKS: [Bitboard; 64] = {
-        let mut masks = [0; 64];
-        for (i, square) in Square::iter_all().enumerate() {
-            masks[i] = calc_rook_relevant_mask(*square);
-        }
-        masks
-    };
+/// Precomputed masks for rook relevant squares
+#[dynamic]
+static ROOK_RELEVANT_MASKS: [Bitboard; 64] = {
+    let mut masks = [0; 64];
+    for (i, square) in Square::iter_all().enumerate() {
+        masks[i] = calc_rook_relevant_mask(*square);
+    }
+    masks
+};
 
-    /// Precomputed masks for bishop relevant squares
-    static ref BISHOP_RELEVANT_MASKS: [Bitboard; 64] = {
-        let mut masks = [0; 64];
-        for (i, square) in Square::iter_all().enumerate() {
-            masks[i] = calc_bishop_relevant_mask(*square);
-        }
-        masks
-    };
+/// Precomputed masks for bishop relevant squares
+#[dynamic]
+static BISHOP_RELEVANT_MASKS: [Bitboard; 64] = {
+    let mut masks = [0; 64];
+    for (i, square) in Square::iter_all().enumerate() {
+        masks[i] = calc_bishop_relevant_mask(*square);
+    }
+    masks
+};
 
-    /// Magic dictionaries for rooks
-    static ref ROOK_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Rook, ROOK_ATTACK_TABLE_SIZE);
+/// Magic dictionaries for rooks
+#[dynamic]
+static ROOK_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Rook, ROOK_ATTACK_TABLE_SIZE);
 
-    /// Magic dictionaries for bishops
-    static ref BISHOP_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Bishop, BISHOP_ATTACK_TABLE_SIZE);
-}
+/// Magic dictionaries for bishops
+#[dynamic]
+static BISHOP_MAGIC_DICT: MagicDict = MagicDict::new(SlidingPieceType::Bishop, BISHOP_ATTACK_TABLE_SIZE);
 
 /// Calculate the relevant mask for a rook on a given square
 fn calc_rook_relevant_mask(square: Square) -> Bitboard {

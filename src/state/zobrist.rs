@@ -1,15 +1,14 @@
 //! All Zobrist hashing-related code.
 
-use lazy_static::lazy_static;
 use rand::Rng;
+use static_init::dynamic;
 use crate::utils::{get_squares_from_mask_iter, Bitboard};
 use crate::utils::{PieceType, Square};
 use crate::state::board::Board;
 
-lazy_static! {
-    /// A table of random bitboards for each piece type on each square.
-    static ref ZOBRIST_TABLE: [[Bitboard; 12]; 64] = generate_zobrist_table();
-}
+/// A table of random bitboards for each piece type on each square.
+#[dynamic]
+static ZOBRIST_TABLE: [[Bitboard; 12]; 64] = generate_zobrist_table();
 
 /// Generates a table of random bitboards for each piece type on each square.
 pub fn generate_zobrist_table() -> [[Bitboard; 12]; 64] {
