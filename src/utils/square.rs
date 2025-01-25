@@ -156,12 +156,12 @@ impl Square {
         SQUARE_NAMES[*self as usize]
     }
 
-    pub fn iter_all() -> impl Iterator<Item = Square> {
-        ALL.iter().copied()
+    pub fn iter_all() -> impl Iterator<Item = &'static Square> {
+        ALL.iter()
     }
 
-    pub fn iter_between(first: Square, last: Square) -> impl Iterator<Item = Square> {
-        ALL[first as usize..=last as usize].iter().copied()
+    pub fn iter_between(first: Square, last: Square) -> impl Iterator<Item = &'static Square> {
+        ALL[first as usize..=last as usize].iter()
     }
 }
 

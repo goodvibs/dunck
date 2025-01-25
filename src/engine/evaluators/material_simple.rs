@@ -14,10 +14,10 @@ impl Evaluator for MaterialEvaluator {
         for color in Color::iter() {
             let color_mask = state.board.color_masks[color as usize];
             for piece_type in PieceType::iter_between(PieceType::Pawn, PieceType::Queen) {
-                let piece_mask = state.board.piece_type_masks[piece_type as usize];
+                let piece_mask = state.board.piece_type_masks[*piece_type as usize];
                 let mask = color_mask & piece_mask;
                 let count = mask.count_ones() as f64;
-                scores[color as usize] += PIECE_VALUES[piece_type as usize - 1] * count;
+                scores[color as usize] += PIECE_VALUES[*piece_type as usize - 1] * count;
             }
         }
 

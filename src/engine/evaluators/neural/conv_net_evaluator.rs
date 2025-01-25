@@ -25,7 +25,7 @@ impl ConvNetEvaluator {
 impl Evaluator for ConvNetEvaluator {
     fn evaluate(&self, state: &State) -> Evaluation {
         let state_tensor = state_to_tensor(state);
-        let input_tensor = Tensor::stack(&[state_tensor], 0); // No batch, so stack along the first dimension
+        let input_tensor = Tensor::stack(&[state_tensor], 0).to_device(*DEVICE); // No batch, so stack along the first dimension
         let (policy_logits, value_tensor) = self.model.forward(&input_tensor, false);
 
         let legal_moves = state.calc_legal_moves();

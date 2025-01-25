@@ -1,19 +1,18 @@
-use crate::utils::PieceType;
+use crate::utils::{PieceType, Square};
 use crate::r#move::{Move};
 use crate::r#move::move_flag::MoveFlag;
-use crate::state::{State, Termination};
+use crate::state::{Board, State, Termination};
 
 impl Move {
     /// Returns the SAN (Standard Algebraic Notation) representation of the move.
     /// Assumes that `final_state` has an updated termination
-    pub fn san(&self, initial_state: &State, final_state: &State, initial_state_moves: &Vec<Move>) -> String {
-        // TODO: Break this function into smaller functions.
-        
-        let (dst_square, src_square, promotion, flag) = self.unpack();
+    pub fn to_san(&self, initial_state: &State, final_state: &State, initial_state_moves: &[Move]) -> String {
+        let dst_square = self.get_destination();
+        let src_square = self.get_source();
+        let promotion = self.get_promotion();
+        let flag = self.get_flag();
 
-        let dst_str = dst_square.readable();
-        let src_str = src_square.readable();
-        let (src_file, src_rank) = (src_square.get_file_char(), src_square.get_rank_char());
+        let src_file = src_square.get_file_char();
 
         let mut promotion_str = String::new();
         let is_capture;
@@ -26,7 +25,7 @@ impl Move {
 
         match flag {
             MoveFlag::Castling => {
-                return if dst_str.contains('g') {
+                return if dst_square.get_file() == 6 {
                     format!("O-O{}", annotation_str)
                 } else {
                     format!("O-O-O{}", annotation_str)
@@ -62,53 +61,55 @@ impl Move {
             },
             _ => moved_piece.to_char().to_string()
         };
+        
+        let disambiguation_str = get_disambiguation(moved_piece, src_square, dst_square, initial_state_moves, &initial_state.board);
 
-        let mut disambiguation_str = "".to_string();
+        format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_square.to_string(), promotion_str, annotation_str)
+    }
+}
 
-        if moved_piece != PieceType::Pawn && moved_piece != PieceType::King {
-            let mut clashes = Vec::new();
+fn get_disambiguation(moved_piece: PieceType, src_square: Square, dst_square: Square, initial_state_moves: &[Move], initial_state_board: &Board) -> String {
+    if moved_piece != PieceType::Pawn && moved_piece != PieceType::King {
+        let mut clashes = Vec::new();
 
-            for other_move in initial_state_moves.iter() {
-                let other_src_square = other_move.get_source();
-                let other_dst_square = other_move.get_destination();
-                if src_square == other_src_square { // same move
-                    continue;
-                }
-                if dst_square == other_dst_square && moved_piece == initial_state.board.get_piece_type_at(other_src_square) {
-                    clashes.push(other_move);
-                }
+        for other_move in initial_state_moves.iter() {
+            let other_src_square = other_move.get_source();
+            let other_dst_square = other_move.get_destination();
+            if src_square == other_src_square { // same move
+                continue;
             }
-
-            if !clashes.is_empty() {
-                let mut is_file_unique = true;
-                let mut is_rank_unique = true;
-
-                for other_move in clashes {
-                    if other_move.get_source().get_file() == src_square.get_file() {
-                        is_file_unique = false;
-                    }
-                    if other_move.get_source().get_rank() == src_square.get_rank() {
-                        is_rank_unique = false;
-                    }
-                }
-
-                if is_file_unique {
-                    disambiguation_str = src_file.to_string();
-                }
-                else if is_rank_unique {
-                    disambiguation_str = src_rank.to_string();
-                }
-                else {
-                    disambiguation_str = src_str.to_string();
-                }
+            if dst_square == other_dst_square && moved_piece == initial_state_board.get_piece_type_at(other_src_square) {
+                clashes.push(other_move);
             }
         }
 
-        format!("{}{}{}{}{}{}", piece_str, disambiguation_str, capture_str, dst_str, promotion_str, annotation_str)
+        if !clashes.is_empty() {
+            let mut is_file_unique = true;
+            let mut is_rank_unique = true;
+
+            for other_move in clashes {
+                if other_move.get_source().get_file() == src_square.get_file() {
+                    is_file_unique = false;
+                }
+                if other_move.get_source().get_rank() == src_square.get_rank() {
+                    is_rank_unique = false;
+                }
+            }
+
+            return if is_file_unique {
+                src_square.get_file_char().to_string()
+            } else if is_rank_unique {
+                (src_square.get_rank() + 1).to_string()
+            } else {
+                src_square.to_string()
+            }
+        }
     }
+
+    String::new()
 }
 
 #[cfg(test)]
 mod tests {
-    // TODO: Add tests.
+    
 }

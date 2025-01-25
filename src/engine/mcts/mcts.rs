@@ -232,7 +232,7 @@ mod tests {
             let initial_state = mcts.root.borrow().state_after_move.clone();
             match mcts.take_best_child() {
                 Ok((next_state, mv)) => {
-                    println!("Playing best move: {:?}", mv.san(&initial_state, &next_state, &next_state.calc_legal_moves()));
+                    println!("Playing best move: {:?}", mv.to_san(&initial_state, &next_state, &next_state.calc_legal_moves()));
                     next_state.board.print();
                 }
                 Err(e) => {

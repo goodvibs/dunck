@@ -87,32 +87,32 @@ impl PieceType {
         ALL.iter().copied()
     }
 
-    pub fn iter_pieces() -> impl Iterator<Item = PieceType> {
-        ALL_PIECES.iter().copied()
+    pub fn iter_pieces() -> impl Iterator<Item = &'static PieceType> {
+        ALL_PIECES.iter()
     }
     
-    pub fn iter_non_king_pieces() -> impl Iterator<Item = PieceType> {
-        ALL_NON_KING_PIECES.iter().copied()
+    pub fn iter_non_king_pieces() -> impl Iterator<Item = &'static PieceType> {
+        ALL_NON_KING_PIECES.iter()
     }
     
-    pub fn iter_sliding_pieces() -> impl Iterator<Item = PieceType> {
-        ALL_SLIDING_PIECES.iter().copied()
+    pub fn iter_sliding_pieces() -> impl Iterator<Item = &'static PieceType> {
+        ALL_SLIDING_PIECES.iter()
     }
     
-    pub fn iter_non_sliding_pieces() -> impl Iterator<Item = PieceType> {
-        ALL_NON_SLIDING_PIECES.iter().copied()
+    pub fn iter_non_sliding_pieces() -> impl Iterator<Item = &'static PieceType> {
+        ALL_NON_SLIDING_PIECES.iter()
     }
     
-    pub fn iter_non_pawn_pieces() -> impl Iterator<Item = PieceType> {
-        ALL_NON_PAWN_PIECES.iter().copied()
+    pub fn iter_non_pawn_pieces() -> impl Iterator<Item = &'static PieceType> {
+        ALL_NON_PAWN_PIECES.iter()
     }
     
-    pub fn iter_promotion_pieces() -> impl Iterator<Item = PieceType> {
-        ALL_PROMOTION_PIECES.iter().copied()
+    pub fn iter_promotion_pieces() -> impl Iterator<Item = &'static PieceType> {
+        ALL_PROMOTION_PIECES.iter()
     }
     
-    pub fn iter_between(first: PieceType, last: PieceType) -> impl Iterator<Item = PieceType> {
-        ALL[first as usize..=last as usize].iter().copied()
+    pub fn iter_between(first: PieceType, last: PieceType) -> impl Iterator<Item = &'static PieceType> {
+        ALL[first as usize..=last as usize].iter()
     }
 }
 

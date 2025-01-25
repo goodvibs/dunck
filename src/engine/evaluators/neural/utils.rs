@@ -6,7 +6,7 @@ use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 lazy_static! {
-    pub static ref DEVICE: Device = Device::cuda_if_available();
+    pub static ref DEVICE: Device = Device::Mps;
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -24,16 +24,16 @@ impl PolicyIndex {
             MoveFlag::Promotion => Some(mv.get_promotion()),
             _ => None
         };
-        
+
         let src_square_from_current_perspective = src_square.to_perspective_from_white(color);
         let dst_square_from_current_perspective = dst_square.to_perspective_from_white(color);
-        
+
         let move_index = calc_move_index(
             src_square_from_current_perspective,
             dst_square_from_current_perspective,
             vetted_promotion
         );
-        
+
         PolicyIndex {
             source_rank_index: src_square_from_current_perspective.get_rank(),
             source_file_index: src_square_from_current_perspective.get_file(),
@@ -103,10 +103,10 @@ const fn calc_move_index(src_square_from_current_perspective: Square,
 /// `offset` determines the starting channel for this color's pieces in the tensor.
 fn fill_pieces_for_color(tensor: &mut Tensor, state: &State, color: Color, offset: i64) {
     for piece_type in PieceType::iter_pieces() {
-        let mask = state.board.color_masks[color as usize] & state.board.piece_type_masks[piece_type as usize];
+        let mask = state.board.color_masks[color as usize] & state.board.piece_type_masks[*piece_type as usize];
         for square in get_squares_from_mask_iter(mask) {
             let square_from_perspective = square.to_perspective_from_white(state.side_to_move);
-            let channel_index = offset + piece_type as i64 - PieceType::Pawn as i64;
+            let channel_index = offset + *piece_type as i64 - PieceType::Pawn as i64;
             let _ = tensor
                 .get(channel_index)
                 .get(square_from_perspective.get_rank() as i64)
@@ -168,8 +168,8 @@ mod tests {
     #[test]
     fn test_is_knight_jump() {
         for src_square in Square::iter_all() {
-            for dst_square in get_squares_from_mask_iter(single_knight_attacks(src_square)) {
-                assert!(is_knight_jump(src_square, dst_square));
+            for dst_square in get_squares_from_mask_iter(single_knight_attacks(*src_square)) {
+                assert!(is_knight_jump(*src_square, dst_square));
             }
         }
     }
@@ -227,8 +227,8 @@ mod tests {
     #[test]
     fn test_calc_move_index_for_knight_moves() {
         for square_a in Square::iter_all() {
-            for square_b in get_squares_from_mask_iter(single_knight_attacks(square_a)) {
-                let index1 = calc_move_index(square_a, square_b, None);
+            for square_b in get_squares_from_mask_iter(single_knight_attacks(*square_a)) {
+                let index1 = calc_move_index(*square_a, square_b, None);
                 let index2 = calc_move_index(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
                 assert_eq!(index1, index2);
                 assert!(index1 >= NUM_QUEEN_LIKE_MOVES);
@@ -240,8 +240,8 @@ mod tests {
     #[test]
     fn test_calc_move_index_for_queen_like_moves() {
         for square_a in Square::iter_all() {
-            for square_b in get_squares_from_mask_iter(single_bishop_attacks(square_a, 0) | single_rook_attacks(square_a, 0)) {
-                let index1 = calc_move_index(square_a, square_b, None);
+            for square_b in get_squares_from_mask_iter(single_bishop_attacks(*square_a, 0) | single_rook_attacks(*square_a, 0)) {
+                let index1 = calc_move_index(*square_a, square_b, None);
                 let index2 = calc_move_index(square_b.to_perspective_from_white(Color::Black), square_a.to_perspective_from_white(Color::Black), None);
                 assert_eq!(index1, index2);
                 assert!(index1 < NUM_QUEEN_LIKE_MOVES);

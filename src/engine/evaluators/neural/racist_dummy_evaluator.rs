@@ -13,7 +13,7 @@ pub struct RacistDummyEvaluator {
 impl Evaluator for RacistDummyEvaluator {
     fn evaluate(&self, state: &State) -> Evaluation {
         let state_tensor = state_to_tensor(state);
-        let input_tensor = Tensor::stack(&[state_tensor], 0); // No batch, so stack along the first dimension
+        let input_tensor = Tensor::stack(&[state_tensor], 0).to(*DEVICE); // No batch, so stack along the first dimension
         let (policy_logits, value_tensor) = self.model.forward(&input_tensor, false);
         
         let legal_moves = state.calc_legal_moves();
@@ -32,11 +32,11 @@ impl Evaluator for RacistDummyEvaluator {
             let _ = legal_moves_policy_logits.get(i as i64).fill_(policy_logit);
         }
 
-        let priors = legal_moves_policy_logits.softmax(-1, Kind::Float);
-        let priors_vec = Vec::<f64>::try_from(priors).unwrap();
+        let priors = legal_moves_policy_logits.softmax(-1, Kind::Float).to_device(*DEVICE);
+        let priors_vec = Vec::<f32>::try_from(priors).unwrap();
         
         let policy = zip(legal_moves, priors_vec)
-            .map(|(mv, prior)| (mv.clone(), prior))
+            .map(|(mv, prior)| (mv.clone(), prior as f64))
             .collect();
 
         Evaluation {

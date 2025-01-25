@@ -99,10 +99,10 @@ mod tests {
                     for flag_int in 0..4 {
                         let flag = unsafe { MoveFlag::from(flag_int) };
 
-                        let mv = Move::new(dst_square, src_square, promotion_piece, flag);
-                        assert_eq!(mv.get_destination(), dst_square);
-                        assert_eq!(mv.get_source(), src_square);
-                        assert_eq!(mv.get_promotion(), promotion_piece);
+                        let mv = Move::new(*dst_square, *src_square, *promotion_piece, flag);
+                        assert_eq!(mv.get_destination(), *dst_square);
+                        assert_eq!(mv.get_source(), *src_square);
+                        assert_eq!(mv.get_promotion(), *promotion_piece);
                         assert_eq!(mv.get_flag(), flag);
                     }
                 }

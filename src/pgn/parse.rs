@@ -2,7 +2,8 @@ use crate::pgn::error::PgnParseError;
 use crate::pgn::state_tree::PgnStateTree;
 use crate::pgn::state_tree_node::PgnStateTreeNode;
 use crate::pgn::tokenize::{PgnToken};
-use crate::state::Termination;
+use crate::r#move::Move;
+use crate::state::{State, Termination};
 use crate::utils::Color;
 
 fn validate_tag_placement(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
@@ -156,6 +157,25 @@ fn validate(tokens: &[PgnToken]) -> Result<(), PgnParseError> {
     Ok(())
 }
 
+fn find_san_match(initial_state: &State, legal_moves: &[Move], expected_san: &str) -> Option<(Move, String, State)> {
+    let update_termination = expected_san.ends_with("#");
+    
+    for legal_move in legal_moves {
+        let mut new_state = initial_state.clone();
+        new_state.make_move(*legal_move);
+        if update_termination {
+            new_state.check_and_update_termination();
+        }
+        
+        let san = legal_move.to_san(&initial_state, &new_state, legal_moves);
+        if san == expected_san {
+            return Some((*legal_move, san, new_state));
+        }
+    }
+    
+    None
+}
+
 impl PgnStateTree {
     pub fn from_tokens(tokens: &[PgnToken]) -> Result<PgnStateTree, PgnParseError> {
         validate(tokens)?;
@@ -180,25 +200,11 @@ impl PgnStateTree {
                     let initial_state = (*current_node).borrow().state_after_move.clone();
                     let legal_moves = initial_state.calc_legal_moves();
                     
-                    let mut found_match = false;
-                    
-                    for legal_move in &legal_moves {
-                        let mut new_state = initial_state.clone();
-                        new_state.make_move(*legal_move);
-                        new_state.check_and_update_termination();
-                        
-                        let san = legal_move.san(&initial_state, &new_state, &legal_moves);
-                        if san == *mv {
-                            found_match = true;
-                            
-                            current_node = PgnStateTreeNode::new_linked_to_previous(*legal_move, mv.to_string(), current_node, new_state);
-                            
-                            break;
+                    match find_san_match(&initial_state, &legal_moves, mv) {
+                        Some((found_move, _, new_state)) => {
+                            current_node = PgnStateTreeNode::new_linked_to_previous(found_move, mv.to_string(), current_node, new_state);
                         }
-                    }
-                    
-                    if !found_match {
-                        return Err(PgnParseError::IllegalMove(mv.to_string()));
+                        None => return Err(PgnParseError::IllegalMove(mv.to_string()))
                     }
                 }
                 PgnToken::StartVariation => {

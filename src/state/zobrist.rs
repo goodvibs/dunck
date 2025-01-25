@@ -3,9 +3,8 @@
 use lazy_static::lazy_static;
 use rand::Rng;
 use crate::utils::{get_squares_from_mask_iter, Bitboard};
-use crate::utils::{Color, PieceType, Square};
+use crate::utils::{PieceType, Square};
 use crate::state::board::Board;
-use crate::state::State;
 
 lazy_static! {
     /// A table of random bitboards for each piece type on each square.
@@ -34,9 +33,9 @@ impl Board {
     pub fn calc_zobrist_hash(&self) -> Bitboard {
         let mut hash: Bitboard = 0;
         for piece_type in PieceType::iter_pieces() { // skip PieceType::NoPieceType
-            let pieces_mask = self.piece_type_masks[piece_type as usize];
+            let pieces_mask = self.piece_type_masks[*piece_type as usize];
             for square in get_squares_from_mask_iter(pieces_mask) {
-                hash ^= get_piece_zobrist_hash(square, piece_type);
+                hash ^= get_piece_zobrist_hash(square, *piece_type);
             }
         }
         hash

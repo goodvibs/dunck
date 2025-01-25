@@ -1,11 +1,21 @@
 use std::str::FromStr;
 use rand::prelude::{SliceRandom, ThreadRng};
 use rand::Rng;
+use tch::{Kind, Tensor};
 use crate::engine::evaluation::Evaluation;
 use crate::pgn::PgnStateTree;
 use crate::r#move::Move;
 use crate::state::{State, Termination};
 use crate::utils::Color;
+
+pub fn print_tensor_stats(tensor: &Tensor, message: &str) {
+    println!("{}", message);
+    println!("-- sum: {}", tensor.sum(Kind::Float).double_value(&[]));
+    println!("-- mean: {}", tensor.mean(Kind::Float).double_value(&[]));
+    println!("-- std: {}", tensor.std(true).double_value(&[]));
+    println!("-- max: {}", tensor.max().double_value(&[]));
+    println!("-- min: {}", tensor.min().double_value(&[]));
+}
 
 pub fn extract_pgns(multi_pgn_file_content: &str) -> Vec<String> {
     let mut pgns = Vec::new();
@@ -100,6 +110,12 @@ pub fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Th
         .into_iter()
         .map(|mv| (mv, if mv == expected_mv { 1.0 } else { 0.0 }))
         .collect();
+    
+    // println!("FEN: {}", initial_state.to_fen());
+    // initial_state.board.print();
+    // println!("Expected move: {}", expected_mv);
+    // println!("Winner: {:?}", winner);
+    // println!("Value: {}", value);
 
     Some((initial_state, Evaluation { policy, value }))
 }

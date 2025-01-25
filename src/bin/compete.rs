@@ -19,7 +19,7 @@ fn play_move(
         let initial_state = opponent_mcts.root.borrow().state_after_move.clone();
 
         // Generate the SAN notation for the move and print it
-        let san = move_played.san(&initial_state, &new_state, &initial_state.calc_legal_moves());
+        let san = move_played.to_san(&initial_state, &new_state, &initial_state.calc_legal_moves());
         println!("Move played: {}", san);
         new_state.board.print();
 

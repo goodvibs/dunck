@@ -20,7 +20,6 @@ impl Color {
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::square::Square;
     use super::*;
 
     #[test]

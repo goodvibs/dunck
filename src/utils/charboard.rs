@@ -111,7 +111,7 @@ impl Board {
     pub fn to_cb(&self) -> Charboard {
         let mut cb: Charboard = [[' '; 8]; 8];
         for (i, square) in Square::iter_all().enumerate() {
-            let colored_piece = self.get_colored_piece_at(square);
+            let colored_piece = self.get_colored_piece_at(*square);
             cb[i / 8][i % 8] = colored_piece.to_char();
         }
         cb
@@ -120,7 +120,7 @@ impl Board {
     pub fn to_cb_pretty(&self) -> Charboard {
         let mut cb: Charboard = [[' '; 8]; 8];
         for (i, square) in Square::iter_all().enumerate() {
-            let colored_piece = self.get_colored_piece_at(square);
+            let colored_piece = self.get_colored_piece_at(*square);
             cb[i / 8][i % 8] = colored_piece.to_char_pretty();
         }
         cb

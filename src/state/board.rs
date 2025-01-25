@@ -212,8 +212,8 @@ impl Board {
     pub fn get_piece_type_at(&self, square: Square) -> PieceType {
         let mask = square.get_mask();
         for piece_type in PieceType::iter_pieces() {
-            if self.piece_type_masks[piece_type as usize] & mask != 0 {
-                return piece_type;
+            if self.piece_type_masks[*piece_type as usize] & mask != 0 {
+                return *piece_type;
             }
         }
         PieceType::NoPieceType
@@ -249,7 +249,7 @@ impl Board {
         let mut all_occupancy_bb_reconstructed: Bitboard = 0;
 
         for piece_type in PieceType::iter_pieces() {
-            let piece_bb = self.piece_type_masks[piece_type as usize];
+            let piece_bb = self.piece_type_masks[*piece_type as usize];
 
             if piece_bb & all_occupancy_bb != piece_bb {
                 return false;
