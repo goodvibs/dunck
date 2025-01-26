@@ -1,34 +1,47 @@
-use tch::{nn, Tensor};
+use tch::{nn, Kind, Tensor};
+use tch::nn::ModuleT;
+use crate::engine::evaluators::neural::training_utils::print_tensor_stats;
 
 #[derive(Debug)]
 pub struct ValueHead {
-    conv: nn::Conv2D,
-    bn1: nn::BatchNorm,  // After conv
-    fc1: nn::Linear,
-    bn2: nn::BatchNorm,  // After fc1
-    fc2: nn::Linear,
+    conv1: nn::Conv2D,
+    bn1: nn::BatchNorm,
+    conv2: nn::Conv2D,
+    bn2: nn::BatchNorm,
+    fc: nn::Linear,
 }
 
 impl ValueHead {
     pub fn new(vs: &nn::Path, num_filters: i64) -> Self {
         ValueHead {
-            conv: nn::conv2d(vs, num_filters, 32, 3, nn::ConvConfig { padding: 1, ..Default::default() }),
+            conv1: nn::conv2d(vs, num_filters, 32, 3, nn::ConvConfig { padding: 1, ..Default::default() }),
             bn1: nn::batch_norm2d(vs, 32, Default::default()),
-            fc1: nn::linear(vs, 32 * 8 * 8, 128, Default::default()),
-            bn2: nn::batch_norm1d(vs, 128, Default::default()),  // Note: regular batch_norm for fc layers
-            fc2: nn::linear(vs, 128, 1, Default::default()),
+            conv2: nn::conv2d(vs, 32, 128, 8, nn::ConvConfig { padding: 0, ..Default::default() }),
+            bn2: nn::batch_norm1d(vs, 128, Default::default()),
+            fc: nn::linear(vs, 128, 1, Default::default()),
         }
     }
 
-    pub fn forward(&self, x: &Tensor, train: bool) -> Tensor {
-        x.apply(&self.conv)
-            .apply_t(&self.bn1, train)
-            .relu()
-            .flatten(1, -1)
-            .apply(&self.fc1)
-            .apply_t(&self.bn2, train)
-            .relu()
-            .apply(&self.fc2)
-            .tanh()
+    pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
+        print_tensor_stats(x, "ValueHead input");
+        
+        let mut out = self.conv1.forward_t(x, train);
+        print_tensor_stats(&out, "After conv");
+        
+        out = self.bn1.forward_t(&out, train).relu();
+        print_tensor_stats(&out, "After first bn+relu");
+        
+        out = self.conv2.forward_t(&out, train);
+        print_tensor_stats(&out, "After second conv");
+
+        out = out.flatten(1, -1);
+        
+        out = self.bn2.forward_t(&out, train).relu();
+        print_tensor_stats(&out, "After second bn+relu");
+        
+        out = self.fc.forward_t(&out, train).tanh();
+        print_tensor_stats(&out, "Value output");
+
+        out
     }
 }

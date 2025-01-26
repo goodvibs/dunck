@@ -4,7 +4,7 @@
 #![allow(non_upper_case_globals)]
 
 use engine::evaluators;
-use crate::engine::mcts::mcts::{calc_puct_score, MCTS};
+use crate::engine::mcts::mcts::{calc_puct_score, calc_uct_score, MCTS};
 use crate::state::State;
 
 pub mod attacks;
@@ -29,7 +29,7 @@ fn main() {
             let mut final_state = state.clone();
             final_state.make_move(*mv);
             assert!(final_state.is_unequivocally_valid());
-            let san = mv.san(&initial_state, &final_state, &moves);
+            let san = mv.to_san(&initial_state, &final_state, &moves);
             move_sans.push(san.clone());
             print!("{}, ", san);
         }
@@ -41,7 +41,7 @@ fn main() {
         match input {
             "q" | "QUIT" => {
                 break;
-            },
+            }
             "n" | "NEW" => {
                 loop {
                     println!("Enter fen (q to cancel): ");
@@ -70,13 +70,13 @@ fn main() {
                 // let evaluator = engine::material_evaluator::MaterialEvaluator {};
                 let mut evaluator = evaluators::neural::conv_net_evaluator::ConvNetEvaluator::new(10, 256);
                 evaluator.model.load("model.safetensors").unwrap();
-                let mut mcts = MCTS::new(state.clone(), exploration_constant, &evaluator, &calc_puct_score, false);
+                let mut mcts = MCTS::new(state.clone(), exploration_constant, &evaluator, &calc_uct_score, false);
                 mcts.run(2);
                 if let Some(best_move_node) = mcts.get_best_child_by_visits() {
                     let best_move = best_move_node.borrow().mv.clone();
                     let new_state = best_move_node.borrow().state_after_move.clone();
                     println!("{}", mcts);
-                    println!("Playing best move: {:?}", best_move.unwrap().san(&state, &new_state, &state.calc_legal_moves()));
+                    println!("Playing best move: {:?}", best_move.unwrap().to_san(&state, &new_state, &state.calc_legal_moves()));
                     state = new_state;
                 }
             }

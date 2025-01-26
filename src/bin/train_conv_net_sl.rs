@@ -48,11 +48,11 @@ fn main() {
     // Training parameters
     let num_iterations = 200;
     let num_batches = 15;
-    let num_examples_per_batch = 512;
-    let mut learning_rate = 0.002;
+    let num_examples_per_batch = 256;
+    let mut learning_rate = 0.0005;
 
     // Parameters for dynamic LR adjustment
-    let patience = 3;
+    let patience = 4;
     let reduce_factor = 0.5;
     let mut best_val_loss = f64::INFINITY;
     let mut no_improvement_count = 0;
@@ -80,7 +80,7 @@ fn main() {
             let val_loss_metrics = compute_loss(&evaluator.model, &validation_data);
 
             println!(
-                "Batch {}/{} Completed. Training (Policy: {:.4}, Value: {:.4}, Total: {:.4}), Validation (Policy: {:.4}, Value: {:.4}, Total: {:.4})",
+                "Batch {}/{} Completed. Training (Policy: {:.7}, Value: {:.7}, Total: {:.7}), Validation (Policy: {:.7}, Value: {:.7}, Total: {:.7})",
                 batch_num + 1, num_batches,
                 train_loss_metrics.policy_loss, train_loss_metrics.value_loss, train_loss_metrics.total_loss,
                 val_loss_metrics.policy_loss, val_loss_metrics.value_loss, val_loss_metrics.total_loss

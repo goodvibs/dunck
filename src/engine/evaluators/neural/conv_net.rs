@@ -1,9 +1,11 @@
 use std::error::Error;
-use tch::{nn, Device, Tensor};
+use tch::{nn, Device, Kind, Tensor};
+use tch::nn::{ModuleT};
 use crate::engine::evaluators::neural::constants::*;
 use crate::engine::evaluators::neural::combined_policy_value_network::CombinedPolicyValueNetwork;
 use crate::engine::evaluators::neural::policy_head::PolicyHead;
 use crate::engine::evaluators::neural::residual_block::ResidualBlock;
+use crate::engine::evaluators::neural::training_utils::print_tensor_stats;
 use crate::engine::evaluators::neural::value_head::ValueHead;
 
 // Define the main model structure
@@ -58,30 +60,48 @@ impl ConvNet {
     /// Load model weights manually using fill_safetensors
     pub fn load(&mut self, path: &str) -> Result<(), Box<dyn Error>> {
         self.vs.load(path)?;
+
+        // After network creation
+        for (name, tensor) in self.vs.variables() {
+            println!("Layer {}: sum = {}, mean = {}, std = {}",
+                     name,
+                     tensor.sum(Kind::Float).double_value(&[]),
+                     tensor.mean(Kind::Float).double_value(&[]),
+                     tensor.std(true).double_value(&[])
+            );
+        }
+        
         Ok(())
     }
 }
 
 impl CombinedPolicyValueNetwork for ConvNet {
     /// Forward pass through the model
-    fn forward(&self, x: &Tensor, train: bool) -> (Tensor, Tensor) {
+    fn forward_t(&self, x: &Tensor, train: bool) -> (Tensor, Tensor) {
         assert_eq!(x.size().len(), 4);
         assert_eq!(x.size()[1..4], [NUM_POSITION_BITS as i64, 8, 8]);
         assert!(x.size()[0] > 0);
+
+        // Debug print initial tensor
+        print_tensor_stats(x, "Initial tensor");
         
         // Apply initial convolution, batch normalization, and ReLU activation
-        let mut x = x.view([-1, NUM_POSITION_BITS as i64, 8, 8]).apply(&self.conv1);
-        x = x.apply_t(&self.bn1, train).relu();
+        let mut x = self.conv1.forward_t(x, train);
+        print_tensor_stats(&x, "After conv1");
+        
+        x = self.bn1.forward_t(&x, train).relu();
+        print_tensor_stats(&x, "After bn1+relu");
 
         // Pass through the residual blocks
         for block in &self.residual_blocks {
-            x = block.forward(&x, train);
+            x = block.forward_t(&x, train);
         }
+        print_tensor_stats(&x, "After residual blocks");
 
         // Should be batch_size x 8 x 8 x 73
-        let policy = self.policy_head.forward(&x, train);
+        let policy = self.policy_head.forward_t(&x, train);
         // Should be batch_size x 1
-        let value = self.value_head.forward(&x, train);
+        let value = self.value_head.forward_t(&x, train);
         
         assert_eq!(policy.size().len(), value.size().len() + 2);
 
@@ -102,7 +122,7 @@ mod tests {
         let model = ConvNet::new(*DEVICE, 10, 256);
 
         let input_tensor = state_to_tensor(&State::initial());
-        let (policy, value) = model.forward(&input_tensor, false);
+        let (policy, value) = model.forward_t(&input_tensor, false);
 
         assert_eq!(policy.size(), [1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64]);
         assert_eq!(value.size(), [1, 1]);
@@ -114,7 +134,7 @@ mod tests {
         let model = ConvNet::new(*DEVICE, 10, 256);
 
         let input_tensor = state_to_tensor(&State::initial());
-        let (policy, value) = model.forward(&input_tensor, true);
+        let (policy, value) = model.forward_t(&input_tensor, true);
 
         let target_policy = Tensor::zeros(&[1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64], (Kind::Float, *DEVICE));
         let target_value = Tensor::zeros(&[1, 1], (Kind::Float, *DEVICE));
@@ -136,7 +156,7 @@ mod tests {
 
         for _ in 0..1000 {
             let input_tensor = state_to_tensor(&State::initial());
-            let (policy, value) = model.forward(&input_tensor, true);
+            let (policy, value) = model.forward_t(&input_tensor, true);
 
             let target_policy = Tensor::zeros(&[1, 8, 8, NUM_TARGET_SQUARE_POSSIBILITIES as i64], (Kind::Float, *DEVICE));
             let target_value = Tensor::zeros(&[1, 1], (Kind::Float, *DEVICE));

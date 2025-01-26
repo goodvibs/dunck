@@ -30,12 +30,12 @@ pub fn run_model(
     assert_eq!(expected_values.size(), [num_examples as i64, 1]);
 
     // Forward pass
-    let (predicted_policies, predicted_values) = model.forward(&input_states, is_training);
+    let (predicted_policies, predicted_values) = model.forward_t(&input_states, is_training);
 
     assert_eq!(predicted_policies.size(), expected_policies.size());
     assert_eq!(predicted_values.size(), expected_values.size());
 
-    let policy_loss = predicted_policies.cross_entropy_loss::<Tensor>(&expected_policies, None, tch::Reduction::Mean, -100, 0.) * 100.;
+    let policy_loss = predicted_policies.cross_entropy_loss::<Tensor>(&expected_policies, None, tch::Reduction::Mean, -100, 0.);
     
     assert_eq!(policy_loss.size(), [] as [i64; 0]);
 
@@ -90,6 +90,7 @@ pub fn create_batch_tensors(training_data: &[(State, Evaluation)]) -> (Tensor, T
     for (state, eval) in training_data {
         // Process the state tensor
         batch_states.push(state_to_tensor(state));
+        let mut used_indices = Vec::with_capacity(eval.policy.len());
 
         // Create a blank policy tensor and fill it
         let policy_tensor = Tensor::zeros(
@@ -98,6 +99,12 @@ pub fn create_batch_tensors(training_data: &[(State, Evaluation)]) -> (Tensor, T
         );
         for (mv, prob) in &eval.policy {
             let policy_index = PolicyIndex::calc(mv, state.side_to_move);
+            assert!(
+                !used_indices.contains(&policy_index),
+                "Duplicate policy index: {:?}",
+                policy_index
+            );
+            used_indices.push(policy_index);
 
             // Fill the tensor directly using indexing
             let _ = policy_tensor
@@ -109,13 +116,13 @@ pub fn create_batch_tensors(training_data: &[(State, Evaluation)]) -> (Tensor, T
         batch_policies.push(policy_tensor);
 
         // Add the value tensor
-        batch_values.push(Tensor::from_slice(&[eval.value]));
+        batch_values.push(Tensor::from_slice(&[eval.value]).to_kind(Kind::Float).to_device(*DEVICE));
     }
 
     // Stack tensors for batching
-    let states = Tensor::stack(&batch_states, 0).to_kind(Kind::Float);
-    let policies = Tensor::stack(&batch_policies, 0).to_kind(Kind::Float);
-    let values = Tensor::stack(&batch_values, 0).to_kind(Kind::Float);
+    let states = Tensor::stack(&batch_states, 0).to_kind(Kind::Float).to_device(*DEVICE);
+    let policies = Tensor::stack(&batch_policies, 0).to_kind(Kind::Float).to_device(*DEVICE);
+    let values = Tensor::stack(&batch_values, 0).to_kind(Kind::Float).to_device(*DEVICE);
 
     println!(
         "Batch created: states: {:?}, policies: {:?}, values: {:?}",
@@ -130,16 +137,13 @@ pub fn create_batch_tensors(training_data: &[(State, Evaluation)]) -> (Tensor, T
 #[cfg(test)]
 mod tests {
     use engine::evaluation::Evaluator;
-    use std::iter::zip;
     use tch::{nn, Kind, Tensor};
     use tch::nn::OptimizerConfig;
-    use engine::evaluators::neural::utils::state_to_tensor;
     use r#move::{Move, MoveFlag};
     use state::State;
     use utils::{Square};
     use crate::*;
     use crate::engine::evaluation::Evaluation;
-    use crate::engine::evaluators::neural::combined_policy_value_network::CombinedPolicyValueNetwork;
     use crate::engine::evaluators::neural::constants::NUM_TARGET_SQUARE_POSSIBILITIES;
     use crate::engine::evaluators::neural::conv_net_evaluator::ConvNetEvaluator;
     use crate::engine::evaluators::neural::racist_dummy_evaluator::RacistDummyEvaluator;

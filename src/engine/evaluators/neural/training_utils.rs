@@ -6,7 +6,7 @@ use crate::engine::evaluation::Evaluation;
 use crate::pgn::PgnStateTree;
 use crate::r#move::Move;
 use crate::state::{State, Termination};
-use crate::utils::Color;
+use crate::utils::{Color, ColoredPiece, PieceType};
 
 pub fn print_tensor_stats(tensor: &Tensor, message: &str) {
     println!("{}", message);
@@ -59,6 +59,36 @@ pub fn get_labeled_random_batch_from_pgns(
     data
 }
 
+fn sigmoid(x: f64) -> f64 {
+    2.0 / (1.0 + (-0.5 * x).exp()) - 1.0
+}
+
+impl State {
+    fn evaluate_material(&self) -> f64 {
+        let scores = [
+            0.0, // empty
+            1.0,  // Pawn
+            3.0,  // Knight
+            3.0,  // Bishop
+            5.0,  // Rook
+            9.0,  // Queen
+        ];
+
+        let mut score = 0.0;
+        for piece_type in PieceType::iter_non_king_pieces() {
+            let white_piece_count = self.board.count_colored_piece(ColoredPiece::from(Color::White, *piece_type));
+            let black_piece_count = self.board.count_colored_piece(ColoredPiece::from(Color::Black, *piece_type));
+            score += scores[*piece_type as usize] * (white_piece_count as f64 - black_piece_count as f64);
+        }
+
+        if self.side_to_move == Color::White {
+            score
+        } else {
+            -score
+        }
+    }
+}
+
 pub fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut ThreadRng) -> Option<(State, Evaluation)> {
     let mut nodes = Vec::new();
     let mut num_moves = 0;
@@ -84,11 +114,11 @@ pub fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Th
     };
 
     // Ensure sufficient moves
-    if num_moves < 40 {
+    if num_moves < 60 {
         return None;
     }
 
-    let node_idx = rng.gen_range(30..num_moves-1);
+    let node_idx = rng.gen_range(0..num_moves-1);
 
     let selected_node = nodes[node_idx].clone();
     let next_node = selected_node.borrow().next_main_node().unwrap();
@@ -105,6 +135,8 @@ pub fn get_random_example_from_state_tree(state_tree: PgnStateTree, rng: &mut Th
         },
         None => 0.0,
     };
+
+    // let value = sigmoid(initial_state.evaluate_material());
 
     let policy: Vec<(Move, f64)> = legal_moves
         .into_iter()

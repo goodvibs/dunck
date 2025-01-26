@@ -47,6 +47,23 @@ impl Board {
         }
     }
     
+    pub fn count_piece_type(&self, piece_type: PieceType) -> u32 {
+        self.piece_type_masks[piece_type as usize].count_ones()
+    }
+    
+    pub fn count_colored_piece(&self, colored_piece: ColoredPiece) -> u32 {
+        (self.piece_type_masks[colored_piece.get_piece_type() as usize] & 
+            self.color_masks[colored_piece.get_color() as usize]).count_ones()
+    }
+    
+    pub fn count_color(&self, color: Color) -> u32 {
+        self.color_masks[color as usize].count_ones()
+    }
+    
+    pub fn count_all(&self) -> u32 {
+        self.piece_type_masks[PieceType::AllPieceTypes as usize].count_ones()
+    }
+    
     /// Returns true if there is insufficient material on both sides to checkmate.
     /// This is the case if both sides have any one of the following, and there are no pawns on the board:
     /// A lone king

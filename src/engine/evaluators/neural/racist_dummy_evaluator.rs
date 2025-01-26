@@ -14,7 +14,7 @@ impl Evaluator for RacistDummyEvaluator {
     fn evaluate(&self, state: &State) -> Evaluation {
         let state_tensor = state_to_tensor(state);
         let input_tensor = Tensor::stack(&[state_tensor], 0).to(*DEVICE); // No batch, so stack along the first dimension
-        let (policy_logits, value_tensor) = self.model.forward(&input_tensor, false);
+        let (policy_logits, value_tensor) = self.model.forward_t(&input_tensor, false);
         
         let legal_moves = state.calc_legal_moves();
         let legal_moves_policy_logits = Tensor::zeros(&[legal_moves.len() as i64], (Kind::Float, *DEVICE));

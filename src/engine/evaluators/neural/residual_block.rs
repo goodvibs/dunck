@@ -1,4 +1,6 @@
 use tch::{nn, Tensor};
+use tch::nn::{Module, ModuleT};
+use crate::engine::evaluators::neural::training_utils::print_tensor_stats;
 
 #[derive(Debug)]
 pub struct ResidualBlock {
@@ -10,38 +12,35 @@ pub struct ResidualBlock {
 }
 
 impl ResidualBlock {
-    pub fn new(vs: &nn::Path, channels: i64) -> Self {
+    pub fn new(root: &nn::Path, channels: i64) -> Self {
         let conv_config = nn::ConvConfig {
             padding: 1,
             ..Default::default()
         };
 
         ResidualBlock {
-            conv1: nn::conv2d(vs, channels, channels, 3, conv_config),
-            bn1: nn::batch_norm2d(vs, channels, Default::default()),
-            conv2: nn::conv2d(vs, channels, channels, 3, conv_config),
-            bn2: nn::batch_norm2d(vs, channels, Default::default()),
+            conv1: nn::conv2d(root, channels, channels, 3, conv_config),
+            bn1: nn::batch_norm2d(root, channels, Default::default()),
+            conv2: nn::conv2d(root, channels, channels, 3, conv_config),
+            bn2: nn::batch_norm2d(root, channels, Default::default()),
             // se: SELayer::new(vs, channels, 32),  // 32 is typical SE_CHANNELS value
         }
     }
 
-    pub fn forward(&self, x: &Tensor, train: bool) -> Tensor {
+    pub fn forward_t(&self, x: &Tensor, train: bool) -> Tensor {
         let residual = x;
 
         // First conv block
-        let out = x.apply(&self.conv1)
-            .apply_t(&self.bn1, train)
-            .relu();
+        let mut out = self.conv1.forward_t(x, train);
+        
+        out = self.bn1.forward_t(&out, train).relu();
+        
+        out = self.conv2.forward_t(&out, train);
+        
+        out = self.bn2.forward_t(&out, train);
+        
+        out = (out + residual).relu();
 
-        // Second conv block
-        let out = out.apply(&self.conv2)
-            .apply_t(&self.bn2, train)
-            .relu();
-
-        // Apply SE layer
-        // let out = self.se.forward(&out);
-
-        // Add residual connection and apply ReLU
-        (out + residual).relu()
+        out
     }
 }

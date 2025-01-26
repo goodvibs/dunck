@@ -11,7 +11,7 @@ pub struct RacistDummyNet {
 }
 
 impl CombinedPolicyValueNetwork for RacistDummyNet {
-    fn forward(&self, input: &Tensor, train: bool) -> (Tensor, Tensor) {
+    fn forward_t(&self, input: &Tensor, train: bool) -> (Tensor, Tensor) {
         assert_eq!(input.size().len(), 4);
         assert_eq!(input.size()[1..4], [NUM_POSITION_BITS as i64, 8, 8]);
         let batch_size = input.size()[0];

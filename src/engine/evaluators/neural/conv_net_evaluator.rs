@@ -26,7 +26,7 @@ impl Evaluator for ConvNetEvaluator {
     fn evaluate(&self, state: &State) -> Evaluation {
         let state_tensor = state_to_tensor(state);
         let input_tensor = Tensor::stack(&[state_tensor], 0).to_device(*DEVICE); // No batch, so stack along the first dimension
-        let (policy_logits, value_tensor) = self.model.forward(&input_tensor, false);
+        let (policy_logits, value_tensor) = self.model.forward_t(&input_tensor, false);
 
         let legal_moves = state.calc_legal_moves();
         let legal_moves_policy_logits = Tensor::zeros(&[legal_moves.len() as i64], (Kind::Float, *DEVICE));
@@ -45,10 +45,10 @@ impl Evaluator for ConvNetEvaluator {
         }
 
         let priors = legal_moves_policy_logits.softmax(-1, Kind::Float);
-        let priors_vec = Vec::<f64>::try_from(priors).unwrap();
+        let priors_vec = Vec::<f32>::try_from(priors).unwrap();
 
         let policy = zip(legal_moves, priors_vec)
-            .map(|(mv, prior)| (mv.clone(), prior))
+            .map(|(mv, prior)| (mv.clone(), prior as f64))
             .collect();
 
         Evaluation {

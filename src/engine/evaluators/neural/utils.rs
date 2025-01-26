@@ -1,4 +1,3 @@
-use lazy_static::lazy_static;
 use static_init::dynamic;
 use tch::{Device, Kind, Tensor};
 use crate::engine::evaluators::neural::constants::{MAX_RAY_LENGTH, NUM_BITS_PER_BOARD, NUM_PIECE_TYPE_BITS, NUM_POSITION_BITS, NUM_QUEEN_LIKE_MOVES, NUM_SIDE_TO_MOVE_BITS, NUM_UNDERPROMOTIONS, NUM_WAYS_OF_UNDERPROMOTION};
@@ -7,7 +6,7 @@ use crate::state::State;
 use crate::utils::{get_squares_from_mask_iter, Color, KnightMoveDirection, PieceType, QueenLikeMoveDirection, Square};
 
 #[dynamic(lazy)]
-pub static DEVICE: Device = Device::cuda_if_available();
+pub static DEVICE: Device = Device::Cpu;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct PolicyIndex {
@@ -106,7 +105,9 @@ fn fill_pieces_for_color(tensor: &mut Tensor, state: &State, color: Color, offse
         let mask = state.board.color_masks[color as usize] & state.board.piece_type_masks[*piece_type as usize];
         for square in get_squares_from_mask_iter(mask) {
             let square_from_perspective = square.to_perspective_from_white(state.side_to_move);
-            let channel_index = offset + *piece_type as i64 - PieceType::Pawn as i64;
+            let unshifted_channel_index = *piece_type as i64 - PieceType::Pawn as i64;
+            assert!(unshifted_channel_index >= 0 && unshifted_channel_index < NUM_PIECE_TYPE_BITS as i64);
+            let channel_index = offset + unshifted_channel_index;
             let _ = tensor
                 .get(channel_index)
                 .get(square_from_perspective.get_rank() as i64)
